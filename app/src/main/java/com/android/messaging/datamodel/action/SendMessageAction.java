@@ -194,75 +194,27 @@ public class SendMessageAction extends Action implements Parcelable {
         final String messageId = actionParameters.getString(KEY_MESSAGE_ID);
         Uri messageUri = actionParameters.getParcelable(KEY_MESSAGE_URI);
         Uri updatedMessageUri = null;
-        final boolean isSms = message.getProtocol() == MessageData.PROTOCOL_SMS;
         final int subId = actionParameters.getInt(KEY_SUB_ID, ParticipantData.DEFAULT_SELF_SUB_ID);
-        final String subPhoneNumber = actionParameters.getString(KEY_SUB_PHONE_NUMBER);
 
-        LogUtil.i(TAG, "SendMessageAction: Sending " + (isSms ? "SMS" : "MMS") + " message "
+        LogUtil.i(TAG, "SendMessageAction: Sending SMS message "
                 + messageId + " in conversation " + message.getConversationId());
 
         int status;
         int rawStatus = MessageData.RAW_TELEPHONY_STATUS_UNDEFINED;
         int resultCode = MessageData.UNKNOWN_RESULT_CODE;
-        if (isSms) {
-            Assert.notNull(messageUri);
-            final String recipient = actionParameters.getString(KEY_RECIPIENT);
-            final String messageText = message.getMessageText();
-            final String smsServiceCenter = actionParameters.getString(KEY_SMS_SERVICE_CENTER);
-            final boolean deliveryReportRequired = MmsUtils.isDeliveryReportRequired(subId);
+        Assert.notNull(messageUri);
+        final String recipient = actionParameters.getString(KEY_RECIPIENT);
+        final String messageText = message.getMessageText();
+        final String smsServiceCenter = actionParameters.getString(KEY_SMS_SERVICE_CENTER);
+        final boolean deliveryReportRequired = MmsUtils.isDeliveryReportRequired(subId);
 
-            status = MmsUtils.sendSmsMessage(recipient, messageText, messageUri, subId,
-                    smsServiceCenter, deliveryReportRequired);
-        } else {
-            final Context context = Factory.get().getApplicationContext();
-            final ArrayList<String> recipients =
-                    actionParameters.getStringArrayList(KEY_RECIPIENTS);
-            if (messageUri == null) {
-                final long timestamp = message.getReceivedTimeStamp();
-
-                // Inform sync that message has been added at local received timestamp
-                final SyncManager syncManager = DataModel.get().getSyncManager();
-                syncManager.onNewMessageInserted(timestamp);
-
-                // For MMS messages first need to write to telephony (resizing images if needed)
-                updatedMessageUri = MmsUtils.insertSendingMmsMessage(context, recipients,
-                        message, subId, subPhoneNumber, timestamp);
-                if (updatedMessageUri != null) {
-                    messageUri = updatedMessageUri;
-                    // To prevent Sync seeing inconsistent state must write to DB on this thread
-                    updateMessageUri(messageId, updatedMessageUri);
-
-                    if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
-                        LogUtil.v(TAG, "SendMessageAction: Updated message " + messageId
-                                + " with new uri " + messageUri);
-                    }
-                 }
-            }
-            if (messageUri != null) {
-                // Actually send the MMS
-                final Bundle extras = new Bundle();
-                extras.putString(EXTRA_MESSAGE_ID, messageId);
-                extras.putParcelable(EXTRA_UPDATED_MESSAGE_URI, updatedMessageUri);
-                final MmsUtils.StatusPlusUri result = MmsUtils.sendMmsMessage(context, subId,
-                        messageUri, extras);
-                if (result == MmsUtils.STATUS_PENDING) {
-                    // Async send, so no status yet
-                    LogUtil.d(TAG, "SendMessageAction: Sending MMS message " + messageId
-                            + " asynchronously; waiting for callback to finish processing");
-                    return null;
-                }
-                status = result.status;
-                rawStatus = result.rawStatus;
-                resultCode = result.resultCode;
-            } else {
-                status = MmsUtils.MMS_REQUEST_MANUAL_RETRY;
-            }
-        }
+        status = MmsUtils.sendSmsMessage(recipient, messageText, messageUri, subId,
+                smsServiceCenter, deliveryReportRequired);
 
         // When we fast-fail before calling the MMS lib APIs (e.g. airplane mode,
         // sending message is deleted).
         ProcessSentMessageAction.processMessageSentFastFailed(messageId, messageUri,
-                updatedMessageUri, subId, isSms, status, rawStatus, resultCode);
+                updatedMessageUri, subId, status, rawStatus, resultCode);
         return null;
     }
 

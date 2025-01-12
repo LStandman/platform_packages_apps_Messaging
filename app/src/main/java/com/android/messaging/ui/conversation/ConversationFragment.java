@@ -81,7 +81,6 @@ import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.datamodel.data.SubscriptionListData.SubscriptionListEntry;
-import com.android.messaging.ui.AttachmentPreview;
 import com.android.messaging.ui.BugleActionBarActivity;
 import com.android.messaging.ui.ConversationDrawables;
 import com.android.messaging.ui.SnackBar;
@@ -91,7 +90,6 @@ import com.android.messaging.ui.contact.AddContactsConfirmationDialog;
 import com.android.messaging.ui.conversation.ComposeMessageView.IComposeMessageViewHost;
 import com.android.messaging.ui.conversation.ConversationInputManager.ConversationInputHost;
 import com.android.messaging.ui.conversation.ConversationMessageView.ConversationMessageViewHost;
-import com.android.messaging.ui.mediapicker.MediaPicker;
 import com.android.messaging.util.AccessibilityUtil;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.AvatarUriUtil;
@@ -536,15 +534,7 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
                             R.id.compose_message_text);
                     final Rect composeBubbleRect =
                             UiUtils.getMeasuredBoundsOnScreen(composeBubbleView);
-                    final AttachmentPreview attachmentView =
-                            (AttachmentPreview) mComposeMessageView.findViewById(
-                                    R.id.attachment_draft_view);
-                    final Rect attachmentRect = UiUtils.getMeasuredBoundsOnScreen(attachmentView);
-                    if (attachmentView.getVisibility() == View.VISIBLE) {
-                        startRect.top = attachmentRect.top;
-                    } else {
-                        startRect.top = composeBubbleRect.top;
-                    }
+                    startRect.top = composeBubbleRect.top;
                     startRect.top -= view.getPaddingTop();
                     startRect.bottom =
                             composeBubbleRect.bottom;
@@ -556,7 +546,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
                             @Override
                             public void run() {
                                 final int startWidth = composeBubbleRect.width();
-                                attachmentView.onMessageAnimationStart();
                                 messageBubble.kickOffMorphAnimation(startWidth,
                                         messageBubble.findViewById(R.id.message_text_and_info)
                                         .getMeasuredWidth());
@@ -653,23 +642,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
         final int lastVisibleItem =
                 layoutManager.findLastVisibleItemPosition();
         return Math.max(mAdapter.getItemCount() - 1 - lastVisibleItem, 0);
-    }
-
-    /**
-     * Display a photo using the Photoviewer component.
-     */
-    @Override
-    public void displayPhoto(final Uri photoUri, final Rect imageBounds, final boolean isDraft) {
-        displayPhoto(photoUri, imageBounds, isDraft, mConversationId, getActivity());
-    }
-
-    public static void displayPhoto(final Uri photoUri, final Rect imageBounds,
-            final boolean isDraft, final String conversationId, final Activity activity) {
-        final Uri imagesUri =
-                isDraft ? MessagingContentProvider.buildDraftImagesUri(conversationId)
-                        : MessagingContentProvider.buildConversationImagesUri(conversationId);
-        UIIntents.get().launchFullScreenPhotoViewer(
-                activity, photoUri, imageBounds, imagesUri);
     }
 
     private void selectMessage(final ConversationMessageView messageView) {
@@ -1015,11 +987,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
         return OsUtil.isAtLeastJB_MR1() ? getChildFragmentManager() : getFragmentManager();
     }
 
-    public MediaPicker getMediaPicker() {
-        return (MediaPicker) getFragmentManagerToUse().findFragmentByTag(
-                MediaPicker.FRAGMENT_TAG);
-    }
-
     @Override
     public void sendMessage(final MessageData message) {
         if (isReadyForAction()) {
@@ -1028,7 +995,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
                 message.consolidateText();
 
                 mBinding.getData().sendMessage(mBinding, message);
-                mComposeMessageView.resetMediaPickerState();
             } else {
                 LogUtil.w(LogUtil.BUGLE_TAG, "Message can't be sent: conv participants not loaded");
             }
@@ -1054,12 +1020,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
     @Override
     public void onComposeEditTextFocused() {
         mHost.onStartComposeMessage();
-    }
-
-    @Override
-    public void onAttachmentsCleared() {
-        // When attachments are removed, reset transient media picker state such as image selection.
-        mComposeMessageView.resetMediaPickerState();
     }
 
     /**
@@ -1255,28 +1215,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
 
     public boolean onNavigationUpPressed() {
         return mComposeMessageView.onNavigationUpPressed();
-    }
-
-    @Override
-    public boolean onAttachmentClick(final ConversationMessageView messageView,
-            final MessagePartData attachment, final Rect imageBounds, final boolean longPress) {
-        if (longPress) {
-            selectMessage(messageView, attachment);
-            return true;
-        } else if (messageView.getData().getOneClickResendMessage()) {
-            handleMessageClick(messageView);
-            return true;
-        }
-
-        if (attachment.isImage()) {
-            displayPhoto(attachment.getContentUri(), imageBounds, false /* isDraft */);
-        }
-
-        if (attachment.isVCard()) {
-            UIIntents.get().launchVCardDetailActivity(getActivity(), attachment.getContentUri());
-        }
-
-        return false;
     }
 
     private void handleMessageClick(final ConversationMessageView messageView) {
@@ -1485,63 +1423,8 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
     }
 
     @Override
-    public MediaPicker createMediaPicker() {
-        return new MediaPicker(getActivity());
-    }
-
-    @Override
     public void notifyOfAttachmentLoadFailed() {
         UiUtils.showToastAtBottom(R.string.attachment_load_failed_dialog_message);
-    }
-
-    @Override
-    public void warnOfExceedingMessageLimit(final boolean sending, final boolean tooManyVideos) {
-        warnOfExceedingMessageLimit(sending, mComposeMessageView, mConversationId,
-                getActivity(), tooManyVideos);
-    }
-
-    public static void warnOfExceedingMessageLimit(final boolean sending,
-            final ComposeMessageView composeMessageView, final String conversationId,
-            final Activity activity, final boolean tooManyVideos) {
-        final AlertDialog.Builder builder =
-                new AlertDialog.Builder(activity)
-                    .setTitle(R.string.mms_attachment_limit_reached);
-
-        if (sending) {
-            if (tooManyVideos) {
-                builder.setMessage(R.string.video_attachment_limit_exceeded_when_sending);
-            } else {
-                builder.setMessage(R.string.attachment_limit_reached_dialog_message_when_sending)
-                        .setNegativeButton(R.string.attachment_limit_reached_send_anyway,
-                                new OnClickListener() {
-                                    @Override
-                                    public void onClick(final DialogInterface dialog,
-                                            final int which) {
-                                        composeMessageView.sendMessageIgnoreMessageSizeLimit();
-                                    }
-                                });
-            }
-            builder.setPositiveButton(android.R.string.ok, new OnClickListener() {
-                @Override
-                public void onClick(final DialogInterface dialog, final int which) {
-                    showAttachmentChooser(conversationId, activity);
-                }});
-        } else {
-            builder.setMessage(R.string.attachment_limit_reached_dialog_message_when_composing)
-                    .setPositiveButton(android.R.string.ok, null);
-        }
-        builder.show();
-    }
-
-    @Override
-    public void showAttachmentChooser() {
-        showAttachmentChooser(mConversationId, getActivity());
-    }
-
-    public static void showAttachmentChooser(final String conversationId,
-            final Activity activity) {
-        UIIntents.get().launchAttachmentChooserActivity(activity,
-                conversationId, REQUEST_CHOOSE_ATTACHMENTS);
     }
 
     private void updateActionAndStatusBarColor(final ActionBar actionBar) {
@@ -1640,11 +1523,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
     }
 
     @Override
-    public void onAttachmentsChanged(final boolean haveAttachments) {
-        // no-op for now
-    }
-
-    @Override
     public void onDraftChanged(final DraftMessageData data, final int changeFlags) {
         mDraftMessageDataModel.ensureBound(data);
         // We're specifically only interested in ATTACHMENTS_CHANGED from the widget. Ignore
@@ -1653,16 +1531,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
                 (DraftMessageData.WIDGET_CHANGED | DraftMessageData.ATTACHMENTS_CHANGED)) {
             mClearLocalDraft = true;        // force a reload of the draft in onResume
         }
-    }
-
-    @Override
-    public void onDraftAttachmentLimitReached(final DraftMessageData data) {
-        // no-op for now
-    }
-
-    @Override
-    public void onDraftAttachmentLoadFailed() {
-        // no-op for now
     }
 
     @Override

@@ -35,7 +35,6 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import com.android.messaging.R;
-import com.android.messaging.datamodel.action.ReceiveMmsMessageAction;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.receiver.SmsReceiver;
 import com.android.messaging.sms.MmsUtils;
@@ -136,16 +135,6 @@ public class DebugSmsMmsFromDumpFileDialogFragment extends DialogFragment {
             } else {
                 LogUtil.e(LogUtil.BUGLE_TAG,
                         "receiveFromDumpFile: invalid sms dump file " + dumpFileName);
-            }
-        } else if (dumpFileName.startsWith(MmsUtils.MMS_DUMP_PREFIX)) {
-            final byte[] data = MmsUtils.createDebugNotificationInd(dumpFileName);
-            if (data != null) {
-                final ReceiveMmsMessageAction action = new ReceiveMmsMessageAction(
-                        ParticipantData.DEFAULT_SELF_SUB_ID, data);
-                action.start();
-            } else {
-                LogUtil.e(LogUtil.BUGLE_TAG,
-                        "receiveFromDumpFile: invalid mms dump file " + dumpFileName);
             }
         } else {
             LogUtil.e(LogUtil.BUGLE_TAG,

@@ -29,9 +29,9 @@ import android.view.KeyEvent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.TextView;
 
-import com.android.ex.chips.RecipientEditTextView;
-import com.android.ex.chips.RecipientEntry;
-import com.android.ex.chips.recipientchip.DrawableRecipientChip;
+import com.android.messaging.shims.chips.RecipientEditTextView;
+import com.android.messaging.shims.chips.RecipientEntry;
+import com.android.messaging.shims.chips.recipientchip.DrawableRecipientChip;
 import com.android.messaging.R;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.util.ContactRecipientEntryUtils;

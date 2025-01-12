@@ -1,4 +1,4 @@
-package com.android.ex.chips;
+package com.android.messaging.shims.chips;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -18,7 +18,6 @@ import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
-import android.text.util.Rfc822Tokenizer;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -27,7 +26,8 @@ import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.android.ex.chips.Queries.Query;
+import com.android.messaging.R;
+import com.android.messaging.shims.chips.Queries.Query;
 
 /**
  * A class that inflates and binds the views in the dropdown list from
@@ -165,9 +165,6 @@ public class DropdownChipLayouter {
                 }
                 break;
             case SINGLE_RECIPIENT:
-                if (!PhoneUtil.isPhoneNumber(entry.getDestination())) {
-                    destination = Rfc822Tokenizer.tokenize(entry.getDestination())[0].getAddress();
-                }
                 destinationType = null;
         }
 

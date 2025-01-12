@@ -26,7 +26,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.android.ex.chips.RecipientEntry;
+import com.android.messaging.shims.chips.RecipientEntry;
 import com.android.messaging.R;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.data.ContactListItemData;

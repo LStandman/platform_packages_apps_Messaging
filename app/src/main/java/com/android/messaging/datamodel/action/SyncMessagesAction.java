@@ -228,8 +228,6 @@ public class SyncMessagesAction extends Action implements Parcelable {
 
         // Sms messages to store
         final ArrayList<SmsMessage> smsToAdd = new ArrayList<SmsMessage>();
-        // Mms messages to store
-        final LongSparseArray<MmsMessage> mmsToAdd = new LongSparseArray<MmsMessage>();
         // List of local SMS/MMS to remove
         final ArrayList<LocalDatabaseMessage> messagesToDelete =
                 new ArrayList<LocalDatabaseMessage>();
@@ -241,21 +239,14 @@ public class SyncMessagesAction extends Action implements Parcelable {
                     upperBoundTimeMillis);
 
             // Actually compare the messages using cursor pair
-            lastTimestampMillis = syncCursorPair(db, cursors, smsToAdd, mmsToAdd,
+            lastTimestampMillis = syncCursorPair(db, cursors, smsToAdd,
                     messagesToDelete, maxMessagesToScan, maxMessagesToUpdate, cache);
         }
         final Bundle response = new Bundle();
 
         // If comparison succeeds bundle up the changes for processing in ActionService
         if (lastTimestampMillis > SYNC_FAILED) {
-            final ArrayList<MmsMessage> mmsToAddList = new ArrayList<MmsMessage>();
-            for (int i = 0; i < mmsToAdd.size(); i++) {
-                final MmsMessage mms = mmsToAdd.valueAt(i);
-                mmsToAddList.add(mms);
-            }
-
             response.putParcelableArrayList(BUNDLE_KEY_SMS_MESSAGES, smsToAdd);
-            response.putParcelableArrayList(BUNDLE_KEY_MMS_MESSAGES, mmsToAddList);
             response.putParcelableArrayList(BUNDLE_KEY_MESSAGES_TO_DELETE, messagesToDelete);
         }
         response.putLong(BUNDLE_KEY_LAST_TIMESTAMP, lastTimestampMillis);
@@ -268,7 +259,6 @@ public class SyncMessagesAction extends Action implements Parcelable {
      * @param db local database wrapper
      * @param cursors cursor pair holding references to local and remote messages
      * @param smsToAdd newly found sms messages to add
-     * @param mmsToAdd newly found mms messages to add
      * @param messagesToDelete messages not found needing deletion
      * @param maxMessagesToScan max messages to scan for changes
      * @param maxMessagesToUpdate max messages to return for updates
@@ -276,7 +266,7 @@ public class SyncMessagesAction extends Action implements Parcelable {
      * @return timestamp of the oldest message seen during the sync scan
      */
     private long syncCursorPair(final DatabaseWrapper db, final SyncCursorPair cursors,
-            final ArrayList<SmsMessage> smsToAdd, final LongSparseArray<MmsMessage> mmsToAdd,
+            final ArrayList<SmsMessage> smsToAdd,
             final ArrayList<LocalDatabaseMessage> messagesToDelete, final int maxMessagesToScan,
             final int maxMessagesToUpdate, final ThreadInfoCache cache) {
         long lastTimestampMillis;
@@ -303,7 +293,7 @@ public class SyncMessagesAction extends Action implements Parcelable {
             }
 
             lastTimestampMillis = cursors.scan(maxMessagesToScan, maxMessagesToUpdate,
-                    smsToAdd, mmsToAdd, messagesToDelete, cache);
+                    smsToAdd, messagesToDelete, cache);
 
             localPos = cursors.getLocalPosition();
             remotePos = cursors.getRemotePosition();
@@ -313,11 +303,6 @@ public class SyncMessagesAction extends Action implements Parcelable {
                         + " of " + localTotal + ", remote position = " + remotePos + " of "
                         + remoteTotal + ")");
             }
-
-            // Batch loading the parts of the MMS messages in this batch
-            loadMmsParts(mmsToAdd);
-            // Lookup senders for incoming mms messages
-            setMmsSenders(mmsToAdd, cache);
         } catch (final SQLiteException e) {
             LogUtil.e(TAG, "SyncMessagesAction: Database exception", e);
             // Let's abort
@@ -339,7 +324,7 @@ public class SyncMessagesAction extends Action implements Parcelable {
         if (LogUtil.isLoggable(TAG, LogUtil.DEBUG)) {
             LogUtil.d(TAG, "SyncMessagesAction: Scan complete (took "
                     + (endTimeMillis - startTimeMillis) + " ms). " + smsToAdd.size()
-                    + " remote SMS to add, " + mmsToAdd.size() + " MMS to add, "
+                    + " remote SMS to add, " +
                     + messagesToDelete.size() + " local messages to delete. "
                     + "Oldest timestamp seen = " + lastTimestampMillis);
         }
@@ -395,19 +380,16 @@ public class SyncMessagesAction extends Action implements Parcelable {
                 // Succeeded
                 final ArrayList<SmsMessage> smsToAdd =
                         response.getParcelableArrayList(BUNDLE_KEY_SMS_MESSAGES);
-                final ArrayList<MmsMessage> mmsToAdd =
-                        response.getParcelableArrayList(BUNDLE_KEY_MMS_MESSAGES);
                 final ArrayList<LocalDatabaseMessage> messagesToDelete =
                         response.getParcelableArrayList(BUNDLE_KEY_MESSAGES_TO_DELETE);
 
-                final int messagesUpdated = smsToAdd.size() + mmsToAdd.size()
-                        + messagesToDelete.size();
+                final int messagesUpdated = smsToAdd.size() + messagesToDelete.size();
 
                 // Perform local database changes in one transaction
                 long txnTimeMillis = 0;
                 if (messagesUpdated > 0) {
                     final long startTimeMillis = SystemClock.elapsedRealtime();
-                    final SyncMessageBatch batch = new SyncMessageBatch(smsToAdd, mmsToAdd,
+                    final SyncMessageBatch batch = new SyncMessageBatch(smsToAdd,
                             messagesToDelete, syncManager.getThreadInfoCache());
                     batch.updateLocalDatabase();
                     final long endTimeMillis = SystemClock.elapsedRealtime();
@@ -415,7 +397,7 @@ public class SyncMessagesAction extends Action implements Parcelable {
 
                     LogUtil.i(TAG, "SyncMessagesAction: Updated local database "
                             + "(took " + txnTimeMillis + " ms). Added "
-                            + smsToAdd.size() + " SMS, added " + mmsToAdd.size() + " MMS, deleted "
+                            + smsToAdd.size() + " SMS, deleted "
                             + messagesToDelete.size() + " messages.");
 
                     // TODO: Investigate whether we can make this more fine-grained.
@@ -522,54 +504,6 @@ public class SyncMessagesAction extends Action implements Parcelable {
         // in previous batch
         return (int) ((double) (messagesUpdated) / (double) txnTimeMillis
                         * smsSyncSubsequentBatchTimeLimitMillis);
-    }
-
-    /**
-     * Batch loading MMS parts for the messages in current batch
-     */
-    private void loadMmsParts(final LongSparseArray<MmsMessage> mmses) {
-        final Context context = Factory.get().getApplicationContext();
-        final int totalIds = mmses.size();
-        for (int start = 0; start < totalIds; start += MmsUtils.MAX_IDS_PER_QUERY) {
-            final int end = Math.min(start + MmsUtils.MAX_IDS_PER_QUERY, totalIds); //excluding
-            final int count = end - start;
-            final String batchSelection = String.format(
-                    Locale.US,
-                    "%s != '%s' AND %s IN %s",
-                    Mms.Part.CONTENT_TYPE,
-                    ContentType.APP_SMIL,
-                    Mms.Part.MSG_ID,
-                    MmsUtils.getSqlInOperand(count));
-            final String[] batchSelectionArgs = new String[count];
-            for (int i = 0; i < count; i++) {
-                batchSelectionArgs[i] = Long.toString(mmses.valueAt(start + i).getId());
-            }
-            final Cursor cursor = SqliteWrapper.query(
-                    context,
-                    context.getContentResolver(),
-                    MmsUtils.MMS_PART_CONTENT_URI,
-                    DatabaseMessages.MmsPart.PROJECTION,
-                    batchSelection,
-                    batchSelectionArgs,
-                    null/*sortOrder*/);
-            if (cursor != null) {
-                try {
-                    while (cursor.moveToNext()) {
-                        // Delay loading the media content for parsing for efficiency
-                        // TODO: load the media and fill in the dimensions when
-                        // we actually display it
-                        final DatabaseMessages.MmsPart part =
-                                DatabaseMessages.MmsPart.get(cursor, false/*loadMedia*/);
-                        final DatabaseMessages.MmsMessage mms = mmses.get(part.mMessageId);
-                        if (mms != null) {
-                            mms.addPart(part);
-                        }
-                    }
-                } finally {
-                    cursor.close();
-                }
-            }
-        }
     }
 
     /**

@@ -59,17 +59,13 @@ class SyncMessageBatch {
 
     // Set of SMS messages to add
     private final ArrayList<SmsMessage> mSmsToAdd;
-    // Set of MMS messages to add
-    private final ArrayList<MmsMessage> mMmsToAdd;
     // Set of local messages to delete
     private final ArrayList<LocalDatabaseMessage> mMessagesToDelete;
 
     SyncMessageBatch(final ArrayList<SmsMessage> smsToAdd,
-            final ArrayList<MmsMessage> mmsToAdd,
             final ArrayList<LocalDatabaseMessage> messagesToDelete,
             final ThreadInfoCache cache) {
         mSmsToAdd = smsToAdd;
-        mMmsToAdd = mmsToAdd;
         mMessagesToDelete = messagesToDelete;
         mCache = cache;
         mConversationsToUpdate = new HashSet<String>();
@@ -83,10 +79,6 @@ class SyncMessageBatch {
             // Store all the SMS messages
             for (final SmsMessage sms : mSmsToAdd) {
                 storeSms(db, sms);
-            }
-            // Store all the MMS messages
-            for (final MmsMessage mms : mMmsToAdd) {
-                storeMms(db, mms);
             }
             // Keep track of conversations with messages deleted
             for (final LocalDatabaseMessage message : mMessagesToDelete) {

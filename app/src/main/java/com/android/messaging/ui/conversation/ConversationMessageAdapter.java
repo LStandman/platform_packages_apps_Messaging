@@ -75,7 +75,6 @@ public class ConversationMessageAdapter extends
         final ConversationMessageView conversationMessageView = (ConversationMessageView)
                 layoutInflater.inflate(R.layout.conversation_message_view, null);
         conversationMessageView.setHost(mHost);
-        conversationMessageView.setImageViewDelayLoader(mImageViewDelayLoader);
         return new ConversationMessageViewHolder(conversationMessageView,
                             mViewClickListener, mViewLongClickListener);
     }

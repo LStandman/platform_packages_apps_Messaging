@@ -18,7 +18,6 @@ package com.android.messaging.datamodel;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-import android.net.Uri;
 import android.text.TextUtils;
 
 import com.android.messaging.Factory;
@@ -35,11 +34,8 @@ import com.android.messaging.datamodel.data.ConversationData.ConversationDataLis
 import com.android.messaging.datamodel.data.ConversationListData;
 import com.android.messaging.datamodel.data.ConversationListData.ConversationListDataListener;
 import com.android.messaging.datamodel.data.DraftMessageData;
-import com.android.messaging.datamodel.data.GalleryGridItemData;
 import com.android.messaging.datamodel.data.LaunchConversationData;
 import com.android.messaging.datamodel.data.LaunchConversationData.LaunchConversationDataListener;
-import com.android.messaging.datamodel.data.MediaPickerData;
-import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.datamodel.data.ParticipantListItemData;
 import com.android.messaging.datamodel.data.PeopleAndOptionsData;
@@ -48,7 +44,6 @@ import com.android.messaging.datamodel.data.PeopleOptionsItemData;
 import com.android.messaging.datamodel.data.SettingsData;
 import com.android.messaging.datamodel.data.SettingsData.SettingsDataListener;
 import com.android.messaging.datamodel.data.SubscriptionListData;
-import com.android.messaging.datamodel.data.VCardContactItemData;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 
 public abstract class DataModel {
@@ -79,10 +74,6 @@ public abstract class DataModel {
     public abstract ContactPickerData createContactPickerData(final Context context,
             final ContactPickerDataListener listener);
 
-    public abstract MediaPickerData createMediaPickerData(final Context context);
-
-    public abstract GalleryGridItemData createGalleryGridItemData();
-
     public abstract LaunchConversationData createLaunchConversationData(
             LaunchConversationDataListener listener);
 
@@ -90,12 +81,6 @@ public abstract class DataModel {
 
     public abstract PeopleAndOptionsData createPeopleAndOptionsData(final String conversationId,
             final Context context, final PeopleAndOptionsDataListener listener);
-
-    public abstract VCardContactItemData createVCardContactItemData(final Context context,
-            final MessagePartData data);
-
-    public abstract VCardContactItemData createVCardContactItemData(final Context context,
-            final Uri vCardUri);
 
     public abstract ParticipantListItemData createParticipantListItemData(
             final ParticipantData participant);

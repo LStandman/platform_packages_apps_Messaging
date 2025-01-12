@@ -24,8 +24,6 @@ import android.provider.Telephony.Sms;
 import android.telephony.SmsMessage;
 
 import com.android.messaging.datamodel.action.ProcessDeliveryReportAction;
-import com.android.messaging.datamodel.action.ProcessDownloadedMmsAction;
-import com.android.messaging.datamodel.action.ProcessSentMessageAction;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.sms.SmsSender;
@@ -68,13 +66,6 @@ public class SendStatusReceiver extends BroadcastReceiver {
                     intent.getIntExtra(EXTRA_ERROR_CODE, NO_ERROR_CODE),
                     intent.getIntExtra(EXTRA_PART_ID, NO_PART_ID),
                     intent.getIntExtra(EXTRA_SUB_ID, ParticipantData.DEFAULT_SELF_SUB_ID));
-        } else if (MMS_SENT_ACTION.equals(action)) {
-            final Uri messageUri = intent.getData();
-            ProcessSentMessageAction.processMmsSent(resultCode, messageUri,
-                    intent.getExtras());
-        } else if (MMS_DOWNLOADED_ACTION.equals(action)) {
-            ProcessDownloadedMmsAction.processMessageDownloaded(resultCode,
-                    intent.getExtras());
         } else if (MESSAGE_DELIVERED_ACTION.equals(action)) {
             final SmsMessage smsMessage = MmsUtils.getSmsMessageFromDeliveryReport(intent);
             final Uri smsMessageUri = intent.getData();

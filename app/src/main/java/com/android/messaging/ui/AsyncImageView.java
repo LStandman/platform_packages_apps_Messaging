@@ -25,7 +25,6 @@ import android.graphics.RectF;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import androidx.annotation.Nullable;
-import android.support.rastermill.FrameSequenceDrawable;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.widget.ImageView;
@@ -34,7 +33,6 @@ import com.android.messaging.R;
 import com.android.messaging.datamodel.binding.Binding;
 import com.android.messaging.datamodel.binding.BindingBase;
 import com.android.messaging.datamodel.media.BindableMediaRequest;
-import com.android.messaging.datamodel.media.GifImageResource;
 import com.android.messaging.datamodel.media.ImageRequest;
 import com.android.messaging.datamodel.media.ImageRequestDescriptor;
 import com.android.messaging.datamodel.media.ImageResource;
@@ -194,9 +192,6 @@ public class AsyncImageView extends ImageView implements MediaResourceLoadListen
             mImageResource = resource;
             mImageResource.addRef();
             setImageDrawable(drawable);
-            if (drawable instanceof FrameSequenceDrawable) {
-                ((FrameSequenceDrawable) drawable).start();
-            }
 
             if (getVisibility() == VISIBLE) {
                 if (mReveal) {
@@ -210,13 +205,9 @@ public class AsyncImageView extends ImageView implements MediaResourceLoadListen
             }
 
             if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
-                if (mImageResource instanceof GifImageResource) {
-                    LogUtil.v(TAG, "setImage size unknown -- it's a GIF");
-                } else {
-                    LogUtil.v(TAG, "setImage size: " + mImageResource.getMediaSize() +
-                            " width: " + mImageResource.getBitmap().getWidth() +
-                            " heigh: " + mImageResource.getBitmap().getHeight());
-                }
+                LogUtil.v(TAG, "setImage size: " + mImageResource.getMediaSize() +
+                        " width: " + mImageResource.getBitmap().getWidth() +
+                        " heigh: " + mImageResource.getBitmap().getHeight());
             }
         }
         invalidate();
@@ -249,10 +240,6 @@ public class AsyncImageView extends ImageView implements MediaResourceLoadListen
 
     private void releaseImageResource() {
         final Drawable drawable = getDrawable();
-        if (drawable instanceof FrameSequenceDrawable) {
-            ((FrameSequenceDrawable) drawable).stop();
-            ((FrameSequenceDrawable) drawable).destroy();
-        }
         if (mImageResource != null) {
             mImageResource.release();
             mImageResource = null;

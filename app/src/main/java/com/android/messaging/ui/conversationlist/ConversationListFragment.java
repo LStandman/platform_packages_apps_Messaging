@@ -428,18 +428,6 @@ public class ConversationListFragment extends Fragment implements ConversationLi
     }
 
     @Override
-    public void startFullScreenPhotoViewer(
-            final Uri initialPhoto, final Rect initialPhotoBounds, final Uri photosUri) {
-        UIIntents.get().launchFullScreenPhotoViewer(
-                getActivity(), initialPhoto, initialPhotoBounds, photosUri);
-    }
-
-    @Override
-    public void startFullScreenVideoViewer(final Uri videoUri) {
-        UIIntents.get().launchFullScreenVideoViewer(getActivity(), videoUri);
-    }
-
-    @Override
     public boolean isSelectionMode() {
         return mHost != null && mHost.isSelectionMode();
     }

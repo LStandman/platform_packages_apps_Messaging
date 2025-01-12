@@ -25,10 +25,9 @@ import android.os.Parcelable;
 import android.telephony.SubscriptionInfo;
 import android.text.TextUtils;
 
-import androidx.appcompat.mms.MmsManager;
 import androidx.collection.ArrayMap;
 
-import com.android.ex.chips.RecipientEntry;
+import com.android.messaging.shims.chips.RecipientEntry;
 import com.android.messaging.Factory;
 import com.android.messaging.R;
 import com.android.messaging.datamodel.DatabaseHelper;
@@ -48,7 +47,7 @@ public class ParticipantData implements Parcelable {
             new ArrayMap<Integer, String>();
 
     // We always use -1 as default/invalid sub id although system may give us anything negative
-    public static final int DEFAULT_SELF_SUB_ID = MmsManager.DEFAULT_SUB_ID;
+    public static final int DEFAULT_SELF_SUB_ID = -1;
 
     // This needs to be something apart from valid or DEFAULT_SELF_SUB_ID
     public static final int OTHER_THAN_SELF_SUB_ID = DEFAULT_SELF_SUB_ID - 1;

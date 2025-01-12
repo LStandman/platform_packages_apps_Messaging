@@ -25,8 +25,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
-import com.android.ex.chips.DropdownChipLayouter;
-import com.android.ex.chips.RecipientEntry;
+import com.android.messaging.shims.chips.DropdownChipLayouter;
+import com.android.messaging.shims.chips.RecipientEntry;
 import com.android.messaging.R;
 import com.android.messaging.datamodel.data.ContactListItemData;
 import com.android.messaging.datamodel.data.ParticipantData;

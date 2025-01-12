@@ -17,31 +17,20 @@
 package com.android.messaging;
 
 import android.app.Application;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.os.Handler;
 import android.os.Looper;
-import androidx.appcompat.mms.CarrierConfigValuesLoader;
-import androidx.appcompat.mms.MmsManager;
-import android.telephony.CarrierConfigManager;
 
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.receiver.SmsReceiver;
 import com.android.messaging.sms.ApnDatabase;
-import com.android.messaging.sms.BugleApnSettingsLoader;
-import com.android.messaging.sms.BugleUserAgentInfoLoader;
-import com.android.messaging.sms.MmsConfig;
 import com.android.messaging.ui.ConversationDrawables;
 import com.android.messaging.util.BugleGservices;
-import com.android.messaging.util.BugleGservicesKeys;
 import com.android.messaging.util.BuglePrefs;
 import com.android.messaging.util.BuglePrefsKeys;
 import com.android.messaging.util.DebugUtils;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.Trace;
 import com.google.common.annotations.VisibleForTesting;
@@ -104,57 +93,17 @@ public class BugleApplication extends Application implements UncaughtExceptionHa
         final BugleGservices bugleGservices = factory.getBugleGservices();
         final BuglePrefs buglePrefs = factory.getApplicationPrefs();
         final DataModel dataModel = factory.getDataModel();
-        final CarrierConfigValuesLoader carrierConfigValuesLoader =
-                factory.getCarrierConfigValuesLoader();
 
         maybeStartProfiling();
 
         BugleApplication.updateAppConfig(context);
 
-        // Initialize MMS lib
-        initMmsLib(context, bugleGservices, carrierConfigValuesLoader);
         // Initialize APN database
         ApnDatabase.initializeAppContext(context);
         // Fixup messages in flight if we crashed and send any pending
         dataModel.onApplicationCreated();
-        // Register carrier config change receiver
-        if (OsUtil.isAtLeastM()) {
-            registerCarrierConfigChangeReceiver(context);
-        }
 
         Trace.endSection();
-    }
-
-    private static void registerCarrierConfigChangeReceiver(final Context context) {
-        context.registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                LogUtil.i(TAG, "Carrier config changed. Reloading MMS config.");
-                MmsConfig.loadAsync();
-            }
-        }, new IntentFilter(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED),
-        Context.RECEIVER_EXPORTED/*UNAUDITED*/);
-    }
-
-    private static void initMmsLib(final Context context, final BugleGservices bugleGservices,
-            final CarrierConfigValuesLoader carrierConfigValuesLoader) {
-        MmsManager.setApnSettingsLoader(new BugleApnSettingsLoader(context));
-        MmsManager.setCarrierConfigValuesLoader(carrierConfigValuesLoader);
-        MmsManager.setUserAgentInfoLoader(new BugleUserAgentInfoLoader(context));
-        MmsManager.setUseWakeLock(true);
-        // If Gservices is configured not to use mms api, force MmsManager to always use
-        // legacy mms sending logic
-        MmsManager.setForceLegacyMms(!bugleGservices.getBoolean(
-                BugleGservicesKeys.USE_MMS_API_IF_PRESENT,
-                BugleGservicesKeys.USE_MMS_API_IF_PRESENT_DEFAULT));
-        bugleGservices.registerForChanges(new Runnable() {
-            @Override
-            public void run() {
-                MmsManager.setForceLegacyMms(!bugleGservices.getBoolean(
-                        BugleGservicesKeys.USE_MMS_API_IF_PRESENT,
-                        BugleGservicesKeys.USE_MMS_API_IF_PRESENT_DEFAULT));
-            }
-        });
     }
 
     public static void updateAppConfig(final Context context) {
@@ -167,7 +116,6 @@ public class BugleApplication extends Application implements UncaughtExceptionHa
         // Handle shared prefs upgrade & Load MMS Configuration
         Trace.beginSection("app.initializeAsync");
         maybeHandleSharedPrefsUpgrade(factory);
-        MmsConfig.load();
         Trace.endSection();
     }
 

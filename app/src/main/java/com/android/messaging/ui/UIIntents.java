@@ -169,13 +169,6 @@ public abstract class UIIntents {
     public abstract void launchAddContactActivity(final Context context, final String destination);
 
     /**
-     * Launch an activity to show the document picker to pick an image/video/audio.
-     *
-     * @param fragment the requesting fragment
-     */
-    public abstract void launchDocumentImagePicker(final Fragment fragment);
-
-    /**
      * Launch an activity to show the contacts list to pick one.
      *
      * @param fragment the requesting fragment
@@ -215,33 +208,6 @@ public abstract class UIIntents {
      * Launch an activity to let the user forward a message
      */
     public abstract void launchForwardMessageActivity(Context context, MessageData message);
-
-    /**
-     * Launch an activity to show details for a VCard
-     */
-    public abstract void launchVCardDetailActivity(Context context, Uri vcardUri);
-
-    /**
-     * Launch an external activity that handles the intent to add VCard to contacts
-     */
-    public abstract void launchSaveVCardToContactsActivity(Context context, Uri vcardUri);
-
-    /**
-     * Launch an activity to let the user select & unselect the list of attachments to send.
-     */
-    public abstract void launchAttachmentChooserActivity(final Activity activity,
-            final String conversationId, final int requestCode);
-
-    /**
-     * Launch full screen video viewer.
-     */
-    public abstract void launchFullScreenVideoViewer(Context context, Uri videoUri);
-
-    /**
-     * Launch full screen photo viewer.
-     */
-    public abstract void launchFullScreenPhotoViewer(Activity activity, Uri initialPhoto,
-            Rect initialPhotoBounds, Uri photosUri);
 
     /**
      * Launch an activity to show general app settings
@@ -322,7 +288,7 @@ public abstract class UIIntents {
      */
     public abstract PendingIntent getPendingIntentForSendingMessageToConversation(
             final Context context, final String conversationId, final String selfId,
-            final boolean requiresMms, final int requestCode);
+            final int requestCode);
 
     /**
      * Get a PendingIntent for clearing notifications.
@@ -343,16 +309,6 @@ public abstract class UIIntents {
      */
     public abstract PendingIntent getPendingIntentForSecondaryUserNewMessageNotification(
             final Context context);
-
-    /**
-     * Get an intent for showing the APN editor.
-     */
-    public abstract Intent getApnEditorIntent(final Context context, final String rowId, int subId);
-
-    /**
-     * Get an intent for showing the APN settings.
-     */
-    public abstract Intent getApnSettingsIntent(final Context context, final int subId);
 
     /**
      * Get an intent for showing advanced settings.

@@ -27,7 +27,6 @@ import com.android.messaging.datamodel.FrequentContactsCursorBuilder;
 import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.binding.BindableData;
 import com.android.messaging.datamodel.binding.BindingBase;
-import com.android.messaging.sms.MmsConfig;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.ContactUtil;
 import com.android.messaging.util.LogUtil;
@@ -176,19 +175,5 @@ public class ContactPickerData extends BindableData implements
             mLoaderManager = null;
         }
         mFrequentContactsCursorBuilder.resetBuilder();
-    }
-
-    public static boolean isTooManyParticipants(final int participantCount) {
-        // When creating a conversation, the conversation will be created using the system's
-        // default SIM, so use the default MmsConfig's recipient limit.
-        return (participantCount > MmsConfig.get(ParticipantData.DEFAULT_SELF_SUB_ID)
-                .getRecipientLimit());
-    }
-
-    public static boolean getCanAddMoreParticipants(final int participantCount) {
-        // When creating a conversation, the conversation will be created using the system's
-        // default SIM, so use the default MmsConfig's recipient limit.
-        return (participantCount < MmsConfig.get(ParticipantData.DEFAULT_SELF_SUB_ID)
-                .getRecipientLimit());
     }
 }

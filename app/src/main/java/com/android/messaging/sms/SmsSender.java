@@ -190,20 +190,10 @@ public class SmsSender {
         if (TextUtils.isEmpty(message)) {
             throw new SmsException("SmsSender: empty text message");
         }
-        // Get the real dest and message for email or alias if dest is email or alias
-        // Or sanitize the dest if dest is a number
-        if (!TextUtils.isEmpty(MmsConfig.get(subId).getEmailGateway()) &&
-                (MmsSmsUtils.isEmailAddress(dest) || MmsSmsUtils.isAlias(dest, subId))) {
-            // The original destination (email address) goes with the message
-            message = dest + " " + message;
-            // the new address is the email gateway #
-            dest = MmsConfig.get(subId).getEmailGateway();
-        } else {
-            // remove spaces and dashes from destination number
-            // (e.g. "801 555 1212" -> "8015551212")
-            // (e.g. "+8211-123-4567" -> "+82111234567")
-            dest = PhoneNumberUtils.stripSeparators(dest);
-        }
+        // remove spaces and dashes from destination number
+        // (e.g. "801 555 1212" -> "8015551212")
+        // (e.g. "+8211-123-4567" -> "+82111234567")
+        dest = PhoneNumberUtils.stripSeparators(dest);
         if (TextUtils.isEmpty(dest)) {
             throw new SmsException("SmsSender: empty destination address");
         }
@@ -267,7 +257,7 @@ public class SmsSender {
                         partId,
                         getSendStatusIntent(context, SendStatusReceiver.MESSAGE_DELIVERED_ACTION,
                                 messageUri, partId, subId),
-                        0/*flag*/));
+                        PendingIntent.FLAG_IMMUTABLE/*flag*/));
             } else {
                 deliveryIntents.add(null);
             }
@@ -276,7 +266,7 @@ public class SmsSender {
                     partId,
                     getSendStatusIntent(context, SendStatusReceiver.MESSAGE_SENT_ACTION,
                             messageUri, partId, subId),
-                    0/*flag*/));
+                    PendingIntent.FLAG_IMMUTABLE/*flag*/));
         }
         try {
             if (MmsConfig.get(subId).getSendMultipartSmsAsSeparateMessages()) {

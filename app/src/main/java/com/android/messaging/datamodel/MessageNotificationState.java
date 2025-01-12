@@ -45,7 +45,6 @@ import com.android.messaging.datamodel.data.ConversationParticipantsData;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
-import com.android.messaging.datamodel.media.VideoThumbnailRequest;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.Assert;
@@ -532,40 +531,8 @@ public abstract class MessageNotificationState extends NotificationState {
             builder.setContentText(mContent);   // for collapsed state
 
             if (messageCount == 1) {
-                final boolean shouldShowImage = ContentType.isImageType(mAttachmentType)
-                        || (ContentType.isVideoType(mAttachmentType)
-                        && VideoThumbnailRequest.shouldShowIncomingVideoThumbnails());
-                if (mAttachmentUri != null && shouldShowImage) {
-                    // Show "Picture" as the content
-                    final MessageLineInfo messageLineInfo = (MessageLineInfo) lineInfos.get(0);
-                    String authorFirstName = messageLineInfo.mAuthorFirstName;
-
-                    // For the collapsed state, just show "picture" unless this is a
-                    // group conversation. If it's a group, show the sender name and
-                    // "picture".
-                    final CharSequence tickerTag =
-                            BugleNotifications.formatAttachmentTag(authorFirstName,
-                                    mAttachmentType);
-                    // For 1:1 notifications don't show first name in the notification, but
-                    // do show it in the ticker text
-                    CharSequence pictureTag = tickerTag;
-                    if (!convInfo.mIsGroup) {
-                        authorFirstName = null;
-                        pictureTag = BugleNotifications.formatAttachmentTag(authorFirstName,
-                                mAttachmentType);
-                    }
-                    builder.setContentText(pictureTag);
-                    builder.setTicker(tickerTag);
-
-                    notifStyle = new NotificationCompat.BigPictureStyle(builder)
-                        .setSummaryText(BugleNotifications.formatInboxMessage(
-                                authorFirstName,
-                                null, null,
-                                null));  // expanded state, just show sender
-                } else {
-                    notifStyle = new NotificationCompat.BigTextStyle(builder)
-                    .bigText(mContent);
-                }
+                notifStyle = new NotificationCompat.BigTextStyle(builder)
+                .bigText(mContent);
             } else {
                 // We've got multiple messages for the same sender.
                 // Starting with the oldest new message, display the full text of each message.

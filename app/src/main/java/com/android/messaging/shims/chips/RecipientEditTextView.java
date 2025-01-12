@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.android.ex.chips;
+package com.android.messaging.shims.chips;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
@@ -29,7 +29,6 @@ import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -87,17 +86,18 @@ import android.widget.Filterable;
 import android.widget.ListAdapter;
 import android.widget.ListPopupWindow;
 import android.widget.ListView;
-import android.widget.MultiAutoCompleteTextView;
 import android.widget.PopupWindow;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import androidx.appcompat.widget.AppCompatMultiAutoCompleteTextView;
 
-import com.android.ex.chips.DropdownChipLayouter.PermissionRequestDismissedListener;
-import com.android.ex.chips.RecipientAlternatesAdapter.RecipientMatchCallback;
-import com.android.ex.chips.recipientchip.DrawableRecipientChip;
-import com.android.ex.chips.recipientchip.InvisibleRecipientChip;
-import com.android.ex.chips.recipientchip.ReplacementDrawableSpan;
-import com.android.ex.chips.recipientchip.VisibleRecipientChip;
+import com.android.messaging.shims.chips.DropdownChipLayouter.PermissionRequestDismissedListener;
+import com.android.messaging.shims.chips.RecipientAlternatesAdapter.RecipientMatchCallback;
+import com.android.messaging.shims.chips.recipientchip.DrawableRecipientChip;
+import com.android.messaging.shims.chips.recipientchip.InvisibleRecipientChip;
+import com.android.messaging.shims.chips.recipientchip.ReplacementDrawableSpan;
+import com.android.messaging.shims.chips.recipientchip.VisibleRecipientChip;
+import com.android.messaging.R;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -112,7 +112,7 @@ import java.util.Set;
  * RecipientEditTextView is an auto complete text view for use with applications
  * that use the new Chips UI for addressing a message to recipients.
  */
-public class RecipientEditTextView extends MultiAutoCompleteTextView implements
+public class RecipientEditTextView extends AppCompatMultiAutoCompleteTextView implements
         OnItemClickListener, Callback, RecipientAlternatesAdapter.OnCheckedItemChangedListener,
         GestureDetector.OnGestureListener, TextView.OnEditorActionListener,
         DropdownChipLayouter.ChipDeleteListener, PermissionRequestDismissedListener {
@@ -181,7 +181,6 @@ public class RecipientEditTextView extends MultiAutoCompleteTextView implements
     private OnItemClickListener mAlternatesListener;
 
     private DrawableRecipientChip mSelectedChip;
-    private Bitmap mDefaultContactPhoto;
     private Bitmap mWarningIcon;
     private ReplacementDrawableSpan mMoreChip;
     private TextView mMoreItem;
@@ -343,21 +342,17 @@ public class RecipientEditTextView extends MultiAutoCompleteTextView implements
         setupPopupWindow(mAlternatesPopup);
         mAddressPopup = new ListPopupWindow(context);
         setupPopupWindow(mAddressPopup);
-        mAlternatesListener = new OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView,View view, int position,
-                    long rowId) {
-                if(mAlternatesPopup.getListView() != null){
-                    mAlternatesPopup.getListView().setOnItemClickListener(null);
-                }
-                mAlternatesPopup.setOnItemClickListener(null);
-                replaceChip(mSelectedChip, ((RecipientAlternatesAdapter) adapterView.getAdapter())
-                        .getRecipientEntry(position));
-                Message delayed = Message.obtain(mHandler, DISMISS);
-                delayed.obj = mAlternatesPopup;
-                mHandler.sendMessageDelayed(delayed, DISMISS_DELAY);
-                clearComposingText();
+        mAlternatesListener = (adapterView, view, position, rowId) -> {
+            if(mAlternatesPopup.getListView() != null){
+                mAlternatesPopup.getListView().setOnItemClickListener(null);
             }
+            mAlternatesPopup.setOnItemClickListener(null);
+            replaceChip(mSelectedChip, ((RecipientAlternatesAdapter) adapterView.getAdapter())
+                    .getRecipientEntry(position));
+            Message delayed = Message.obtain(mHandler, DISMISS);
+            delayed.obj = mAlternatesPopup;
+            mHandler.sendMessageDelayed(delayed, DISMISS_DELAY);
+            clearComposingText();
         };
         setInputType(getInputType() | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         setOnItemClickListener(this);
@@ -955,20 +950,6 @@ public class RecipientEditTextView extends MultiAutoCompleteTextView implements
     }
 
     /**
-     * Helper function that draws the loaded icon bitmap into the chips bitmap
-     */
-    private void drawIcon(ChipBitmapContainer bitMapResult, Bitmap icon) {
-        if (icon == null) {
-            return;
-        }
-        final Canvas canvas = new Canvas(bitMapResult.bitmap);
-        final RectF src = new RectF(0, 0, icon.getWidth(), icon.getHeight());
-        final RectF dst = new RectF(bitMapResult.left, bitMapResult.top, bitMapResult.right,
-                bitMapResult.bottom);
-        drawCircularIconOnCanvas(icon, canvas, src, dst);
-    }
-
-    /**
      * Draws the warning icon onto the chip's bitmap and returns the rectangle it drew on.
      */
     private RectF drawWarningIcon(ChipBitmapContainer bitMapResult) {
@@ -1013,54 +994,54 @@ public class RecipientEditTextView extends MultiAutoCompleteTextView implements
             final byte[] origPhotoBytes = contact.getPhotoBytes();
             // There may not be a photo yet if anything but the first contact address
             // was selected.
-            if (origPhotoBytes == null) {
-                // TODO: cache this in the recipient entry?
-                getAdapter().fetchPhoto(contact, new PhotoManager.PhotoManagerCallback() {
-                    @Override
-                    public void onPhotoBytesPopulated() {
-                        // Call through to the async version which will ensure
-                        // proper threading.
-                        onPhotoBytesAsynchronouslyPopulated();
-                    }
-
-                    @Override
-                    public void onPhotoBytesAsynchronouslyPopulated() {
-                        final byte[] loadedPhotoBytes = contact.getPhotoBytes();
-                        final Bitmap icon = BitmapFactory.decodeByteArray(loadedPhotoBytes, 0,
-                                loadedPhotoBytes.length);
-                        tryDrawAndInvalidate(icon);
-                    }
-
-                    @Override
-                    public void onPhotoBytesAsyncLoadFailed() {
-                        // TODO: can the scaled down default photo be cached?
-                        tryDrawAndInvalidate(mDefaultContactPhoto);
-                    }
-
-                    private void tryDrawAndInvalidate(Bitmap icon) {
-                        drawIcon(bitmapContainer, icon);
-                        // The caller might originated from a background task. However, if the
-                        // background task has already completed, the view might be already drawn
-                        // on the UI but the callback would happen on the background thread.
-                        // So if we are on a background thread, post an invalidate call to the UI.
-                        if (Looper.myLooper() == Looper.getMainLooper()) {
-                            // The view might not redraw itself since it's loaded asynchronously
-                            invalidate();
-                        } else {
-                            post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    invalidate();
-                                }
-                            });
-                        }
-                    }
-                });
-            } else {
-                final Bitmap icon = BitmapFactory.decodeByteArray(origPhotoBytes, 0,
-                        origPhotoBytes.length);
-                drawIcon(bitmapContainer, icon);
-            }
+//            if (origPhotoBytes == null) {
+//                // TODO: cache this in the recipient entry?
+//                getAdapter().fetchPhoto(contact, new PhotoManager.PhotoManagerCallback() {
+//                    @Override
+//                    public void onPhotoBytesPopulated() {
+//                        // Call through to the async version which will ensure
+//                        // proper threading.
+//                        onPhotoBytesAsynchronouslyPopulated();
+//                    }
+//
+//                    @Override
+//                    public void onPhotoBytesAsynchronouslyPopulated() {
+//                        final byte[] loadedPhotoBytes = contact.getPhotoBytes();
+//                        final Bitmap icon = BitmapFactory.decodeByteArray(loadedPhotoBytes, 0,
+//                                loadedPhotoBytes.length);
+//                        tryDrawAndInvalidate(icon);
+//                    }
+//
+//                    @Override
+//                    public void onPhotoBytesAsyncLoadFailed() {
+//                        // TODO: can the scaled down default photo be cached?
+//                        tryDrawAndInvalidate(mDefaultContactPhoto);
+//                    }
+//
+//                    private void tryDrawAndInvalidate(Bitmap icon) {
+//                        drawIcon(bitmapContainer, icon);
+//                        // The caller might originated from a background task. However, if the
+//                        // background task has already completed, the view might be already drawn
+//                        // on the UI but the callback would happen on the background thread.
+//                        // So if we are on a background thread, post an invalidate call to the UI.
+//                        if (Looper.myLooper() == Looper.getMainLooper()) {
+//                            // The view might not redraw itself since it's loaded asynchronously
+//                            invalidate();
+//                        } else {
+//                            post(new Runnable() {
+//                                @Override
+//                                public void run() {
+//                                    invalidate();
+//                                }
+//                            });
+//                        }
+//                    }
+//                });
+//            } else {
+//                final Bitmap icon = BitmapFactory.decodeByteArray(origPhotoBytes, 0,
+//                        origPhotoBytes.length);
+//                drawIcon(bitmapContainer, icon);
+//            }
         }
     }
 
@@ -1231,8 +1212,6 @@ public class RecipientEditTextView extends MultiAutoCompleteTextView implements
         if (overridePadding >= 0) {
             mChipTextEndPadding = overridePadding;
         }
-
-        mDefaultContactPhoto = BitmapFactory.decodeResource(r, R.drawable.ic_contact_picture);
 
         mMoreItem = (TextView) LayoutInflater.from(getContext()).inflate(R.layout.more_item, null);
 
@@ -1493,7 +1472,7 @@ public class RecipientEditTextView extends MultiAutoCompleteTextView implements
         if (TextUtils.isEmpty(token)) {
             return null;
         }
-        if (isPhoneQuery() && PhoneUtil.isPhoneNumber(token)) {
+        if (isPhoneQuery()) {
             return RecipientEntry.constructFakePhoneEntry(token, true);
         }
         Rfc822Token[] tokens = Rfc822Tokenizer.tokenize(token);
@@ -2067,7 +2046,7 @@ public class RecipientEditTextView extends MultiAutoCompleteTextView implements
         return new RecipientAlternatesAdapter(getContext(), chip.getContactId(),
                 chip.getDirectoryId(), chip.getLookupKey(), chip.getDataId(),
                 getAdapter().getQueryType(), this, mDropdownChipLayouter,
-                constructStateListDeleteDrawable(), getAdapter().getPermissionsCheckListener());
+                constructStateListDeleteDrawable());
     }
 
     private ListAdapter createSingleAddressAdapter(DrawableRecipientChip currentChip) {
@@ -2167,7 +2146,7 @@ public class RecipientEditTextView extends MultiAutoCompleteTextView implements
             display = null;
         }
         String trimmedDisplayText;
-        if (isPhoneQuery() && PhoneUtil.isPhoneNumber(address)) {
+        if (isPhoneQuery()) {
             trimmedDisplayText = address.trim();
         } else {
             if (address != null) {

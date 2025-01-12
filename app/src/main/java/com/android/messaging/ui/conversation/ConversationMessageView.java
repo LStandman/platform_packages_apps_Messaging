@@ -18,49 +18,33 @@ package com.android.messaging.ui.conversation;
 import android.content.Context;
 import android.content.res.Resources;
 import android.database.Cursor;
-import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import androidx.annotation.Nullable;
-import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.text.format.Formatter;
-import android.text.style.URLSpan;
 import android.text.util.Linkify;
 import android.util.AttributeSet;
-import android.util.DisplayMetrics;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView.ScaleType;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.android.messaging.R;
-import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.data.ConversationMessageData;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.SubscriptionListData.SubscriptionListEntry;
-import com.android.messaging.datamodel.media.ImageRequestDescriptor;
-import com.android.messaging.datamodel.media.MessagePartImageRequestDescriptor;
-import com.android.messaging.datamodel.media.UriImageRequestDescriptor;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.AsyncImageView;
 import com.android.messaging.ui.AsyncImageView.AsyncImageViewDelayLoader;
-import com.android.messaging.ui.AudioAttachmentView;
 import com.android.messaging.ui.ContactIconView;
 import com.android.messaging.ui.ConversationDrawables;
-import com.android.messaging.ui.MultiAttachmentLayout;
-import com.android.messaging.ui.MultiAttachmentLayout.OnAttachmentClickListener;
-import com.android.messaging.ui.PersonItemView;
-import com.android.messaging.ui.UIIntents;
-import com.android.messaging.ui.VideoThumbnailView;
 import com.android.messaging.util.AccessibilityUtil;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.AvatarUriUtil;
@@ -69,30 +53,21 @@ import com.android.messaging.util.ImageUtils;
 import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.UiUtils;
-import com.android.messaging.util.YouTubeUtil;
 import com.google.common.base.Predicate;
 
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 
 /**
  * The view for a single entry in a conversation.
  */
 public class ConversationMessageView extends FrameLayout implements View.OnClickListener,
-        View.OnLongClickListener, OnAttachmentClickListener {
+        View.OnLongClickListener {
     public interface ConversationMessageViewHost {
-        boolean onAttachmentClick(ConversationMessageView view, MessagePartData attachment,
-                Rect imageBounds, boolean longPress);
         SubscriptionListEntry getSubscriptionEntryForSelfParticipant(String selfParticipantId,
                 boolean excludeDefault);
     }
 
     private final ConversationMessageData mData;
-
-    private LinearLayout mMessageAttachmentsView;
-    private MultiAttachmentLayout mMultiAttachmentView;
-    private AsyncImageView mMessageImageView;
     private TextView mMessageTextView;
     private boolean mMessageTextHasLinks;
     private boolean mMessageHasYouTubeLink;
@@ -130,14 +105,6 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
                 return true;
             }
         });
-
-        mMessageAttachmentsView = (LinearLayout) findViewById(R.id.message_attachments);
-        mMultiAttachmentView = (MultiAttachmentLayout) findViewById(R.id.multiple_attachments);
-        mMultiAttachmentView.setOnAttachmentClickListener(this);
-
-        mMessageImageView = (AsyncImageView) findViewById(R.id.message_image);
-        mMessageImageView.setOnClickListener(this);
-        mMessageImageView.setOnLongClickListener(this);
 
         mMessageTextView = (TextView) findViewById(R.id.message_text);
         mMessageTextView.setOnClickListener(this);
@@ -259,15 +226,6 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
 
     public void setHost(final ConversationMessageViewHost host) {
         mHost = host;
-    }
-
-    /**
-     * Sets a delay loader instance to manage loading / resuming of image attachments.
-     */
-    public void setImageViewDelayLoader(final AsyncImageViewDelayLoader delayLoader) {
-        Assert.notNull(mMessageImageView);
-        mMessageImageView.setDelayLoader(delayLoader);
-        mMultiAttachmentView.setImageViewDelayLoader(delayLoader);
     }
 
     public ConversationMessageData getData() {
@@ -487,151 +445,8 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
         // We must update the text before the attachments since we search the text to see if we
         // should make a preview youtube image in the attachments
         updateMessageText();
-        updateMessageAttachments();
         updateMessageSubject();
         mMessageBubble.bind(mData);
-    }
-
-    private void updateMessageAttachments() {
-        // Bind video, audio, and VCard attachments. If there are multiple, they stack vertically.
-        bindAttachmentsOfSameType(sVideoFilter,
-                R.layout.message_video_attachment, mVideoViewBinder, VideoThumbnailView.class);
-        bindAttachmentsOfSameType(sAudioFilter,
-                R.layout.message_audio_attachment, mAudioViewBinder, AudioAttachmentView.class);
-        bindAttachmentsOfSameType(sVCardFilter,
-                R.layout.message_vcard_attachment, mVCardViewBinder, PersonItemView.class);
-
-        // Bind image attachments. If there are multiple, they are shown in a collage view.
-        final List<MessagePartData> imageParts = mData.getAttachments(sImageFilter);
-        if (imageParts.size() > 1) {
-            Collections.sort(imageParts, sImageComparator);
-            mMultiAttachmentView.bindAttachments(imageParts, null, imageParts.size());
-            mMultiAttachmentView.setVisibility(View.VISIBLE);
-        } else {
-            mMultiAttachmentView.setVisibility(View.GONE);
-        }
-
-        // In the case that we have no image attachments and exactly one youtube link in a message
-        // then we will show a preview.
-        String youtubeThumbnailUrl = null;
-        String originalYoutubeLink = null;
-        if (mMessageTextHasLinks && imageParts.size() == 0) {
-            CharSequence messageTextWithSpans = mMessageTextView.getText();
-            final URLSpan[] spans = ((Spanned) messageTextWithSpans).getSpans(0,
-                    messageTextWithSpans.length(), URLSpan.class);
-            for (URLSpan span : spans) {
-                String url = span.getURL();
-                String youtubeLinkForUrl = YouTubeUtil.getYoutubePreviewImageLink(url);
-                if (!TextUtils.isEmpty(youtubeLinkForUrl)) {
-                    if (TextUtils.isEmpty(youtubeThumbnailUrl)) {
-                        // Save the youtube link if we don't already have one
-                        youtubeThumbnailUrl = youtubeLinkForUrl;
-                        originalYoutubeLink = url;
-                    } else {
-                        // We already have a youtube link. This means we have two youtube links so
-                        // we shall show none.
-                        youtubeThumbnailUrl = null;
-                        originalYoutubeLink = null;
-                        break;
-                    }
-                }
-            }
-        }
-        // We need to keep track if we have a youtube link in the message so that we will not show
-        // the arrow
-        mMessageHasYouTubeLink = !TextUtils.isEmpty(youtubeThumbnailUrl);
-
-        // We will show the message image view if there is one attachment or one youtube link
-        if (imageParts.size() == 1 || mMessageHasYouTubeLink) {
-            // Get the display metrics for a hint for how large to pull the image data into
-            final WindowManager windowManager = (WindowManager) getContext().
-                    getSystemService(Context.WINDOW_SERVICE);
-            final DisplayMetrics displayMetrics = new DisplayMetrics();
-            windowManager.getDefaultDisplay().getMetrics(displayMetrics);
-
-            final int iconSize = getResources()
-                    .getDimensionPixelSize(R.dimen.conversation_message_contact_icon_size);
-            final int desiredWidth = displayMetrics.widthPixels - iconSize - iconSize;
-
-            if (imageParts.size() == 1) {
-                final MessagePartData imagePart = imageParts.get(0);
-                // If the image is big, we want to scale it down to save memory since we're going to
-                // scale it down to fit into the bubble width. We don't constrain the height.
-                final ImageRequestDescriptor imageRequest =
-                        new MessagePartImageRequestDescriptor(imagePart,
-                                desiredWidth,
-                                MessagePartData.UNSPECIFIED_SIZE,
-                                false);
-                adjustImageViewBounds(imagePart);
-                mMessageImageView.setImageResourceId(imageRequest);
-                mMessageImageView.setTag(imagePart);
-            } else {
-                // Youtube Thumbnail image
-                final ImageRequestDescriptor imageRequest =
-                        new UriImageRequestDescriptor(Uri.parse(youtubeThumbnailUrl), desiredWidth,
-                            MessagePartData.UNSPECIFIED_SIZE, true /* allowCompression */,
-                            true /* isStatic */, false /* cropToCircle */,
-                            ImageUtils.DEFAULT_CIRCLE_BACKGROUND_COLOR /* circleBackgroundColor */,
-                            ImageUtils.DEFAULT_CIRCLE_STROKE_COLOR /* circleStrokeColor */);
-                mMessageImageView.setImageResourceId(imageRequest);
-                mMessageImageView.setTag(originalYoutubeLink);
-            }
-            mMessageImageView.setVisibility(View.VISIBLE);
-        } else {
-            mMessageImageView.setImageResourceId(null);
-            mMessageImageView.setVisibility(View.GONE);
-        }
-
-        // Show the message attachments container if any of its children are visible
-        boolean attachmentsVisible = false;
-        for (int i = 0, size = mMessageAttachmentsView.getChildCount(); i < size; i++) {
-            final View attachmentView = mMessageAttachmentsView.getChildAt(i);
-            if (attachmentView.getVisibility() == View.VISIBLE) {
-                attachmentsVisible = true;
-                break;
-            }
-        }
-        mMessageAttachmentsView.setVisibility(attachmentsVisible ? View.VISIBLE : View.GONE);
-    }
-
-    private void bindAttachmentsOfSameType(final Predicate<MessagePartData> attachmentTypeFilter,
-            final int attachmentViewLayoutRes, final AttachmentViewBinder viewBinder,
-            final Class<?> attachmentViewClass) {
-        final LayoutInflater layoutInflater = LayoutInflater.from(getContext());
-
-        // Iterate through all attachments of a particular type (video, audio, etc).
-        // Find the first attachment index that matches the given type if possible.
-        int attachmentViewIndex = -1;
-        View existingAttachmentView;
-        do {
-            existingAttachmentView = mMessageAttachmentsView.getChildAt(++attachmentViewIndex);
-        } while (existingAttachmentView != null &&
-                !(attachmentViewClass.isInstance(existingAttachmentView)));
-
-        for (final MessagePartData attachment : mData.getAttachments(attachmentTypeFilter)) {
-            View attachmentView = mMessageAttachmentsView.getChildAt(attachmentViewIndex);
-            if (!attachmentViewClass.isInstance(attachmentView)) {
-                attachmentView = layoutInflater.inflate(attachmentViewLayoutRes,
-                        mMessageAttachmentsView, false /* attachToRoot */);
-                attachmentView.setOnClickListener(this);
-                attachmentView.setOnLongClickListener(this);
-                mMessageAttachmentsView.addView(attachmentView, attachmentViewIndex);
-            }
-            viewBinder.bindView(attachmentView, attachment);
-            attachmentView.setTag(attachment);
-            attachmentView.setVisibility(View.VISIBLE);
-            attachmentViewIndex++;
-        }
-        // If there are unused views left over, unbind or remove them.
-        while (attachmentViewIndex < mMessageAttachmentsView.getChildCount()) {
-            final View attachmentView = mMessageAttachmentsView.getChildAt(attachmentViewIndex);
-            if (attachmentViewClass.isInstance(attachmentView)) {
-                mMessageAttachmentsView.removeViewAt(attachmentViewIndex);
-            } else {
-                // No more views of this type; we're done.
-                break;
-            }
-        }
     }
 
     private void updateMessageSubject() {
@@ -776,7 +591,6 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
         // Update the message row and message bubble views
         setPadding(getPaddingLeft(), messageTopPadding, getPaddingRight(), 0);
         mMessageBubble.setGravity(gravity);
-        updateMessageAttachmentsAppearance(gravity);
 
         mMessageMetadataView.setPadding(0, metadataTopPadding, 0, 0);
 
@@ -848,54 +662,6 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
         }
 
         setContentDescription(description);
-    }
-
-    private void updateMessageAttachmentsAppearance(final int gravity) {
-        mMessageAttachmentsView.setGravity(gravity);
-
-        // Tint image/video attachments when selected
-        final int selectedImageTint = getResources().getColor(R.color.message_image_selected_tint);
-        if (mMessageImageView.getVisibility() == View.VISIBLE) {
-            if (isSelected()) {
-                mMessageImageView.setColorFilter(selectedImageTint);
-            } else {
-                mMessageImageView.clearColorFilter();
-            }
-        }
-        if (mMultiAttachmentView.getVisibility() == View.VISIBLE) {
-            if (isSelected()) {
-                mMultiAttachmentView.setColorFilter(selectedImageTint);
-            } else {
-                mMultiAttachmentView.clearColorFilter();
-            }
-        }
-        for (int i = 0, size = mMessageAttachmentsView.getChildCount(); i < size; i++) {
-            final View attachmentView = mMessageAttachmentsView.getChildAt(i);
-            if (attachmentView instanceof VideoThumbnailView
-                    && attachmentView.getVisibility() == View.VISIBLE) {
-                final VideoThumbnailView videoView = (VideoThumbnailView) attachmentView;
-                if (isSelected()) {
-                    videoView.setColorFilter(selectedImageTint);
-                } else {
-                    videoView.clearColorFilter();
-                }
-            }
-        }
-
-        // If there are multiple attachment bubbles in a single message, add some separation.
-        final int multipleAttachmentPadding =
-                getResources().getDimensionPixelSize(R.dimen.message_padding_same_author);
-
-        boolean previousVisibleView = false;
-        for (int i = 0, size = mMessageAttachmentsView.getChildCount(); i < size; i++) {
-            final View attachmentView = mMessageAttachmentsView.getChildAt(i);
-            if (attachmentView.getVisibility() == View.VISIBLE) {
-                final int margin = previousVisibleView ? multipleAttachmentPadding : 0;
-                ((LinearLayout.LayoutParams) attachmentView.getLayoutParams()).topMargin = margin;
-                // updateViewAppearance calls requestLayout() at the end, so we don't need to here
-                previousVisibleView = true;
-            }
-        }
     }
 
     private void updateTextAppearance() {
@@ -987,47 +753,8 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
         mSenderNameTextView.setTextColor(getResources().getColor(timestampColorResId));
     }
 
-    /**
-     * If we don't know the size of the image, we want to show it in a fixed-sized frame to
-     * avoid janks when the image is loaded and resized. Otherwise, we can set the imageview to
-     * take on normal layout params.
-     */
-    private void adjustImageViewBounds(final MessagePartData imageAttachment) {
-        Assert.isTrue(ContentType.isImageType(imageAttachment.getContentType()));
-        final ViewGroup.LayoutParams layoutParams = mMessageImageView.getLayoutParams();
-        if (imageAttachment.getWidth() == MessagePartData.UNSPECIFIED_SIZE ||
-                imageAttachment.getHeight() == MessagePartData.UNSPECIFIED_SIZE) {
-            // We don't know the size of the image attachment, enable letterboxing on the image
-            // and show a fixed sized attachment. This should happen at most once per image since
-            // after the image is loaded we then save the image dimensions to the db so that the
-            // next time we can display the full size.
-            layoutParams.width = getResources()
-                    .getDimensionPixelSize(R.dimen.image_attachment_fallback_width);
-            layoutParams.height = getResources()
-                    .getDimensionPixelSize(R.dimen.image_attachment_fallback_height);
-            mMessageImageView.setScaleType(ScaleType.CENTER_CROP);
-        } else {
-            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-            // ScaleType.CENTER_INSIDE and FIT_CENTER behave similarly for most images. However,
-            // FIT_CENTER works better for small images as it enlarges the image such that the
-            // minimum size ("android:minWidth" etc) is honored.
-            mMessageImageView.setScaleType(ScaleType.FIT_CENTER);
-        }
-    }
-
     @Override
-    public void onClick(final View view) {
-        final Object tag = view.getTag();
-        if (tag instanceof MessagePartData) {
-            final Rect bounds = UiUtils.getMeasuredBoundsOnScreen(view);
-            onAttachmentClick((MessagePartData) tag, bounds, false /* longPress */);
-        } else if (tag instanceof String) {
-            // Currently the only object that would make a tag of a string is a youtube preview
-            // image
-            UIIntents.get().launchBrowserForUrl(getContext(), (String) tag);
-        }
-    }
+    public void onClick(final View view) {}
 
     @Override
     public boolean onLongClick(final View view) {
@@ -1042,19 +769,7 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
             return performLongClick();
         }
 
-        final Object tag = view.getTag();
-        if (tag instanceof MessagePartData) {
-            final Rect bounds = UiUtils.getMeasuredBoundsOnScreen(view);
-            return onAttachmentClick((MessagePartData) tag, bounds, true /* longPress */);
-        }
-
         return false;
-    }
-
-    @Override
-    public boolean onAttachmentClick(final MessagePartData attachment,
-            final Rect viewBoundsOnScreen, final boolean longPress) {
-        return mHost.onAttachmentClick(this, attachment, viewBoundsOnScreen, longPress);
     }
 
     public ContactIconView getContactIconView() {
@@ -1101,64 +816,6 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
         void bindView(View view, MessagePartData attachment);
         void unbind(View view);
     }
-
-    final AttachmentViewBinder mVideoViewBinder = new AttachmentViewBinder() {
-        @Override
-        public void bindView(final View view, final MessagePartData attachment) {
-            ((VideoThumbnailView) view).setSource(attachment, mData.getIsIncoming());
-        }
-
-        @Override
-        public void unbind(final View view) {
-            ((VideoThumbnailView) view).setSource((Uri) null, mData.getIsIncoming());
-        }
-    };
-
-    final AttachmentViewBinder mAudioViewBinder = new AttachmentViewBinder() {
-        @Override
-        public void bindView(final View view, final MessagePartData attachment) {
-            final AudioAttachmentView audioView = (AudioAttachmentView) view;
-            audioView.bindMessagePartData(attachment, mData.getIsIncoming(), isSelected());
-            audioView.setBackground(ConversationDrawables.get().getBubbleDrawable(
-                    isSelected(), mData.getIsIncoming(), false /* needArrow */,
-                    mData.hasIncomingErrorStatus()));
-        }
-
-        @Override
-        public void unbind(final View view) {
-            ((AudioAttachmentView) view).bindMessagePartData(null, mData.getIsIncoming(), false);
-        }
-    };
-
-    final AttachmentViewBinder mVCardViewBinder = new AttachmentViewBinder() {
-        @Override
-        public void bindView(final View view, final MessagePartData attachment) {
-            final PersonItemView personView = (PersonItemView) view;
-            personView.bind(DataModel.get().createVCardContactItemData(getContext(),
-                    attachment));
-            personView.setBackground(ConversationDrawables.get().getBubbleDrawable(
-                    isSelected(), mData.getIsIncoming(), false /* needArrow */,
-                    mData.hasIncomingErrorStatus()));
-            final int nameTextColorRes;
-            final int detailsTextColorRes;
-            if (isSelected()) {
-                nameTextColorRes = R.color.message_text_color_incoming;
-                detailsTextColorRes = R.color.message_text_color_incoming;
-            } else {
-                nameTextColorRes = mData.getIsIncoming() ? R.color.message_text_color_incoming
-                        : R.color.message_text_color_outgoing;
-                detailsTextColorRes = mData.getIsIncoming() ? R.color.timestamp_text_incoming
-                        : R.color.timestamp_text_outgoing;
-            }
-            personView.setNameTextColor(getResources().getColor(nameTextColorRes));
-            personView.setDetailsTextColor(getResources().getColor(detailsTextColorRes));
-        }
-
-        @Override
-        public void unbind(final View view) {
-            ((PersonItemView) view).bind(null);
-        }
-    };
 
     /**
      * A helper class that allows us to handle long clicks on linkified message text view (i.e. to

@@ -367,11 +367,6 @@ public class MessageData implements Parcelable {
     }
 
     public void addPart(final MessagePartData part) {
-        if (part instanceof PendingAttachmentData) {
-            // Pending attachments may only be added to shared message data that's not associated
-            // with any particular conversation, in order to store shared images.
-            Assert.isTrue(mConversationId == null);
-        }
         mParts.add(part);
     }
 
@@ -800,12 +795,6 @@ public class MessageData implements Parcelable {
     public final void markMessageNotSent(final long timestamp) {
         mSentTimestamp = timestamp;
         mStatus = BUGLE_STATUS_OUTGOING_AWAITING_RETRY;
-    }
-
-    public final void updateSizesForImageParts() {
-        for (final MessagePartData part : getParts()) {
-            part.decodeAndSaveSizeIfImage(false /* saveToStorage */);
-        }
     }
 
     public final void setRetryStartTimestamp(final long timestamp) {

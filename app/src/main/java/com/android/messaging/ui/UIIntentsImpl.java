@@ -26,7 +26,6 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -39,22 +38,16 @@ import androidx.core.app.TaskStackBuilder;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.text.TextUtils;
 
-import com.android.ex.photo.Intents.PhotoViewIntentBuilder;
 import com.android.messaging.R;
-import com.android.messaging.datamodel.ConversationImagePartsView;
-import com.android.messaging.datamodel.MediaScratchFileProvider;
 import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.receiver.NotificationReceiver;
 import com.android.messaging.sms.MmsSmsUtils;
-import com.android.messaging.ui.appsettings.ApnEditorActivity;
-import com.android.messaging.ui.appsettings.ApnSettingsActivity;
 import com.android.messaging.ui.appsettings.ApplicationSettingsActivity;
 import com.android.messaging.ui.appsettings.PerSubscriptionSettingsActivity;
 import com.android.messaging.ui.appsettings.SettingsActivity;
-import com.android.messaging.ui.attachmentchooser.AttachmentChooserActivity;
 import com.android.messaging.ui.conversation.ConversationActivity;
 import com.android.messaging.ui.conversation.LaunchConversationActivity;
 import com.android.messaging.ui.conversationlist.ArchivedConversationListActivity;
@@ -62,9 +55,7 @@ import com.android.messaging.ui.conversationlist.ConversationListActivity;
 import com.android.messaging.ui.conversationlist.ForwardMessageActivity;
 import com.android.messaging.ui.conversationsettings.PeopleAndOptionsActivity;
 import com.android.messaging.ui.debug.DebugMmsConfigActivity;
-import com.android.messaging.ui.photoviewer.BuglePhotoViewActivity;
 import com.android.messaging.util.Assert;
-import com.android.messaging.util.ContentType;
 import com.android.messaging.util.ConversationIdSet;
 import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.UiUtils;
@@ -234,16 +225,6 @@ public class UIIntentsImpl extends UIIntents {
     }
 
     @Override
-    public void launchDocumentImagePicker(final Fragment fragment) {
-        final Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, MessagePartData.ACCEPTABLE_GALLERY_MEDIA_TYPES);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType(ContentType.ANY_TYPE);
-
-        fragment.startActivityForResult(intent, REQUEST_PICK_MEDIA_FROM_DOCUMENT_PICKER);
-    }
-
-    @Override
     public void launchContactCardPicker(final Fragment fragment) {
         final Intent intent = new Intent(Intent.ACTION_PICK);
         intent.setType(Contacts.CONTENT_TYPE);
@@ -288,63 +269,6 @@ public class UIIntentsImpl extends UIIntents {
         final Intent forwardMessageIntent = new Intent(context, ForwardMessageActivity.class)
                 .putExtra(UI_INTENT_EXTRA_DRAFT_DATA, message);
         context.startActivity(forwardMessageIntent);
-    }
-
-    @Override
-    public void launchVCardDetailActivity(final Context context, final Uri vcardUri) {
-        final Intent vcardDetailIntent = new Intent(context, VCardDetailActivity.class)
-                .putExtra(UI_INTENT_EXTRA_VCARD_URI, vcardUri);
-        context.startActivity(vcardDetailIntent);
-    }
-
-    @Override
-    public void launchSaveVCardToContactsActivity(final Context context, final Uri vcardUri) {
-        Assert.isTrue(MediaScratchFileProvider.isMediaScratchSpaceUri(vcardUri));
-        final Intent intent = new Intent();
-        intent.setAction(Intent.ACTION_VIEW);
-        intent.setDataAndType(vcardUri, ContentType.TEXT_VCARD.toLowerCase());
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startExternalActivity(context, intent);
-    }
-
-    @Override
-    public void launchAttachmentChooserActivity(final Activity activity,
-            final String conversationId, final int requestCode) {
-        final Intent intent = new Intent(activity, AttachmentChooserActivity.class);
-        intent.putExtra(UI_INTENT_EXTRA_CONVERSATION_ID, conversationId);
-        activity.startActivityForResult(intent, requestCode);
-    }
-
-    @Override
-    public void launchFullScreenVideoViewer(final Context context, final Uri videoUri) {
-        final Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-        // So we don't see "surrounding" images in Gallery
-        intent.putExtra("SingleItemOnly", true);
-        intent.setDataAndType(videoUri, ContentType.VIDEO_UNSPECIFIED);
-        startExternalActivity(context, intent);
-    }
-
-    @Override
-    public void launchFullScreenPhotoViewer(final Activity activity, final Uri initialPhoto,
-            final Rect initialPhotoBounds, final Uri photosUri) {
-        final PhotoViewIntentBuilder builder =
-                com.android.ex.photo.Intents.newPhotoViewIntentBuilder(
-                        activity, BuglePhotoViewActivity.class);
-        builder.setPhotosUri(photosUri.toString());
-        builder.setInitialPhotoUri(initialPhoto.toString());
-        builder.setProjection(ConversationImagePartsView.PhotoViewQuery.PROJECTION);
-
-        // Set the location of the imageView so that the photoviewer can animate from that location
-        // to full screen.
-        builder.setScaleAnimation(initialPhotoBounds.left, initialPhotoBounds.top,
-                initialPhotoBounds.width(), initialPhotoBounds.height());
-
-        builder.setDisplayThumbsFullScreen(false);
-        builder.setMaxInitialScale(8);
-        activity.startActivity(builder.build());
-        activity.overridePendingTransition(0, 0);
     }
 
     @Override
@@ -402,15 +326,14 @@ public class UIIntentsImpl extends UIIntents {
 
     @Override
     public PendingIntent getPendingIntentForSendingMessageToConversation(final Context context,
-            final String conversationId, final String selfId, final boolean requiresMms,
-            final int requestCode) {
+            final String conversationId, final String selfId, final int requestCode) {
         final Intent intent = new Intent(context, RemoteInputEntrypointActivity.class);
         intent.setAction(Intent.ACTION_SENDTO);
         // Ensure that the platform doesn't reuse PendingIntents across conversations
         intent.setData(MessagingContentProvider.buildConversationMetadataUri(conversationId));
         intent.putExtra(UIIntents.UI_INTENT_EXTRA_CONVERSATION_ID, conversationId);
         intent.putExtra(UIIntents.UI_INTENT_EXTRA_SELF_ID, selfId);
-        intent.putExtra(UIIntents.UI_INTENT_EXTRA_REQUIRES_MMS, requiresMms);
+        intent.putExtra(UIIntents.UI_INTENT_EXTRA_REQUIRES_MMS, false);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         return getPendingIntentWithParentStack(context, intent, requestCode);
     }
@@ -483,21 +406,6 @@ public class UIIntentsImpl extends UIIntents {
         final Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.setComponent(new ComponentName(CMAS_COMPONENT, CELL_BROADCAST_LIST_ACTIVITY));
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return intent;
-    }
-
-    @Override
-    public Intent getApnEditorIntent(final Context context, final String rowId, final int subId) {
-        final Intent intent = new Intent(context, ApnEditorActivity.class);
-        intent.putExtra(UI_INTENT_EXTRA_APN_ROW_ID, rowId);
-        intent.putExtra(UI_INTENT_EXTRA_SUB_ID, subId);
-        return intent;
-    }
-
-    @Override
-    public Intent getApnSettingsIntent(final Context context, final int subId) {
-        final Intent intent = new Intent(context, ApnSettingsActivity.class)
-                .putExtra(UI_INTENT_EXTRA_SUB_ID, subId);
         return intent;
     }
 

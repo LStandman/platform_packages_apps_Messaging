@@ -46,7 +46,6 @@ import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.media.UriImageRequestDescriptor;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.AsyncImageView;
-import com.android.messaging.ui.AudioAttachmentView;
 import com.android.messaging.ui.ContactIconView;
 import com.android.messaging.ui.SnackBar;
 import com.android.messaging.ui.SnackBarInteraction;
@@ -81,35 +80,8 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
                 boolean isLongClick, final ConversationListItemView conversationView);
         boolean isSwipeAnimatable();
         List<SnackBarInteraction> getSnackBarInteractions();
-        void startFullScreenPhotoViewer(final Uri initialPhoto, final Rect initialPhotoBounds,
-                final Uri photosUri);
-        void startFullScreenVideoViewer(final Uri videoUri);
         boolean isSelectionMode();
     }
-
-    private final OnClickListener fullScreenPreviewClickListener = new OnClickListener() {
-        @Override
-        public void onClick(final View v) {
-            final String previewType = mData.getShowDraft() ?
-                    mData.getDraftPreviewContentType() : mData.getPreviewContentType();
-            Assert.isTrue(ContentType.isImageType(previewType) ||
-                    ContentType.isVideoType(previewType));
-
-            final Uri previewUri = mData.getShowDraft() ?
-                    mData.getDraftPreviewUri() : mData.getPreviewUri();
-            if (ContentType.isImageType(previewType)) {
-                final Uri imagesUri = mData.getShowDraft() ?
-                        MessagingContentProvider.buildDraftImagesUri(mData.getConversationId()) :
-                        MessagingContentProvider
-                                .buildConversationImagesUri(mData.getConversationId());
-                final Rect previewImageBounds = UiUtils.getMeasuredBoundsOnScreen(v);
-                mHostInterface.startFullScreenPhotoViewer(
-                        previewUri, previewImageBounds, imagesUri);
-            } else {
-                mHostInterface.startFullScreenVideoViewer(previewUri);
-            }
-        }
-    };
 
     private final ConversationListItemData mData;
 
@@ -129,7 +101,6 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
     private ImageView mCrossSwipeArchiveLeftImageView;
     private ImageView mCrossSwipeArchiveRightImageView;
     private AsyncImageView mImagePreviewView;
-    private AudioAttachmentView mAudioAttachmentView;
     private HostInterface mHostInterface;
 
     public ConversationListItemView(final Context context, final AttributeSet attrs) {
@@ -155,8 +126,6 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
         mCrossSwipeArchiveLeftImageView = (ImageView) findViewById(R.id.crossSwipeArchiveIconLeft);
         mCrossSwipeArchiveRightImageView =
                 (ImageView) findViewById(R.id.crossSwipeArchiveIconRight);
-        mImagePreviewView = (AsyncImageView) findViewById(R.id.conversation_image_preview);
-        mAudioAttachmentView = (AudioAttachmentView) findViewById(R.id.audio_attachment_view);
         mConversationNameView.addOnLayoutChangeListener(this);
         mSnippetTextView.addOnLayoutChangeListener(this);
 
@@ -469,36 +438,6 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
         OnClickListener previewClickListener = null;
         Uri previewImageUri = null;
         int previewImageVisibility = GONE;
-        int audioPreviewVisiblity = GONE;
-        if (previewUri != null && !TextUtils.isEmpty(previewContentType)) {
-            if (ContentType.isAudioType(previewContentType)) {
-                boolean incoming = !(mData.getShowDraft() || mData.getIsMessageTypeOutgoing());
-                mAudioAttachmentView.bind(previewUri, incoming, false);
-                audioPreviewVisiblity = VISIBLE;
-            } else if (ContentType.isVideoType(previewContentType)) {
-                previewImageUri = UriUtil.getUriForResourceId(
-                        getContext(), R.drawable.ic_preview_play);
-                previewClickListener = fullScreenPreviewClickListener;
-                previewImageVisibility = VISIBLE;
-            } else if (ContentType.isImageType(previewContentType)) {
-                previewImageUri = previewUri;
-                previewClickListener = fullScreenPreviewClickListener;
-                previewImageVisibility = VISIBLE;
-            }
-        }
-
-        final int imageSize = resources.getDimensionPixelSize(
-                R.dimen.conversation_list_image_preview_size);
-        mImagePreviewView.setImageResourceId(
-                new UriImageRequestDescriptor(previewImageUri, imageSize, imageSize,
-                        true /* allowCompression */, false /* isStatic */, false /*cropToCircle*/,
-                        ImageUtils.DEFAULT_CIRCLE_BACKGROUND_COLOR /* circleBackgroundColor */,
-                        ImageUtils.DEFAULT_CIRCLE_STROKE_COLOR /* circleStrokeColor */));
-        mImagePreviewView.setOnLongClickListener(this);
-        mImagePreviewView.setVisibility(previewImageVisibility);
-        mImagePreviewView.setOnClickListener(previewClickListener);
-        mAudioAttachmentView.setOnLongClickListener(this);
-        mAudioAttachmentView.setVisibility(audioPreviewVisiblity);
 
         final int notificationBellVisiblity = mData.getNotificationEnabled() ? GONE : VISIBLE;
         mNotificationBellView.setVisibility(notificationBellVisiblity);

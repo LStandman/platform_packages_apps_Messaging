@@ -32,7 +32,6 @@ import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.MediaScratchFileProvider;
 import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.action.UpdateMessagePartSizeAction;
-import com.android.messaging.datamodel.media.ImageRequest;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
@@ -52,22 +51,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class MessagePartData implements Parcelable {
     public static final int UNSPECIFIED_SIZE = MessagingContentProvider.UNSPECIFIED_SIZE;
-
-    public static final String[] ACCEPTABLE_GALLERY_MEDIA_TYPES =
-            new String[] {
-                // Acceptable image types
-                ContentType.IMAGE_JPEG, ContentType.IMAGE_JPG, ContentType.IMAGE_PNG,
-                ContentType.IMAGE_GIF, ContentType.IMAGE_WBMP, ContentType.IMAGE_X_MS_BMP,
-                // Acceptable video types
-                ContentType.VIDEO_3GP, ContentType.VIDEO_3GPP, ContentType.VIDEO_3G2,
-                ContentType.VIDEO_H263, ContentType.VIDEO_M4V, ContentType.VIDEO_MP4,
-                ContentType.VIDEO_MPEG, ContentType.VIDEO_MPEG4, ContentType.VIDEO_WEBM,
-                // Acceptable audio types
-                ContentType.AUDIO_MP3, ContentType.AUDIO_MP4, ContentType.AUDIO_MIDI,
-                ContentType.AUDIO_MID, ContentType.AUDIO_AMR, ContentType.AUDIO_X_WAV,
-                ContentType.AUDIO_AAC, ContentType.AUDIO_X_MIDI, ContentType.AUDIO_X_MID,
-                ContentType.AUDIO_X_MP3
-            };
 
     private static final String[] sProjection = {
         PartColumns._ID,
@@ -341,11 +324,6 @@ public class MessagePartData implements Parcelable {
         return mHeight;
     }
 
-    public static boolean isSupportedMediaType(final String contentType) {
-        return ContentType.isVCardType(contentType)
-                || Arrays.asList(ACCEPTABLE_GALLERY_MEDIA_TYPES).contains(contentType);
-    }
-
     /**
     *
     * @return true if this part can only exist by itself, with no other attachments
@@ -464,24 +442,6 @@ public class MessagePartData implements Parcelable {
     }
 
     /**
-     * If this is an image part, decode the image header and potentially save the size to the db.
-     */
-    public void decodeAndSaveSizeIfImage(final boolean saveToStorage) {
-        if (isImage()) {
-            final Rect imageSize = ImageUtils.decodeImageBounds(
-                    Factory.get().getApplicationContext(), mContentUri);
-            if (imageSize.width() != ImageRequest.UNSPECIFIED_SIZE &&
-                    imageSize.height() != ImageRequest.UNSPECIFIED_SIZE) {
-                mWidth = imageSize.width();
-                mHeight = imageSize.height();
-                if (saveToStorage) {
-                    UpdateMessagePartSizeAction.updateSize(mPartId, mWidth, mHeight);
-                }
-            }
-        }
-    }
-
-    /**
      * Computes the minimum size that this MessagePartData could be compressed/downsampled/encoded
      * before sending to meet the maximum message size imposed by the carriers. This is used to
      * determine right before sending a message whether a message could possibly be sent. If not
@@ -495,30 +455,7 @@ public class MessagePartData implements Parcelable {
     @DoesNotRunOnMainThread
     public long getMinimumSizeInBytesForSending() {
         Assert.isNotMainThread();
-        if (!isAttachment()) {
-            // No limit is imposed on non-attachment part (i.e. plain text), so treat it as zero.
-            return NO_MINIMUM_SIZE;
-        } else if (isImage()) {
-            // GIFs are resized by the native transcoder (exposed by GifTranscoder).
-            if (ImageUtils.isGif(mContentType, mContentUri)) {
-                final long originalImageSize = UriUtil.getContentSize(mContentUri);
-                // Wish we could save the size here, but we don't have a part id yet
-                decodeAndSaveSizeIfImage(false /* saveToStorage */);
-                return GifTranscoder.canBeTranscoded(mWidth, mHeight) ?
-                        GifTranscoder.estimateFileSizeAfterTranscode(originalImageSize)
-                        : originalImageSize;
-            }
-            // Other images should be arbitrarily resized by ImageResizer before sending.
-            return MmsUtils.MIN_IMAGE_BYTE_SIZE;
-        } else if (isMedia()) {
-            // We can't compress attachments except images.
-            return UriUtil.getContentSize(mContentUri);
-        } else {
-            // This is some unknown media type that we don't know how to handle. Log an error
-            // and try sending it anyway.
-            LogUtil.e(LogUtil.BUGLE_DATAMODEL_TAG, "Unknown attachment type " + getContentType());
-            return NO_MINIMUM_SIZE;
-        }
+        return NO_MINIMUM_SIZE;
     }
 
     @Override

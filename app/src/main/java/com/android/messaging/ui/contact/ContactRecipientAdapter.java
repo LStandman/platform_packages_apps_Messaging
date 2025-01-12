@@ -28,10 +28,10 @@ import android.view.ViewGroup;
 import android.widget.Filter;
 import android.widget.TextView;
 
-import com.android.ex.chips.BaseRecipientAdapter;
-import com.android.ex.chips.RecipientAlternatesAdapter;
-import com.android.ex.chips.RecipientAlternatesAdapter.RecipientMatchCallback;
-import com.android.ex.chips.RecipientEntry;
+import com.android.messaging.shims.chips.BaseRecipientAdapter;
+import com.android.messaging.shims.chips.RecipientAlternatesAdapter;
+import com.android.messaging.shims.chips.RecipientAlternatesAdapter.RecipientMatchCallback;
+import com.android.messaging.shims.chips.RecipientEntry;
 import com.android.messaging.R;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
@@ -79,15 +79,7 @@ public final class ContactRecipientAdapter extends BaseRecipientAdapter {
     public ContactRecipientAdapter(final Context context, final int preferredMaxResultCount,
             final int queryMode, final ContactListItemView.HostInterface clivHost) {
         super(context, preferredMaxResultCount, queryMode);
-        setPhotoManager(new ContactRecipientPhotoManager(context, clivHost));
         mInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-    }
-
-    @Override
-    public boolean forceShowAddress() {
-        // We should always use the SingleRecipientAddressAdapter
-        // And never use the RecipientAlternatesAdapter
-        return true;
     }
 
     @Override
@@ -338,44 +330,6 @@ public final class ContactRecipientAdapter extends BaseRecipientAdapter {
      * we want to be able to look up in the ContactUtil for exact matches and get contact
      * details such as name and photo thumbnail for the contact to display a better chip.
      */
-    @Override
-    public void getMatchingRecipients(final ArrayList<String> inAddresses,
-            final RecipientMatchCallback callback) {
-        final int addressesSize = Math.min(
-                RecipientAlternatesAdapter.MAX_LOOKUPS, inAddresses.size());
-        final HashSet<String> addresses = new HashSet<String>();
-        for (int i = 0; i < addressesSize; i++) {
-            final Rfc822Token[] tokens = Rfc822Tokenizer.tokenize(inAddresses.get(i).toLowerCase());
-            addresses.add(tokens.length > 0 ? tokens[0].getAddress() : inAddresses.get(i));
-        }
-
-        final Map<String, RecipientEntry> recipientEntries =
-                new HashMap<String, RecipientEntry>();
-        // query for each address
-        for (final String address : addresses) {
-            final Cursor cursor = ContactUtil.lookupDestination(getContext(), address)
-                    .performSynchronousQuery();
-            if (cursor != null) {
-                try {
-                    if (cursor.moveToNext()) {
-                        // There may be multiple matches to the same number, always take the
-                        // first match.
-                        // TODO: May need to consider if there's an existing conversation
-                        // that matches this particular contact and prioritize that contact.
-                        final RecipientEntry entry =
-                                ContactUtil.createRecipientEntryForPhoneQuery(cursor, true);
-                        recipientEntries.put(address, entry);
-                    }
-
-                } finally {
-                    cursor.close();
-                }
-            }
-        }
-
-        // report matches
-        callback.matchesFound(recipientEntries);
-    }
 
     /**
      * We handle directory header here and then delegate the work of creating recipient views to

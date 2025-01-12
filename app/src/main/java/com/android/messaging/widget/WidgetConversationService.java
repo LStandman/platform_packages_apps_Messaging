@@ -38,12 +38,6 @@ import com.android.messaging.datamodel.data.ConversationMessageData;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.media.ImageResource;
-import com.android.messaging.datamodel.media.MediaRequest;
-import com.android.messaging.datamodel.media.MediaResourceManager;
-import com.android.messaging.datamodel.media.MessagePartImageRequestDescriptor;
-import com.android.messaging.datamodel.media.MessagePartVideoThumbnailRequestDescriptor;
-import com.android.messaging.datamodel.media.UriImageRequestDescriptor;
-import com.android.messaging.datamodel.media.VideoThumbnailRequest;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.AvatarUriUtil;
@@ -176,38 +170,6 @@ public class WidgetConversationService extends RemoteViewsService {
                 }
 
                 intent.putExtra(UIIntents.UI_INTENT_EXTRA_MESSAGE_POSITION, scrollToPosition);
-                if (message.hasAttachments()) {
-                    final List<MessagePartData> attachments = message.getAttachments();
-                    for (MessagePartData part : attachments) {
-                        final boolean videoWithThumbnail = part.isVideo()
-                                && (VideoThumbnailRequest.shouldShowIncomingVideoThumbnails()
-                                || !message.getIsIncoming());
-                        if (part.isImage() || videoWithThumbnail) {
-                            final Uri uri = part.getContentUri();
-                            remoteViews.setViewVisibility(R.id.attachmentFrame, View.VISIBLE);
-                            remoteViews.setViewVisibility(R.id.playButton, part.isVideo() ?
-                                    View.VISIBLE : View.GONE);
-                            remoteViews.setImageViewBitmap(R.id.attachment,
-                                    getAttachmentBitmap(part));
-                            intent.putExtra(UIIntents.UI_INTENT_EXTRA_ATTACHMENT_URI ,
-                                    uri.toString());
-                            intent.putExtra(UIIntents.UI_INTENT_EXTRA_ATTACHMENT_TYPE ,
-                                    part.getContentType());
-                            break;
-                        } else if (part.isVideo()) {
-                            attachmentStringId = R.string.conversation_list_snippet_video;
-                            break;
-                        }
-                        if (part.isAudio()) {
-                            attachmentStringId = R.string.conversation_list_snippet_audio_clip;
-                            break;
-                        }
-                        if (part.isVCard()) {
-                            attachmentStringId = R.string.conversation_list_snippet_vcard;
-                            break;
-                        }
-                    }
-                }
 
                 remoteViews.setOnClickFillInIntent(message.getIsIncoming() ?
                         R.id.widget_message_item_incoming :
@@ -431,33 +393,6 @@ public class WidgetConversationService extends RemoteViewsService {
             remoteViews.setContentDescription(message.getIsIncoming() ?
                     R.id.widget_message_item_incoming :
                         R.id.widget_message_item_outgoing, description);
-        }
-
-        private Bitmap getAttachmentBitmap(final MessagePartData part) {
-            UriImageRequestDescriptor descriptor;
-            if (part.isImage()) {
-                descriptor = new MessagePartImageRequestDescriptor(part,
-                        IMAGE_ATTACHMENT_SIZE, // desiredWidth
-                        IMAGE_ATTACHMENT_SIZE,  // desiredHeight
-                        true // isStatic
-                        );
-            } else if (part.isVideo()) {
-                descriptor = new MessagePartVideoThumbnailRequestDescriptor(part);
-            } else {
-                return null;
-            }
-
-            final MediaRequest<ImageResource> imageRequest =
-                    descriptor.buildSyncMediaRequest(mContext);
-            final ImageResource imageResource =
-                    MediaResourceManager.get().requestMediaResourceSync(imageRequest);
-            if (imageResource != null && imageResource.getBitmap() != null) {
-                setImageResource(imageResource);
-                return Bitmap.createBitmap(imageResource.getBitmap());
-            } else {
-                releaseImageResource();
-                return null;
-            }
         }
 
         /**

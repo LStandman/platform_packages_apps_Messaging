@@ -42,9 +42,6 @@ public class BugleMediaCacheManager extends MediaCacheManager {
             case AVATAR_IMAGE_CACHE:
                 return new PoolableImageCache(id, "AvatarImageCache");
 
-            case VCARD_CACHE:
-                return new MediaCache<VCardResource>(VCARD_CACHE_SIZE, id, "VCardCache");
-
             default:
                 Assert.fail("BugleMediaCacheManager: unsupported cache id " + id);
                 break;

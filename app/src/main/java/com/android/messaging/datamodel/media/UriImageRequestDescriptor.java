@@ -18,8 +18,6 @@ package com.android.messaging.datamodel.media;
 import android.content.Context;
 import android.net.Uri;
 
-import com.android.messaging.util.UriUtil;
-
 public class UriImageRequestDescriptor extends ImageRequestDescriptor {
     public final Uri uri;
     public final boolean allowCompression;
@@ -81,10 +79,6 @@ public class UriImageRequestDescriptor extends ImageRequestDescriptor {
 
     @Override
     public MediaRequest<ImageResource> buildSyncMediaRequest(final Context context) {
-        if (uri == null || UriUtil.isLocalUri(uri)) {
-            return new UriImageRequest<UriImageRequestDescriptor>(context, this);
-        } else {
-            return new NetworkUriImageRequest<UriImageRequestDescriptor>(context, this);
-        }
+        return new UriImageRequest<UriImageRequestDescriptor>(context, this);
     }
 }

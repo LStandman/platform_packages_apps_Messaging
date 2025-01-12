@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.ex.chips;
+package com.android.messaging.shims.chips;
 
 import android.net.Uri;
 import android.provider.ContactsContract.CommonDataKinds.Email;
@@ -99,18 +99,18 @@ public class RecipientEntry {
     private boolean mInReplacedChip;
 
     protected RecipientEntry(int entryType, String displayName, String destination,
-        int destinationType, String destinationLabel, long contactId, Long directoryId,
-        long dataId, Uri photoThumbnailUri, boolean isFirstLevel, boolean isValid,
-        String lookupKey, String[] permissions) {
+                             int destinationType, String destinationLabel, long contactId, Long directoryId,
+                             long dataId, Uri photoThumbnailUri, boolean isFirstLevel, boolean isValid,
+                             String lookupKey, String[] permissions) {
         this(entryType, displayName, destination, destinationType,
-            destinationLabel, contactId, directoryId, dataId, photoThumbnailUri,
-            true /* shouldDisplayIcon */, isFirstLevel, isValid, lookupKey, permissions);
+                destinationLabel, contactId, directoryId, dataId, photoThumbnailUri,
+                true /* shouldDisplayIcon */, isFirstLevel, isValid, lookupKey, permissions);
     }
 
     protected RecipientEntry(int entryType, String displayName, String destination,
-            int destinationType, String destinationLabel, long contactId, Long directoryId,
-            long dataId, Uri photoThumbnailUri, boolean shouldDisplayIcon,
-            boolean isFirstLevel, boolean isValid, String lookupKey, String[] permissions) {
+                             int destinationType, String destinationLabel, long contactId, Long directoryId,
+                             long dataId, Uri photoThumbnailUri, boolean shouldDisplayIcon,
+                             boolean isFirstLevel, boolean isValid, String lookupKey, String[] permissions) {
         mEntryType = entryType;
         mIsFirstLevel = isFirstLevel;
         mDisplayName = displayName;
@@ -131,9 +131,9 @@ public class RecipientEntry {
     }
 
     protected RecipientEntry(int entryType, String displayName, String destination,
-            int destinationType, String destinationLabel, long contactId, Long directoryId,
-            long dataId, Uri photoThumbnailUri, boolean isFirstLevel, boolean isValid,
-            String lookupKey) {
+                             int destinationType, String destinationLabel, long contactId, Long directoryId,
+                             long dataId, Uri photoThumbnailUri, boolean isFirstLevel, boolean isValid,
+                             String lookupKey) {
         this(entryType, displayName, destination, destinationType, destinationLabel,
                 contactId, directoryId, dataId, photoThumbnailUri, isFirstLevel, isValid,
                 lookupKey, null);
@@ -169,7 +169,7 @@ public class RecipientEntry {
      * Construct a RecipientEntry from just a phone number.
      */
     public static RecipientEntry constructFakePhoneEntry(final String phoneNumber,
-            final boolean isValid) {
+                                                         final boolean isValid) {
         return new RecipientEntry(ENTRY_TYPE_PERSON, phoneNumber, phoneNumber,
                 INVALID_DESTINATION_TYPE, null, INVALID_CONTACT, null /* directoryId */,
                 INVALID_CONTACT, null, true, isValid, null /* lookupKey */, null /* permissions */);
@@ -181,16 +181,16 @@ public class RecipientEntry {
      * to a contact and therefore does not have a contact id or photo.
      */
     public static RecipientEntry constructGeneratedEntry(String display, String address,
-            boolean isValid) {
+                                                         boolean isValid) {
         return new RecipientEntry(ENTRY_TYPE_PERSON, display, address, INVALID_DESTINATION_TYPE,
                 null, GENERATED_CONTACT, null /* directoryId */, GENERATED_CONTACT, null, true,
                 isValid, null /* lookupKey */, null /* permissions */);
     }
 
     public static RecipientEntry constructTopLevelEntry(String displayName, int displayNameSource,
-            String destination, int destinationType, String destinationLabel, long contactId,
-            Long directoryId, long dataId, Uri photoThumbnailUri, boolean isValid,
-            String lookupKey) {
+                                                        String destination, int destinationType, String destinationLabel, long contactId,
+                                                        Long directoryId, long dataId, Uri photoThumbnailUri, boolean isValid,
+                                                        String lookupKey) {
         return new RecipientEntry(ENTRY_TYPE_PERSON, pickDisplayName(displayNameSource,
                 displayName, destination), destination, destinationType, destinationLabel,
                 contactId, directoryId, dataId, photoThumbnailUri, true, isValid, lookupKey,
@@ -198,9 +198,9 @@ public class RecipientEntry {
     }
 
     public static RecipientEntry constructTopLevelEntry(String displayName, int displayNameSource,
-            String destination, int destinationType, String destinationLabel, long contactId,
-            Long directoryId, long dataId, String thumbnailUriAsString, boolean isValid,
-            String lookupKey) {
+                                                        String destination, int destinationType, String destinationLabel, long contactId,
+                                                        Long directoryId, long dataId, String thumbnailUriAsString, boolean isValid,
+                                                        String lookupKey) {
         return new RecipientEntry(ENTRY_TYPE_PERSON, pickDisplayName(displayNameSource,
                 displayName, destination), destination, destinationType, destinationLabel,
                 contactId, directoryId, dataId, (thumbnailUriAsString != null
@@ -209,31 +209,14 @@ public class RecipientEntry {
     }
 
     public static RecipientEntry constructSecondLevelEntry(String displayName,
-            int displayNameSource, String destination, int destinationType,
-            String destinationLabel, long contactId, Long directoryId, long dataId,
-            String thumbnailUriAsString, boolean isValid, String lookupKey) {
+                                                           int displayNameSource, String destination, int destinationType,
+                                                           String destinationLabel, long contactId, Long directoryId, long dataId,
+                                                           String thumbnailUriAsString, boolean isValid, String lookupKey) {
         return new RecipientEntry(ENTRY_TYPE_PERSON, pickDisplayName(displayNameSource,
                 displayName, destination), destination, destinationType, destinationLabel,
                 contactId, directoryId, dataId, (thumbnailUriAsString != null
                 ? Uri.parse(thumbnailUriAsString) : null), false, isValid, lookupKey,
                 null /* permissions */);
-    }
-
-    public static RecipientEntry constructPermissionEntry(String[] permissions) {
-        return new RecipientEntry(
-                ENTRY_TYPE_PERMISSION_REQUEST,
-                "" /* displayName */,
-                "" /* destination */,
-                Email.TYPE_CUSTOM,
-                "" /* destinationLabel */,
-                INVALID_CONTACT,
-                null /* directoryId */,
-                INVALID_CONTACT,
-                null /* photoThumbnailUri */,
-                true /* isFirstLevel*/,
-                false /* isValid */,
-                null /* lookupKey */,
-                permissions);
     }
 
     /**
@@ -243,7 +226,7 @@ public class RecipientEntry {
      * to avoid confusion and just use the destination instead.
      */
     private static String pickDisplayName(int displayNameSource, String displayName,
-            String destination) {
+                                          String destination) {
         return (displayNameSource > DisplayNameSources.PHONE) ? displayName : destination;
     }
 

@@ -108,14 +108,6 @@ public class ConversationActivity extends BugleActionBarActivity
                     intent.getStringExtra(UIIntents.UI_INTENT_EXTRA_ATTACHMENT_TYPE);
             final Rect bounds = UiUtils.getMeasuredBoundsOnScreen(
                     findViewById(R.id.conversation_and_compose_container));
-            if (ContentType.isImageType(contentType)) {
-                final Uri imagesUri = MessagingContentProvider.buildConversationImagesUri(
-                        mUiState.getConversationId());
-                UIIntents.get().launchFullScreenPhotoViewer(
-                        this, Uri.parse(extraToDisplay), bounds, imagesUri);
-            } else if (ContentType.isVideoType(contentType)) {
-                UIIntents.get().launchFullScreenVideoViewer(this, Uri.parse(extraToDisplay));
-            }
         }
     }
 

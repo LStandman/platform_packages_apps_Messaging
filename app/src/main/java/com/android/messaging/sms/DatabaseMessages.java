@@ -19,11 +19,8 @@ package com.android.messaging.sms;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -35,12 +32,10 @@ import android.webkit.MimeTypeMap;
 
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.data.MessageData;
-import com.android.messaging.datamodel.media.VideoThumbnailRequest;
 import com.android.messaging.mmslib.pdu.CharacterSets;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.ContentType;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.MediaMetadataRetrieverWrapper;
 import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 import com.google.common.collect.Lists;
@@ -591,7 +586,7 @@ public class DatabaseMessages {
          *
          * @param cursor
          */
-        public void load(final Cursor cursor, final boolean loadMedia) {
+        public void load(final Cursor cursor) {
             mRowId = cursor.getLong(INDEX_ID);
             mMessageId = cursor.getLong(INDEX_MSG_ID);
             mContentType = cursor.getString(INDEX_CONTENT_TYPE);
@@ -600,22 +595,8 @@ public class DatabaseMessages {
             mWidth = 0;
             mHeight = 0;
             mSize = 0;
-            if (isMedia()) {
-                // For importing we don't load media since performance is critical
-                // For loading when we receive mms, we do load media to get enough
-                // information of the media file
-                if (loadMedia) {
-                    if (ContentType.isImageType(mContentType)) {
-                        loadImage();
-                    } else if (ContentType.isVideoType(mContentType)) {
-                        loadVideo();
-                    } // No need to load audio for parsing
-                    mSize = MmsUtils.getMediaFileSize(getDataUri());
-                }
-            } else {
-                // Load text if not media type
-                loadText();
-            }
+
+            loadText();
             mUri = Uri.withAppendedPath(Mms.CONTENT_URI, cursor.getString(INDEX_ID)).toString();
         }
 
@@ -719,87 +700,12 @@ public class DatabaseMessages {
         }
 
         /**
-         * Load video file of a video part and parse the dimensions and type
-         */
-        private void loadVideo() {
-            // This is a coarse check, and should not be applied to outgoing messages. However,
-            // currently, this does not cause any problems.
-            if (!VideoThumbnailRequest.shouldShowIncomingVideoThumbnails()) {
-                return;
-            }
-            final Uri uri = getDataUri();
-            final MediaMetadataRetrieverWrapper retriever = new MediaMetadataRetrieverWrapper();
-            try {
-                retriever.setDataSource(uri);
-                // FLAG: This inadvertently fixes a problem with phone receiving audio
-                // messages on some carrier. We should handle this in a less accidental way so that
-                // we don't break it again. (The carrier changes the content type in the wrapper
-                // in-transit from audio/mp4 to video/3gpp without changing the data)
-                // Also note: There is a bug in some OEM device where mmr returns
-                // video/ffmpeg for image files.  That shouldn't happen here but be aware.
-                mContentType =
-                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE);
-                final Bitmap bitmap = retriever.getFrameAtTime(-1);
-                if (bitmap != null) {
-                    mWidth = bitmap.getWidth();
-                    mHeight = bitmap.getHeight();
-                } else {
-                    // Get here if it's not actually video (see above)
-                    LogUtil.i(LogUtil.BUGLE_TAG, "loadVideo: Got null bitmap from " + uri);
-                }
-            } catch (IOException e) {
-                LogUtil.i(LogUtil.BUGLE_TAG, "Error extracting metadata from " + uri, e);
-            } finally {
-                retriever.release();
-            }
-        }
-
-        /**
-         * Get media file size
-         */
-        private long getMediaFileSize() {
-            final Context context = Factory.get().getApplicationContext();
-            final Uri uri = getDataUri();
-            AssetFileDescriptor fd = null;
-            try {
-                fd = context.getContentResolver().openAssetFileDescriptor(uri, "r");
-                if (fd != null) {
-                    return fd.getParcelFileDescriptor().getStatSize();
-                }
-            } catch (final FileNotFoundException e) {
-                LogUtil.e(TAG, "DatabaseMessages.MmsPart: cound not find media file: " + e, e);
-            } finally {
-                if (fd != null) {
-                    try {
-                        fd.close();
-                    } catch (final IOException e) {
-                        LogUtil.e(TAG, "DatabaseMessages.MmsPart: failed to close " + e, e);
-                    }
-                }
-            }
-            return 0L;
-        }
-
-        /**
          * @return If the type is a text type that stores text embedded (i.e. in db table)
          */
         private boolean isEmbeddedTextType() {
             return ContentType.TEXT_PLAIN.equals(mContentType)
                     || ContentType.APP_SMIL.equals(mContentType)
                     || ContentType.TEXT_HTML.equals(mContentType);
-        }
-
-        /**
-         * Get an instance of the MMS part from the part table cursor
-         *
-         * @param cursor
-         * @param loadMedia Whether to load the media file of the part
-         * @return
-         */
-        public static MmsPart get(final Cursor cursor, final boolean loadMedia) {
-            final MmsPart part = new MmsPart();
-            part.load(cursor, loadMedia);
-            return part;
         }
 
         public boolean isText() {

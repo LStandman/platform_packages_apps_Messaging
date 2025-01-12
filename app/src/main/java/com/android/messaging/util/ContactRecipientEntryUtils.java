@@ -19,7 +19,7 @@ import android.net.Uri;
 import android.provider.ContactsContract.DisplayNameSources;
 import android.text.TextUtils;
 
-import com.android.ex.chips.RecipientEntry;
+import com.android.messaging.shims.chips.RecipientEntry;
 import com.android.messaging.Factory;
 import com.android.messaging.R;
 import com.android.messaging.datamodel.BugleRecipientEntry;

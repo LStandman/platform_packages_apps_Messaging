@@ -560,7 +560,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // List of all our views
     private static final String[] CREATE_VIEW_SQLS = new String[] {
         ConversationListItemData.getConversationListViewSql(),
-        ConversationImagePartsView.getCreateSql(),
         DRAFT_PARTS_VIEW_SQL,
     };
 

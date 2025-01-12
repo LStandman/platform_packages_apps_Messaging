@@ -277,17 +277,6 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
                 succeeded = false;
             }
         }
-        if (toDownloadMessageId != null) {
-            LogUtil.i(TAG, "ProcessPendingMessagesAction: Queueing message " + toDownloadMessageId
-                    + " for download");
-            // This could queue nothing
-            if (!DownloadMmsAction.queueMmsForDownloadInBackground(toDownloadMessageId,
-                    processingAction)) {
-                LogUtil.w(TAG, "ProcessPendingMessagesAction: Failed to queue message "
-                        + toDownloadMessageId + " for download");
-                succeeded = false;
-            }
-        }
         if (toSendMessageId == null && toDownloadMessageId == null) {
             LogUtil.i(TAG, "ProcessPendingMessagesAction: No messages to send or download");
         }

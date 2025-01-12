@@ -73,7 +73,6 @@ public final class SmsReceiver extends BroadcastReceiver {
      */
     public static void updateSmsReceiveHandler(final Context context) {
         boolean smsReceiverEnabled;
-        boolean mmsWapPushReceiverEnabled;
         boolean respondViaMessageEnabled;
         boolean broadcastAbortEnabled;
 
@@ -84,8 +83,6 @@ public final class SmsReceiver extends BroadcastReceiver {
             // for both sms and mms notification. For the primary user on KLP (and above), we don't
             // use the SmsReceiver.
             smsReceiverEnabled = OsUtil.isSecondaryUser();
-            // On KLP use the new deliver event for mms
-            mmsWapPushReceiverEnabled = false;
             // On KLP we need to always enable this handler to show in the list of sms apps
             respondViaMessageEnabled = true;
             // On KLP we don't need to abort the broadcast
@@ -95,8 +92,6 @@ public final class SmsReceiver extends BroadcastReceiver {
             final boolean carrierSmsEnabled = PhoneUtils.getDefault().isSmsEnabled();
             smsReceiverEnabled = carrierSmsEnabled;
 
-            // On JB we use the mms receiver when sms/mms is enabled
-            mmsWapPushReceiverEnabled = carrierSmsEnabled;
             // On JB this is dynamic to make sure we don't show in dialer if sms is disabled
             respondViaMessageEnabled = carrierSmsEnabled;
             // On JB we need to abort broadcasts if SMS is enabled
@@ -119,21 +114,6 @@ public final class SmsReceiver extends BroadcastReceiver {
             }
             packageManager.setComponentEnabledSetting(
                     new ComponentName(context, SmsReceiver.class),
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
-        }
-        if (mmsWapPushReceiverEnabled) {
-            if (logv) {
-                LogUtil.v(TAG, "Enabling MMS message receiving");
-            }
-            packageManager.setComponentEnabledSetting(
-                    new ComponentName(context, MmsWapPushReceiver.class),
-                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
-        } else {
-            if (logv) {
-                LogUtil.v(TAG, "Disabling MMS message receiving");
-            }
-            packageManager.setComponentEnabledSetting(
-                    new ComponentName(context, MmsWapPushReceiver.class),
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
         }
         if (broadcastAbortEnabled) {

@@ -148,7 +148,6 @@ class SyncCursorPair {
 
     long scan(final int maxMessagesToScan,
             final int maxMessagesToUpdate, final ArrayList<SmsMessage> smsToAdd,
-            final LongSparseArray<MmsMessage> mmsToAdd,
             final ArrayList<LocalDatabaseMessage> messagesToDelete,
             final SyncManager.ThreadInfoCache threadInfoCache) {
         // Set of local messages matched with the timestamp of a remote message
@@ -165,7 +164,7 @@ class SyncCursorPair {
         // Iterate through messages on both sides in reverse time order
         // Import messages in remote not in local, delete messages in local not in remote
         while (localCount + remoteCount < maxMessagesToScan && smsToAdd.size()
-                + mmsToAdd.size() + messagesToDelete.size() < maxMessagesToUpdate) {
+                + messagesToDelete.size() < maxMessagesToUpdate) {
             if (remoteMessage == null && localMessage == null) {
                 // No more message on both sides - scan complete
                 lastTimestampMillis = SYNC_COMPLETE;
@@ -188,7 +187,7 @@ class SyncCursorPair {
                             < remoteMessage.getTimestampInMillis())) {
                 // Found a remote message that is not in local db
                 // Add the remote message
-                saveMessageToAdd(smsToAdd, mmsToAdd, remoteMessage, threadInfoCache);
+                saveMessageToAdd(smsToAdd, remoteMessage, threadInfoCache);
                 lastTimestampMillis = Math.min(lastTimestampMillis,
                         remoteMessage.getTimestampInMillis());
                 // Advance to next remote message
@@ -219,7 +218,7 @@ class SyncCursorPair {
                         // Delete local message
                         messagesToDelete.add((LocalDatabaseMessage) localMessage);
                         // Add remote message
-                        saveMessageToAdd(smsToAdd, mmsToAdd, remoteMessage, threadInfoCache);
+                        saveMessageToAdd(smsToAdd, remoteMessage, threadInfoCache);
                     }
                     // Get next local and remote messages
                     localMessage = localMessagePeek;
@@ -265,7 +264,7 @@ class SyncCursorPair {
                     // Add messages remote only
                     for (final DatabaseMessage msg : Sets.difference(
                             matchedRemoteMessages, matchedLocalMessages)) {
-                        saveMessageToAdd(smsToAdd, mmsToAdd, msg, threadInfoCache);
+                        saveMessageToAdd(smsToAdd, msg, threadInfoCache);
                     }
                 }
             }
@@ -616,18 +615,11 @@ class SyncCursorPair {
     }
 
     private void saveMessageToAdd(final List<SmsMessage> smsToAdd,
-            final LongSparseArray<MmsMessage> mmsToAdd, final DatabaseMessage message,
-            final ThreadInfoCache threadInfoCache) {
+            final DatabaseMessage message, final ThreadInfoCache threadInfoCache) {
         long threadId;
-        if (message.getProtocol() == MessageData.PROTOCOL_MMS) {
-            final MmsMessage mms = (MmsMessage) message;
-            mmsToAdd.append(mms.getId(), mms);
-            threadId = mms.mThreadId;
-        } else {
-            final SmsMessage sms = (SmsMessage) message;
-            smsToAdd.add(sms);
-            threadId = sms.mThreadId;
-        }
+        final SmsMessage sms = (SmsMessage) message;
+        smsToAdd.add(sms);
+        threadId = sms.mThreadId;
         // Cache the lookup and canonicalization of the phone number outside of the transaction...
         threadInfoCache.getThreadRecipients(threadId);
     }

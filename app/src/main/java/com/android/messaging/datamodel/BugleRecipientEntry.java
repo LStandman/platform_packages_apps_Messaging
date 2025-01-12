@@ -18,7 +18,7 @@ package com.android.messaging.datamodel;
 import android.net.Uri;
 import android.text.TextUtils;
 
-import com.android.ex.chips.RecipientEntry;
+import com.android.messaging.shims.chips.RecipientEntry;
 
 /**
  * An extension of RecipientEntry for Bugle's use since Bugle uses phone numbers to identify

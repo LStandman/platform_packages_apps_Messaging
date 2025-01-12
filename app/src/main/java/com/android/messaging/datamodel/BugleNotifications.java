@@ -23,7 +23,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.Bitmap.Config;
 import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.media.AudioManager;
@@ -57,11 +56,7 @@ import com.android.messaging.datamodel.media.AvatarRequestDescriptor;
 import com.android.messaging.datamodel.media.ImageResource;
 import com.android.messaging.datamodel.media.MediaRequest;
 import com.android.messaging.datamodel.media.MediaResourceManager;
-import com.android.messaging.datamodel.media.MessagePartVideoThumbnailRequestDescriptor;
 import com.android.messaging.datamodel.media.UriImageRequestDescriptor;
-import com.android.messaging.datamodel.media.VideoThumbnailRequest;
-import com.android.messaging.sms.MmsSmsUtils;
-import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.AvatarUriUtil;
@@ -713,61 +708,11 @@ public class BugleNotifications {
             }
         }
 
-        final Uri attachmentUri = notificationState.getAttachmentUri();
-        final String attachmentType = notificationState.getAttachmentType();
-        Bitmap attachmentBitmap = null;
-
-        // For messages with photo/video attachment, request an image to show in the notification.
-        if (attachmentUri != null && notificationState.mNotificationStyle != null &&
-                (notificationState.mNotificationStyle instanceof
-                        NotificationCompat.BigPictureStyle) &&
-                        (ContentType.isImageType(attachmentType) ||
-                                ContentType.isVideoType(attachmentType))) {
-            final boolean isVideo = ContentType.isVideoType(attachmentType);
-
-            MediaRequest<ImageResource> imageRequest;
-            if (isVideo) {
-                Assert.isTrue(VideoThumbnailRequest.shouldShowIncomingVideoThumbnails());
-                final MessagePartVideoThumbnailRequestDescriptor videoDescriptor =
-                        new MessagePartVideoThumbnailRequestDescriptor(attachmentUri);
-                imageRequest = videoDescriptor.buildSyncMediaRequest(context);
-            } else {
-                final UriImageRequestDescriptor imageDescriptor =
-                        new UriImageRequestDescriptor(attachmentUri,
-                            sWearableImageWidth,
-                            sWearableImageHeight,
-                            false /* allowCompression */,
-                            true /* isStatic */,
-                            false /* cropToCircle */,
-                            ImageUtils.DEFAULT_CIRCLE_BACKGROUND_COLOR /* circleBackgroundColor */,
-                            ImageUtils.DEFAULT_CIRCLE_STROKE_COLOR /* circleStrokeColor */);
-                imageRequest = imageDescriptor.buildSyncMediaRequest(context);
-            }
-            final ImageResource imageResource =
-                    MediaResourceManager.get().requestMediaResourceSync(imageRequest);
-            if (imageResource != null) {
-                try {
-                    // Copy the bitmap, because the one in the ImageResource is managed by
-                    // MediaResourceManager.
-                    Bitmap imageResourceBitmap = imageResource.getBitmap();
-                    Config config = imageResourceBitmap.getConfig();
-
-                    // Make sure our bitmap has a valid format.
-                    if (config == null) {
-                        config = Bitmap.Config.ARGB_8888;
-                    }
-                    attachmentBitmap = imageResourceBitmap.copy(config, true);
-                } finally {
-                    imageResource.release();
-                }
-            }
-        }
-
-        fireOffNotification(notificationState, attachmentBitmap, avatarIcon, avatarHiRes);
+        fireOffNotification(notificationState, avatarIcon, avatarHiRes);
     }
 
     private static void fireOffNotification(final NotificationState notificationState,
-            final Bitmap attachmentBitmap, final Bitmap avatarBitmap, Bitmap avatarHiResBitmap) {
+            final Bitmap avatarBitmap, Bitmap avatarHiResBitmap) {
         if (notificationState.mCanceled) {
             if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
                 LogUtil.v(TAG, "Firing off notification, but notification already canceled");
@@ -776,10 +721,6 @@ public class BugleNotifications {
         }
 
         final Context context = Factory.get().getApplicationContext();
-
-        if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
-            LogUtil.v(TAG, "MMS picture loaded, bitmap: " + attachmentBitmap);
-        }
 
         final NotificationCompat.Builder notifBuilder = notificationState.mNotificationBuilder;
         notifBuilder.setStyle(notificationState.mNotificationStyle);
@@ -799,37 +740,6 @@ public class BugleNotifications {
         }
 
         if (notificationState instanceof MultiMessageNotificationState) {
-            if (attachmentBitmap != null) {
-                // When we've got a picture attachment, we do some switcheroo trickery. When
-                // the notification is expanded, we show the picture as a bigPicture. The small
-                // icon shows the sender's avatar. When that same notification is collapsed, the
-                // picture is shown in the location where the avatar is normally shown. The lines
-                // below make all that happen.
-
-                // Here we're taking the picture attachment and making a small, scaled, center
-                // cropped version of the picture we can stuff into the place where the avatar
-                // goes when the notification is collapsed.
-                final Bitmap smallBitmap = ImageUtils.scaleCenterCrop(attachmentBitmap, sIconWidth,
-                        sIconHeight);
-                ((NotificationCompat.BigPictureStyle) notificationState.mNotificationStyle)
-                    .bigPicture(attachmentBitmap)
-                    .bigLargeIcon(avatarBitmap);
-                notificationState.mNotificationBuilder.setLargeIcon(smallBitmap);
-
-                // Add a wearable page with no visible card so you can more easily see the photo.
-                final NotificationCompat.Builder photoPageNotifBuilder =
-                        new NotificationCompat.Builder(Factory.get().getApplicationContext());
-                final WearableExtender photoPageWearableExtender = new WearableExtender();
-                photoPageWearableExtender.setHintShowBackgroundOnly(true);
-                if (attachmentBitmap != null) {
-                    final Bitmap wearBitmap = ImageUtils.scaleCenterCrop(attachmentBitmap,
-                            sWearableImageWidth, sWearableImageHeight);
-                    photoPageWearableExtender.setBackground(wearBitmap);
-                }
-                photoPageNotifBuilder.extend(photoPageWearableExtender);
-                wearableExtender.addPage(photoPageNotifBuilder.build());
-            }
-
             maybeAddWearableConversationLog(wearableExtender,
                     (MultiMessageNotificationState) notificationState);
             addDownloadMmsAction(notifBuilder, wearableExtender, notificationState);
@@ -889,18 +799,12 @@ public class BugleNotifications {
                 multiMessageNotificationState.mConvList.mConvInfos.get(0);
         final String selfId = convInfo.mSelfParticipantId;
 
-        final boolean requiresMms =
-                MmsSmsUtils.getRequireMmsForEmailAddress(
-                        convInfo.mIncludeEmailAddress, convInfo.mSubId) ||
-                (convInfo.mIsGroup && MmsUtils.groupMmsEnabled(convInfo.mSubId));
-
         final int requestCode = multiMessageNotificationState.getReplyIntentRequestCode();
         final PendingIntent replyPendingIntent = UIIntents.get()
                 .getPendingIntentForSendingMessageToConversation(context,
-                        conversationId, selfId, requiresMms, requestCode);
+                        conversationId, selfId, requestCode);
 
-        final int replyLabelRes = requiresMms ? R.string.notification_reply_via_mms :
-            R.string.notification_reply_via_sms;
+        final int replyLabelRes = R.string.notification_reply_via_sms;
 
         final NotificationCompat.Action.Builder actionBuilder =
                 new NotificationCompat.Action.Builder(R.drawable.ic_wear_reply,

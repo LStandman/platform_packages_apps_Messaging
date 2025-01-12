@@ -35,11 +35,8 @@ import com.android.messaging.datamodel.data.ConversationData.ConversationDataLis
 import com.android.messaging.datamodel.data.ConversationListData;
 import com.android.messaging.datamodel.data.ConversationListData.ConversationListDataListener;
 import com.android.messaging.datamodel.data.DraftMessageData;
-import com.android.messaging.datamodel.data.GalleryGridItemData;
 import com.android.messaging.datamodel.data.LaunchConversationData;
 import com.android.messaging.datamodel.data.LaunchConversationData.LaunchConversationDataListener;
-import com.android.messaging.datamodel.data.MediaPickerData;
-import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.datamodel.data.ParticipantListItemData;
 import com.android.messaging.datamodel.data.PeopleAndOptionsData;
@@ -48,8 +45,6 @@ import com.android.messaging.datamodel.data.PeopleOptionsItemData;
 import com.android.messaging.datamodel.data.SettingsData;
 import com.android.messaging.datamodel.data.SettingsData.SettingsDataListener;
 import com.android.messaging.datamodel.data.SubscriptionListData;
-import com.android.messaging.datamodel.data.VCardContactItemData;
-import com.android.messaging.sms.MmsConfig;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 import com.android.messaging.util.ConnectivityUtil;
@@ -111,16 +106,6 @@ public class DataModelImpl extends DataModel {
     }
 
     @Override
-    public MediaPickerData createMediaPickerData(final Context context) {
-        return new MediaPickerData(context);
-    }
-
-    @Override
-    public GalleryGridItemData createGalleryGridItemData() {
-        return new GalleryGridItemData();
-    }
-
-    @Override
     public LaunchConversationData createLaunchConversationData(
             final LaunchConversationDataListener listener) {
        return new LaunchConversationData(listener);
@@ -135,18 +120,6 @@ public class DataModelImpl extends DataModel {
     public PeopleAndOptionsData createPeopleAndOptionsData(final String conversationId,
             final Context context, final PeopleAndOptionsDataListener listener) {
         return new PeopleAndOptionsData(conversationId, context, listener);
-    }
-
-    @Override
-    public VCardContactItemData createVCardContactItemData(final Context context,
-            final MessagePartData data) {
-        return new VCardContactItemData(context, data);
-    }
-
-    @Override
-    public VCardContactItemData createVCardContactItemData(final Context context,
-            final Uri vCardUri) {
-        return new VCardContactItemData(context, vCardUri);
     }
 
     @Override
@@ -231,11 +204,6 @@ public class DataModelImpl extends DataModel {
                     new SubscriptionManager.OnSubscriptionsChangedListener() {
                         @Override
                         public void onSubscriptionsChanged() {
-                            // TODO: This dynamically changes the mms config that app is
-                            // currently using. It may cause inconsistency in some cases. We need
-                            // to check the usage of mms config and handle the dynamic change
-                            // gracefully
-                            MmsConfig.loadAsync();
                             ParticipantRefresh.refreshSelfParticipants();
                             if (OsUtil.isAtLeastN()) {
                                 createConnectivityUtilForEachActiveSubscription();

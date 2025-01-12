@@ -434,9 +434,7 @@ public class ContactPickerFragment extends Fragment implements ContactPickerData
     private void maybeGetOrCreateConversation() {
         final ArrayList<ParticipantData> participants =
                 mRecipientTextView.getRecipientParticipantDataForConversationCreation();
-        if (ContactPickerData.isTooManyParticipants(participants.size())) {
-            UiUtils.showToast(R.string.too_many_participants);
-        } else if (participants.size() > 0 && mMonitor == null) {
+        if (participants.size() > 0 && mMonitor == null) {
             mMonitor = GetOrCreateConversationAction.getOrCreateConversation(participants,
                     null, this);
         }
@@ -461,7 +459,7 @@ public class ContactPickerFragment extends Fragment implements ContactPickerData
                 mHost.onInitiateAddMoreParticipants();
             }
         }
-        mHost.onParticipantCountChanged(ContactPickerData.getCanAddMoreParticipants(newCount));
+        mHost.onParticipantCountChanged(false);
 
         // Refresh our local copy of the selected chips set to keep it up-to-date.
         mSelectedPhoneNumbers =  mRecipientTextView.getSelectedDestinations();

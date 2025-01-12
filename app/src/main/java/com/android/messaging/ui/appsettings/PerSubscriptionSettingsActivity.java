@@ -17,35 +17,26 @@
 package com.android.messaging.ui.appsettings;
 
 import android.app.FragmentTransaction;
-import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.preference.Preference;
-import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
-import android.preference.PreferenceScreen;
 import android.text.TextUtils;
 import android.view.MenuItem;
 
-import androidx.appcompat.mms.MmsManager;
 import androidx.core.app.NavUtils;
 
 import com.android.messaging.Factory;
 import com.android.messaging.R;
 import com.android.messaging.datamodel.ParticipantRefresh;
 import com.android.messaging.datamodel.data.ParticipantData;
-import com.android.messaging.sms.ApnDatabase;
-import com.android.messaging.sms.MmsConfig;
-import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.BugleActionBarActivity;
 import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.BuglePrefs;
-import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.PhoneUtils;
 
 public class PerSubscriptionSettingsActivity extends BugleActionBarActivity {
@@ -114,69 +105,6 @@ public class PerSubscriptionSettingsActivity extends BugleActionBarActivity {
             mPhoneNumberPreference.setDefaultPhoneNumber(
                     PhoneUtils.get(mSubId).getCanonicalForSelf(false/*allowOverride*/), mSubId);
 
-            mGroupMmsPrefKey = getString(R.string.group_mms_pref_key);
-            mGroupMmsPreference = findPreference(mGroupMmsPrefKey);
-            if (!MmsConfig.get(mSubId).getGroupMmsEnabled()) {
-                // Always show group messaging setting even if the SIM has no number
-                // If broadcast sms is selected, the SIM number is not needed
-                // If group mms is selected, the phone number dialog will popup when message
-                // is being sent, making sure we will have a self number for group mms.
-                mmsCategory.removePreference(mGroupMmsPreference);
-            } else {
-                mGroupMmsPreference.setOnPreferenceClickListener(new OnPreferenceClickListener() {
-                    @Override
-                    public boolean onPreferenceClick(Preference pref) {
-                        GroupMmsSettingDialog.showDialog(getActivity(), mSubId);
-                        return true;
-                    }
-                });
-                updateGroupMmsPrefSummary();
-            }
-
-            if (!MmsConfig.get(mSubId).getSMSDeliveryReportsEnabled()) {
-                final Preference deliveryReportsPref = findPreference(
-                        getString(R.string.delivery_reports_pref_key));
-                advancedCategory.removePreference(deliveryReportsPref);
-            }
-            final Preference wirelessAlertPref = findPreference(getString(
-                    R.string.wireless_alerts_key));
-            if (!isCellBroadcastAppLinkEnabled()) {
-                advancedCategory.removePreference(wirelessAlertPref);
-            } else {
-                wirelessAlertPref.setOnPreferenceClickListener(
-                        new Preference.OnPreferenceClickListener() {
-                            @Override
-                            public boolean onPreferenceClick(final Preference preference) {
-                                try {
-                                    startActivity(UIIntents.get().getWirelessAlertsIntent());
-                                } catch (final ActivityNotFoundException e) {
-                                    // Handle so we shouldn't crash if the wireless alerts
-                                    // implementation is broken.
-                                    LogUtil.e(LogUtil.BUGLE_TAG,
-                                            "Failed to launch wireless alerts activity", e);
-                                }
-                                return true;
-                            }
-                        });
-            }
-
-            // Access Point Names (APNs)
-            final PreferenceScreen apnsScreen =
-                    (PreferenceScreen) findPreference(getString(R.string.sms_apns_key));
-
-            if (!MmsManager.shouldUseLegacyMms()
-                    || (MmsUtils.useSystemApnTable() && !ApnDatabase.doesDatabaseExist())) {
-                // 1) Remove the ability to edit the local APN prefs if it doesn't use legacy APIs.
-                // 2) Don't remove the ability to edit the local APN prefs if this device lets us
-                // access the system APN, but we can't find the MCC/MNC in the APN table and we
-                // created the local APN table in case the MCC/MNC was in there. In other words,
-                // if the local APN table exists, let the user edit it.
-                advancedCategory.removePreference((Preference) apnsScreen);
-            } else {
-                apnsScreen.setIntent(UIIntents.get()
-                        .getApnSettingsIntent(getPreferenceScreen().getContext(), mSubId));
-            }
-
             // We want to disable preferences if we are not the default app, but we do all of the
             // above first so that the user sees the correct information on the screen
             if (!PhoneUtils.getDefault().isDefaultSmsApp()) {
@@ -196,27 +124,6 @@ public class PerSubscriptionSettingsActivity extends BugleActionBarActivity {
             }
         }
 
-        private boolean isCellBroadcastAppLinkEnabled() {
-            if (!MmsConfig.get(mSubId).getShowCellBroadcast()) {
-                return false;
-            }
-            try {
-                final PackageManager pm = getActivity().getPackageManager();
-                return pm.getApplicationEnabledSetting(UIIntents.CMAS_COMPONENT)
-                        != PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
-            } catch (final IllegalArgumentException ignored) {
-                // CMAS app not installed.
-            }
-            return false;
-        }
-
-        private void updateGroupMmsPrefSummary() {
-            final boolean groupMmsEnabled = getPreferenceScreen().getSharedPreferences().getBoolean(
-                    mGroupMmsPrefKey, getResources().getBoolean(R.bool.group_mms_pref_default));
-            mGroupMmsPreference.setSummary(groupMmsEnabled ?
-                    R.string.enable_group_mms : R.string.disable_group_mms);
-        }
-
         @Override
         public void onResume() {
             super.onResume();
@@ -227,9 +134,7 @@ public class PerSubscriptionSettingsActivity extends BugleActionBarActivity {
         @Override
         public void onSharedPreferenceChanged(final SharedPreferences sharedPreferences,
                 final String key) {
-            if (key.equals(mGroupMmsPrefKey)) {
-                updateGroupMmsPrefSummary();
-            } else if (key.equals(mPhoneNumberKey)) {
+            if (key.equals(mPhoneNumberKey)) {
                 // Save the changed phone number in preferences specific to the sub id
                 final String newPhoneNumber = mPhoneNumberPreference.getText();
                 final BuglePrefs subPrefs = BuglePrefs.getSubscriptionPrefs(mSubId);

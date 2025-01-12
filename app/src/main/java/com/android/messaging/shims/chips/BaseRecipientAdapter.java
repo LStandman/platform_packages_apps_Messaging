@@ -14,23 +14,20 @@
  * limitations under the License.
  */
 
-package com.android.ex.chips;
+package com.android.messaging.shims.chips;
 
 import android.accounts.Account;
-import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Resources;
 import android.database.Cursor;
-import android.database.MatrixCursor;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.Directory;
-import androidx.annotation.Nullable;
 import android.text.TextUtils;
 import android.text.util.Rfc822Token;
 import android.util.Log;
@@ -41,8 +38,7 @@ import android.widget.BaseAdapter;
 import android.widget.Filter;
 import android.widget.Filterable;
 
-import com.android.ex.chips.ChipsUtil.PermissionsCheckListener;
-import com.android.ex.chips.DropdownChipLayouter.AdapterType;
+import com.android.messaging.shims.chips.DropdownChipLayouter.AdapterType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,15 +52,14 @@ import java.util.Set;
  * Adapter for showing a recipient list.
  *
  * <p>It checks whether all permissions are granted before doing
- * query. If not all permissions in {@link ChipsUtil#REQUIRED_PERMISSIONS} are granted and
+ * query. If not all permissions in ChipsUtil#REQUIRED_PERMISSIONS are granted and
  * {@link #mShowRequestPermissionsItem} is true it will return single entry that asks user to grant
  * permissions to the app. Any app that uses this library should set this when it wants us to
  * display that entry but then it should set
  * {@link RecipientEditTextView.PermissionsRequestItemClickedListener} on
  * {@link RecipientEditTextView} as well.
  */
-public class BaseRecipientAdapter extends BaseAdapter implements Filterable, AccountSpecifier,
-        PhotoManager.PhotoManagerCallback {
+public class BaseRecipientAdapter extends BaseAdapter implements Filterable, AccountSpecifier {
     private static final String TAG = "BaseRecipientAdapter";
 
     private static final boolean DEBUG = false;
@@ -207,16 +202,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
             this.existingDestinations = existingDestinations;
             this.paramsList = paramsList;
         }
-
-        private static DefaultFilterResult createResultWithNonAggregatedEntry(
-                RecipientEntry entry) {
-            return new DefaultFilterResult(
-                    Collections.singletonList(entry),
-                    new LinkedHashMap<Long, List<RecipientEntry>>() /* entryMap */,
-                    Collections.singletonList(entry) /* nonAggregatedEntries */,
-                    Collections.<String>emptySet() /* existingDestinations */,
-                    null /* paramsList */);
-        }
     }
 
     /**
@@ -237,24 +222,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
             if (TextUtils.isEmpty(constraint)) {
                 clearTempEntries();
                 // Return empty results.
-                return results;
-            }
-
-            if (!ChipsUtil.hasPermissions(mContext, mPermissionsCheckListener)) {
-                if (DEBUG) {
-                    Log.d(TAG, "No Contacts permission. mShowRequestPermissionsItem: "
-                            + mShowRequestPermissionsItem);
-                }
-                clearTempEntries();
-                if (!mShowRequestPermissionsItem) {
-                    // App doesn't want to show request permission entry. Returning empty results.
-                    return results;
-                }
-
-                // Return result with only permission request entry.
-                results.values = DefaultFilterResult.createResultWithNonAggregatedEntry(
-                        RecipientEntry.constructPermissionEntry(ChipsUtil.REQUIRED_PERMISSIONS));
-                results.count = 1;
                 return results;
             }
 
@@ -353,15 +320,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
      * {@code null} when we don't need or can't search other directories.
      */
     protected List<DirectorySearchParams> searchOtherDirectories(Set<String> existingDestinations) {
-        if (!ChipsUtil.hasPermissions(mContext, mPermissionsCheckListener)) {
-            // If we don't have permissions we can't search other directories.
-            if (DEBUG) {
-                Log.d(TAG, "Not searching other directories because we don't have required "
-                        + "permissions.");
-            }
-            return null;
-        }
-
         // After having local results, check the size of results. If the results are
         // not enough, we search remote directories, which will take longer time.
         final int limit = mPreferredMaxResultCount - existingDestinations.size();
@@ -536,14 +494,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
      */
     protected CharSequence mCurrentConstraint;
 
-    /**
-     * Performs all photo querying as well as caching for repeated lookups.
-     */
-    private PhotoManager mPhotoManager;
-
     protected boolean mShowRequestPermissionsItem;
-
-    private PermissionsCheckListener mPermissionsCheckListener;
 
     /**
      * Handler specific for maintaining "Waiting for more contacts" message, which will be shown
@@ -596,7 +547,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
         mContext = context;
         mContentResolver = context.getContentResolver();
         mPreferredMaxResultCount = preferredMaxResultCount;
-        mPhotoManager = new DefaultPhotoManager(mContentResolver);
         mQueryType = queryMode;
 
         if (queryMode == QUERY_TYPE_EMAIL) {
@@ -626,29 +576,9 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
         return mDropdownChipLayouter;
     }
 
-    public void setPermissionsCheckListener(PermissionsCheckListener permissionsCheckListener) {
-        mPermissionsCheckListener = permissionsCheckListener;
-    }
-
-    @Nullable
-    public PermissionsCheckListener getPermissionsCheckListener() {
-        return mPermissionsCheckListener;
-    }
-
     /**
-     * Enables overriding the default photo manager that is used.
-     */
-    public void setPhotoManager(PhotoManager photoManager) {
-        mPhotoManager = photoManager;
-    }
-
-    public PhotoManager getPhotoManager() {
-        return mPhotoManager;
-    }
-
-    /**
-     * If true, forces using the {@link com.android.ex.chips.SingleRecipientArrayAdapter}
-     * instead of {@link com.android.ex.chips.RecipientAlternatesAdapter} when
+     * If true, forces using the {@link com.android.messaging.shims.chips.SingleRecipientArrayAdapter}
+     * instead of {@link com.android.messaging.shims.chips.RecipientAlternatesAdapter} when
      * clicking on a chip. Default implementation returns {@code false}.
      */
     public boolean forceShowAddress() {
@@ -666,7 +596,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
     public void getMatchingRecipients(ArrayList<String> inAddresses,
             RecipientAlternatesAdapter.RecipientMatchCallback callback) {
         RecipientAlternatesAdapter.getMatchingRecipients(
-                getContext(), this, inAddresses, getAccount(), callback, mPermissionsCheckListener);
+                getContext(), this, inAddresses, getAccount(), callback);
     }
 
     /**
@@ -675,13 +605,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
     @Override
     public void setAccount(Account account) {
         mAccount = account;
-    }
-
-    /**
-     * Returns permissions that this adapter needs in order to provide results.
-     */
-    public String[] getRequiredPermissions() {
-        return ChipsUtil.REQUIRED_PERMISSIONS;
     }
 
     /**
@@ -787,10 +710,10 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
     }
 
     /**
-     * Called whenever {@link com.android.ex.chips.BaseRecipientAdapter.DirectoryFilter}
+     * Called whenever {@link com.android.messaging.shims.chips.BaseRecipientAdapter.DirectoryFilter}
      * wants to add an additional entry to the results. Derived classes should override
      * this method if they are not using the default data structures provided by
-     * {@link com.android.ex.chips.BaseRecipientAdapter} and are instead using their
+     * {@link com.android.messaging.shims.chips.BaseRecipientAdapter} and are instead using their
      * own data structures to store and collate data.
      * @param entry the entry being added
      * @param isAggregatedEntry
@@ -863,7 +786,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
             for (int i = 0; i < size; i++) {
                 RecipientEntry entry = entryList.get(i);
                 entries.add(entry);
-                mPhotoManager.populatePhotoBytesAsync(entry, this);
                 validEntryCount++;
             }
             if (validEntryCount > mPreferredMaxResultCount) {
@@ -876,7 +798,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
                     break;
                 }
                 entries.add(entry);
-                mPhotoManager.populatePhotoBytesAsync(entry, this);
                 validEntryCount++;
             }
         }
@@ -925,18 +846,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
         return mTempEntries != null ? mTempEntries : mEntries;
     }
 
-    protected void fetchPhoto(final RecipientEntry entry, PhotoManager.PhotoManagerCallback cb) {
-        mPhotoManager.populatePhotoBytesAsync(entry, cb);
-    }
-
     private Cursor doQuery(CharSequence constraint, int limit, Long directoryId) {
-        if (!ChipsUtil.hasPermissions(mContext, mPermissionsCheckListener)) {
-            if (DEBUG) {
-                Log.d(TAG, "Not doing query because we don't have required permissions.");
-            }
-            return null;
-        }
-
         final Uri.Builder builder = mQueryMode.getContentFilterUri().buildUpon()
                 .appendPath(constraint.toString())
                 .appendQueryParameter(ContactsContract.LIMIT_PARAM_KEY,
@@ -1015,20 +925,5 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
 
     public Account getAccount() {
         return mAccount;
-    }
-
-    @Override
-    public void onPhotoBytesPopulated() {
-        // Default implementation does nothing
-    }
-
-    @Override
-    public void onPhotoBytesAsynchronouslyPopulated() {
-        notifyDataSetChanged();
-    }
-
-    @Override
-    public void onPhotoBytesAsyncLoadFailed() {
-        // Default implementation does nothing
     }
 }

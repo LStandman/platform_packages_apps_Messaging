@@ -262,30 +262,6 @@ public class MessageDetailsDialog {
         details.append("Conversation telephony thread id: ");
         details.append(threadId);
 
-        MmsMessage mms = null;
-
-        if (data.getIsMms()) {
-            if (telephonyUri == null) {
-                return;
-            }
-            mms = MmsUtils.loadMms(Uri.parse(telephonyUri));
-            if (mms == null) {
-                return;
-            }
-
-            // We log the thread id again to check that they are internally consistent
-            final long mmsThreadId = mms.mThreadId;
-            details.append('\n');
-            details.append("Telephony thread id: ");
-            details.append(mmsThreadId);
-
-            // Log the MMS content location
-            final String mmsContentLocation = mms.mContentLocation;
-            details.append('\n');
-            details.append("Content location URL: ");
-            details.append(mmsContentLocation);
-        }
-
         final String recipientsString = MmsUtils.getRawRecipientIdsForThread(threadId);
         if (recipientsString != null) {
             details.append('\n');
@@ -298,13 +274,6 @@ public class MessageDetailsDialog {
             details.append('\n');
             details.append("Thread recipients: ");
             details.append(recipients.toString());
-
-            if (mms != null) {
-                final String from = MmsUtils.getMmsSender(recipients, mms.getUri());
-                details.append('\n');
-                details.append("Sender: ");
-                details.append(from);
-            }
         }
     }
 

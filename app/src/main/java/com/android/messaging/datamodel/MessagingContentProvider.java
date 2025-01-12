@@ -33,7 +33,6 @@ import com.android.messaging.datamodel.DatabaseHelper.ConversationParticipantsCo
 import com.android.messaging.datamodel.DatabaseHelper.ParticipantColumns;
 import com.android.messaging.datamodel.data.ConversationListItemData;
 import com.android.messaging.datamodel.data.ConversationMessageData;
-import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.LogUtil;
@@ -336,34 +335,6 @@ public class MessagingContentProvider extends ContentProvider {
                 } else {
                     throw new IllegalArgumentException("Malformed URI " + uri);
                 }
-            case CONVERSATION_IMAGES_QUERY_CODE:
-                queryBuilder.setTables(ConversationImagePartsView.getViewName());
-                if (uri.getPathSegments().size() == 2) {
-                    // Exclude draft.
-                    queryBuilder.appendWhere(
-                            ConversationImagePartsView.Columns.CONVERSATION_ID + " =? AND " +
-                                    ConversationImagePartsView.Columns.STATUS + "<>" +
-                                    MessageData.BUGLE_STATUS_OUTGOING_DRAFT);
-                    // Get the conversation id from the uri
-                    queryArgs = prependArgs(queryArgs, uri.getPathSegments().get(1));
-                } else {
-                    throw new IllegalArgumentException("Malformed URI " + uri);
-                }
-                break;
-            case DRAFT_IMAGES_QUERY_CODE:
-                queryBuilder.setTables(ConversationImagePartsView.getViewName());
-                if (uri.getPathSegments().size() == 2) {
-                    // Draft only.
-                    queryBuilder.appendWhere(
-                            ConversationImagePartsView.Columns.CONVERSATION_ID + " =? AND " +
-                                    ConversationImagePartsView.Columns.STATUS + "=" +
-                                    MessageData.BUGLE_STATUS_OUTGOING_DRAFT);
-                    // Get the conversation id from the uri
-                    queryArgs = prependArgs(queryArgs, uri.getPathSegments().get(1));
-                } else {
-                    throw new IllegalArgumentException("Malformed URI " + uri);
-                }
-                break;
             default: {
                 throw new IllegalArgumentException("Unknown URI " + uri);
             }

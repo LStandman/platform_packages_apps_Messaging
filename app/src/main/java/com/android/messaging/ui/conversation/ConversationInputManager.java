@@ -21,7 +21,6 @@ import android.os.Bundle;
 import androidx.appcompat.app.ActionBar;
 import android.widget.EditText;
 
-import com.android.messaging.R;
 import com.android.messaging.datamodel.binding.BindingBase;
 import com.android.messaging.datamodel.binding.ImmutableBindingRef;
 import com.android.messaging.datamodel.data.ConversationData;
@@ -30,11 +29,7 @@ import com.android.messaging.datamodel.data.ConversationData.SimpleConversationD
 import com.android.messaging.datamodel.data.DraftMessageData;
 import com.android.messaging.datamodel.data.DraftMessageData.DraftMessageSubscriptionDataProvider;
 import com.android.messaging.datamodel.data.MessagePartData;
-import com.android.messaging.datamodel.data.PendingAttachmentData;
 import com.android.messaging.datamodel.data.SubscriptionListData.SubscriptionListEntry;
-import com.android.messaging.ui.ConversationDrawables;
-import com.android.messaging.ui.mediapicker.MediaPicker;
-import com.android.messaging.ui.mediapicker.MediaPicker.MediaPickerListener;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.ImeUtil;
 import com.android.messaging.util.ImeUtil.ImeStateHost;
@@ -60,7 +55,6 @@ public class ConversationInputManager implements ConversationInput.ConversationI
         void selectSim(SubscriptionListEntry subscriptionData);
         void onStartComposeMessage();
         SimSelectorView getSimSelectorView();
-        MediaPicker createMediaPicker();
         void showHideSimSelector(boolean show);
         int getSimSelectorItemLayoutId();
     }
@@ -70,9 +64,6 @@ public class ConversationInputManager implements ConversationInput.ConversationI
      * typically the ComposeMessageView but may be mocked in test code.
      */
     public interface ConversationInputSink {
-        void onMediaItemsSelected(Collection<MessagePartData> items);
-        void onMediaItemsUnselected(MessagePartData item);
-        void onPendingAttachmentAdded(PendingAttachmentData pendingItem);
         void resumeComposeMessage();
         EditText getComposeEditText();
         void setAccessibility(boolean enabled);
@@ -89,7 +80,6 @@ public class ConversationInputManager implements ConversationInput.ConversationI
     private final ImmutableBindingRef<DraftMessageData> mDraftDataModel;
 
     private final ConversationInput[] mInputs;
-    private final ConversationMediaPicker mMediaInput;
     private final ConversationSimSelector mSimInput;
     private final ConversationImeKeyboard mImeInput;
     private int mUpdateCount;
@@ -136,10 +126,9 @@ public class ConversationInputManager implements ConversationInput.ConversationI
         mConversationDataModel.getData().addConversationDataListener(mDataListener);
 
         // Initialize the inputs
-        mMediaInput = new ConversationMediaPicker(this);
         mSimInput = new SimSelector(this);
         mImeInput = new ConversationImeKeyboard(this, mImeStateHost.isImeOpen());
-        mInputs = new ConversationInput[] { mMediaInput, mSimInput, mImeInput };
+        mInputs = new ConversationInput[] { mSimInput, mImeInput };
 
         if (savedState != null) {
             for (int i = 0; i < mInputs.length; i++) {
@@ -182,14 +171,6 @@ public class ConversationInputManager implements ConversationInput.ConversationI
             }
         }
         return false;
-    }
-
-    public void resetMediaPickerState() {
-        mMediaInput.resetViewHolderState();
-    }
-
-    public void showHideMediaPicker(final boolean show, final boolean animate) {
-        showHideInternal(mMediaInput, show, animate);
     }
 
     /**
@@ -236,7 +217,7 @@ public class ConversationInputManager implements ConversationInput.ConversationI
 
     @VisibleForTesting
     boolean isMediaPickerVisible() {
-        return mMediaInput.mShowing;
+        return false;
     }
 
     @VisibleForTesting
@@ -295,17 +276,6 @@ public class ConversationInputManager implements ConversationInput.ConversationI
         for (int i = 0; i < mInputs.length; i++) {
             final ConversationInput currInput = mInputs[i];
             if (currInput != target) {
-                // TODO : If there's more exceptions we will want to make this more
-                // generic
-                if (currInput instanceof ConversationMediaPicker &&
-                        target instanceof ConversationImeKeyboard &&
-                        mMediaInput.getExistingOrCreateMediaPicker() != null &&
-                        mMediaInput.getExistingOrCreateMediaPicker().canShowIme()) {
-                    // Allow the keyboard and location mediaPicker to be open at the same time,
-                    // but ensure the media picker is full screen to allow enough room
-                    mMediaInput.getExistingOrCreateMediaPicker().setFullScreen(true);
-                    continue;
-                }
                 showHideInternal(currInput, false /* show */, false /* animate */);
             }
         }
@@ -333,160 +303,7 @@ public class ConversationInputManager implements ConversationInput.ConversationI
     }
 
     private void updateHostOptionsMenu() {
-        mHost.setOptionsMenuVisibility(!mMediaInput.isOpen());
-    }
-
-    /**
-     * Manages showing/hiding the media picker in conversation.
-     */
-    private class ConversationMediaPicker extends ConversationInput {
-        public ConversationMediaPicker(ConversationInputBase baseHost) {
-            super(baseHost, false);
-        }
-
-        private MediaPicker mMediaPicker;
-
-        @Override
-        public boolean show(boolean animate) {
-            if (mMediaPicker == null) {
-                mMediaPicker = getExistingOrCreateMediaPicker();
-                setConversationThemeColor(ConversationDrawables.get().getConversationThemeColor());
-                mMediaPicker.setSubscriptionDataProvider(mHost);
-                mMediaPicker.setDraftMessageDataModel(mDraftDataModel);
-                mMediaPicker.setListener(new MediaPickerListener() {
-                    @Override
-                    public void onOpened() {
-                        handleStateChange();
-                    }
-
-                    @Override
-                    public void onFullScreenChanged(boolean fullScreen) {
-                        // When we're full screen, we want to disable accessibility on the
-                        // ComposeMessageView controls (attach button, message input, sim chooser)
-                        // that are hiding underneath the action bar.
-                        mSink.setAccessibility(!fullScreen /*enabled*/);
-                        handleStateChange();
-                    }
-
-                    @Override
-                    public void onDismissed() {
-                        // Re-enable accessibility on all controls now that the media picker is
-                        // going away.
-                        mSink.setAccessibility(true /*enabled*/);
-                        handleStateChange();
-                    }
-
-                    private void handleStateChange() {
-                        onVisibilityChanged(isOpen());
-                        mHost.invalidateActionBar();
-                        updateHostOptionsMenu();
-                    }
-
-                    @Override
-                    public void onItemsSelected(final Collection<MessagePartData> items,
-                            final boolean resumeCompose) {
-                        mSink.onMediaItemsSelected(items);
-                        mHost.invalidateActionBar();
-                        if (resumeCompose) {
-                            mSink.resumeComposeMessage();
-                        }
-                    }
-
-                    @Override
-                    public void onItemUnselected(final MessagePartData item) {
-                        mSink.onMediaItemsUnselected(item);
-                        mHost.invalidateActionBar();
-                    }
-
-                    @Override
-                    public void onConfirmItemSelection() {
-                        mSink.resumeComposeMessage();
-                    }
-
-                    @Override
-                    public void onPendingItemAdded(final PendingAttachmentData pendingItem) {
-                        mSink.onPendingAttachmentAdded(pendingItem);
-                    }
-
-                    @Override
-                    public void onChooserSelected(final int chooserIndex) {
-                        mHost.invalidateActionBar();
-                        mHost.dismissActionMode();
-                    }
-                });
-            }
-
-            mMediaPicker.open(MediaPicker.MEDIA_TYPE_DEFAULT, animate);
-
-            return isOpen();
-        }
-
-        @Override
-        public boolean hide(boolean animate) {
-            if (mMediaPicker != null) {
-                mMediaPicker.dismiss(animate);
-            }
-            return !isOpen();
-        }
-
-        public void resetViewHolderState() {
-            if (mMediaPicker != null) {
-                mMediaPicker.resetViewHolderState();
-            }
-        }
-
-        public void setConversationThemeColor(final int themeColor) {
-            if (mMediaPicker != null) {
-                mMediaPicker.setConversationThemeColor(themeColor);
-            }
-        }
-
-        private boolean isOpen() {
-            return (mMediaPicker != null && mMediaPicker.isOpen());
-        }
-
-        private MediaPicker getExistingOrCreateMediaPicker() {
-            if (mMediaPicker != null) {
-                return mMediaPicker;
-            }
-            MediaPicker mediaPicker = (MediaPicker)
-                    mFragmentManager.findFragmentByTag(MediaPicker.FRAGMENT_TAG);
-            if (mediaPicker == null) {
-                mediaPicker = mHost.createMediaPicker();
-                if (mediaPicker == null) {
-                    return null;    // this use of ComposeMessageView doesn't support media picking
-                }
-                mFragmentManager.beginTransaction().replace(
-                        R.id.mediapicker_container,
-                        mediaPicker,
-                        MediaPicker.FRAGMENT_TAG).commit();
-            }
-            return mediaPicker;
-        }
-
-        @Override
-        public boolean updateActionBar(ActionBar actionBar) {
-            if (isOpen()) {
-                mMediaPicker.updateActionBar(actionBar);
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public boolean onNavigationUpPressed() {
-            if (isOpen() && mMediaPicker.isFullScreen()) {
-                return onBackPressed();
-            }
-            return super.onNavigationUpPressed();
-        }
-
-        public boolean onBackPressed() {
-            if (mMediaPicker != null && mMediaPicker.onBackPressed()) {
-                return true;
-            }
-            return super.onBackPressed();
-        }
+        mHost.setOptionsMenuVisibility(true);
     }
 
     /**

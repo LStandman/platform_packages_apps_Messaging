@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.ex.chips;
+package com.android.messaging.shims.chips;
 
 import android.accounts.Account;
 import android.content.Context;
@@ -32,10 +32,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CursorAdapter;
 
-import com.android.ex.chips.BaseRecipientAdapter.DirectoryListQuery;
-import com.android.ex.chips.BaseRecipientAdapter.DirectorySearchParams;
-import com.android.ex.chips.DropdownChipLayouter.AdapterType;
-import com.android.ex.chips.Queries.Query;
+import com.android.messaging.shims.chips.BaseRecipientAdapter.DirectoryListQuery;
+import com.android.messaging.shims.chips.BaseRecipientAdapter.DirectorySearchParams;
+import com.android.messaging.shims.chips.DropdownChipLayouter.AdapterType;
+import com.android.messaging.shims.chips.Queries.Query;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -76,10 +76,8 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
     }
 
     public static void getMatchingRecipients(Context context, BaseRecipientAdapter adapter,
-            ArrayList<String> inAddresses, Account account, RecipientMatchCallback callback,
-            ChipsUtil.PermissionsCheckListener permissionsCheckListener) {
-        getMatchingRecipients(context, adapter, inAddresses, QUERY_TYPE_EMAIL, account, callback,
-                permissionsCheckListener);
+            ArrayList<String> inAddresses, Account account, RecipientMatchCallback callback) {
+        getMatchingRecipients(context, adapter, inAddresses, QUERY_TYPE_EMAIL, account, callback);
     }
 
     /**
@@ -93,8 +91,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
      */
     public static void getMatchingRecipients(Context context, BaseRecipientAdapter adapter,
             ArrayList<String> inAddresses, int addressType, Account account,
-            RecipientMatchCallback callback,
-            ChipsUtil.PermissionsCheckListener permissionsCheckListener) {
+            RecipientMatchCallback callback) {
         Queries.Query query;
         if (addressType == QUERY_TYPE_EMAIL) {
             query = Queries.EMAIL;
@@ -124,13 +121,11 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
         Cursor c = null;
 
         try {
-            if (ChipsUtil.hasPermissions(context, permissionsCheckListener)) {
-                c = context.getContentResolver().query(
-                        query.getContentUri(),
-                        query.getProjection(),
-                        query.getProjection()[Queries.Query.DESTINATION] + " IN ("
-                                + bindString.toString() + ")", addressArray, null);
-            }
+            c = context.getContentResolver().query(
+                    query.getContentUri(),
+                    query.getProjection(),
+                    query.getProjection()[Queries.Query.DESTINATION] + " IN ("
+                            + bindString.toString() + ")", addressArray, null);
             recipientEntries = processContactEntries(c, null /* directoryId */);
             callback.matchesFound(recipientEntries);
         } finally {
@@ -142,26 +137,15 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
         final Set<String> matchesNotFound = new HashSet<String>();
 
         getMatchingRecipientsFromDirectoryQueries(context, recipientEntries,
-                addresses, account, matchesNotFound, query, callback, permissionsCheckListener);
+                addresses, account, matchesNotFound, query, callback);
 
         getMatchingRecipientsFromExtensionMatcher(adapter, matchesNotFound, callback);
-    }
-
-    public static void getMatchingRecipientsFromDirectoryQueries(Context context,
-            Map<String, RecipientEntry> recipientEntries, Set<String> addresses,
-            Account account, Set<String> matchesNotFound,
-            RecipientMatchCallback callback,
-            ChipsUtil.PermissionsCheckListener permissionsCheckListener) {
-        getMatchingRecipientsFromDirectoryQueries(
-                context, recipientEntries, addresses, account,
-                matchesNotFound, Queries.EMAIL, callback, permissionsCheckListener);
     }
 
     private static void getMatchingRecipientsFromDirectoryQueries(Context context,
             Map<String, RecipientEntry> recipientEntries, Set<String> addresses,
             Account account, Set<String> matchesNotFound, Queries.Query query,
-            RecipientMatchCallback callback,
-            ChipsUtil.PermissionsCheckListener permissionsCheckListener) {
+            RecipientMatchCallback callback) {
         // See if any entries did not resolve; if so, we need to check other
         // directories
 
@@ -178,11 +162,9 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
             final List<DirectorySearchParams> paramsList;
             Cursor directoryCursor = null;
             try {
-                if (ChipsUtil.hasPermissions(context, permissionsCheckListener)) {
-                    directoryCursor = context.getContentResolver().query(
-                            DirectoryListQuery.URI, DirectoryListQuery.PROJECTION,
-                            null, null, null);
-                }
+                directoryCursor = context.getContentResolver().query(
+                        DirectoryListQuery.URI, DirectoryListQuery.PROJECTION,
+                        null, null, null);
                 if (directoryCursor == null) {
                     return;
                 }
@@ -201,7 +183,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
                         final long directoryId = paramsList.get(i).directoryId;
                         try {
                             directoryContactsCursor = doQuery(unresolvedAddress, 1 /* limit */,
-                                    directoryId, account, context, query, permissionsCheckListener);
+                                    directoryId, account, context, query);
                             if (directoryContactsCursor != null
                                     && directoryContactsCursor.getCount() != 0) {
                                 // We found the directory with at least one contact
@@ -340,14 +322,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
     }
 
     private static Cursor doQuery(CharSequence constraint, int limit, Long directoryId,
-            Account account, Context context, Query query,
-            ChipsUtil.PermissionsCheckListener permissionsCheckListener) {
-        if (!ChipsUtil.hasPermissions(context, permissionsCheckListener)) {
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "Not doing query because we don't have required permissions.");
-            }
-            return null;
-        }
+            Account account, Context context, Query query) {
         final Uri.Builder builder = query
                 .getContentFilterUri()
                 .buildUpon()
@@ -368,19 +343,9 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
 
     public RecipientAlternatesAdapter(Context context, long contactId, Long directoryId,
             String lookupKey, long currentId, int queryMode, OnCheckedItemChangedListener listener,
-            DropdownChipLayouter dropdownChipLayouter,
-            ChipsUtil.PermissionsCheckListener permissionsCheckListener) {
-        this(context, contactId, directoryId, lookupKey, currentId, queryMode, listener,
-                dropdownChipLayouter, null, permissionsCheckListener);
-    }
-
-    public RecipientAlternatesAdapter(Context context, long contactId, Long directoryId,
-            String lookupKey, long currentId, int queryMode, OnCheckedItemChangedListener listener,
-            DropdownChipLayouter dropdownChipLayouter, StateListDrawable deleteDrawable,
-            ChipsUtil.PermissionsCheckListener permissionsCheckListener) {
+            DropdownChipLayouter dropdownChipLayouter, StateListDrawable deleteDrawable) {
         super(context,
-                getCursorForConstruction(context, contactId, directoryId, lookupKey, queryMode,
-                        permissionsCheckListener),
+                getCursorForConstruction(context, contactId, directoryId, lookupKey, queryMode),
                 0);
         mCurrentId = currentId;
         mDirectoryId = directoryId;
@@ -391,8 +356,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
     }
 
     private static Cursor getCursorForConstruction(Context context, long contactId,
-            Long directoryId, String lookupKey, int queryType,
-            ChipsUtil.PermissionsCheckListener permissionsCheckListener) {
+            Long directoryId, String lookupKey, int queryType) {
         final Uri uri;
         final String desiredMimeType;
         final String[] projection;
@@ -434,12 +398,8 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
                 .append(" = ?")
                 .toString();
         final Cursor cursor;
-        if (ChipsUtil.hasPermissions(context, permissionsCheckListener)) {
-            cursor = context.getContentResolver().query(
-                    uri, projection, selection, new String[] {String.valueOf(contactId)}, null);
-        } else {
-            cursor = new MatrixCursor(projection);
-        }
+        cursor = context.getContentResolver().query(
+                uri, projection, selection, new String[] {String.valueOf(contactId)}, null);
 
         final Cursor resultCursor = removeUndesiredDestinations(cursor, desiredMimeType, lookupKey);
         cursor.close();

@@ -16,7 +16,6 @@
 
 package com.android.messaging.datamodel.action;
 
-import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
@@ -30,18 +29,12 @@ import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.BugleNotifications;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseWrapper;
-import com.android.messaging.datamodel.MmsFileProvider;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
-import com.android.messaging.mmslib.pdu.SendConf;
-import com.android.messaging.sms.MmsConfig;
-import com.android.messaging.sms.MmsSender;
 import com.android.messaging.sms.MmsUtils;
-import com.android.messaging.util.Assert;
 import com.android.messaging.util.LogUtil;
 
-import java.io.File;
 import java.util.ArrayList;
 
 /**
@@ -97,11 +90,11 @@ public class ProcessSentMessageAction extends Action {
     }
 
     public static void processMessageSentFastFailed(final String messageId,
-            final Uri messageUri, final Uri updatedMessageUri, final int subId, final boolean isSms,
+            final Uri messageUri, final Uri updatedMessageUri, final int subId,
             final int status, final int rawStatus, final int resultCode) {
         final ProcessSentMessageAction action = new ProcessSentMessageAction();
         final Bundle params = action.actionParameters;
-        params.putBoolean(KEY_SMS, isSms);
+        params.putBoolean(KEY_SMS, true);
         params.putBoolean(KEY_SENT_BY_PLATFORM, false);
         params.putString(KEY_MESSAGE_ID, messageId);
         params.putParcelable(KEY_MESSAGE_URI, messageUri);
@@ -128,61 +121,12 @@ public class ProcessSentMessageAction extends Action {
         final Uri messageUri = actionParameters.getParcelable(KEY_MESSAGE_URI);
         final Uri updatedMessageUri = actionParameters.getParcelable(KEY_UPDATED_MESSAGE_URI);
         final boolean isSms = actionParameters.getBoolean(KEY_SMS);
-        final boolean sentByPlatform = actionParameters.getBoolean(KEY_SENT_BY_PLATFORM);
 
         int status = actionParameters.getInt(KEY_STATUS, MmsUtils.MMS_REQUEST_MANUAL_RETRY);
         int rawStatus = actionParameters.getInt(KEY_RAW_STATUS,
                 MmsUtils.PDU_HEADER_VALUE_UNDEFINED);
         final int subId = actionParameters.getInt(KEY_SUB_ID, ParticipantData.DEFAULT_SELF_SUB_ID);
 
-        if (sentByPlatform) {
-            // Delete temporary file backing the contentUri passed to MMS service
-            final Uri contentUri = actionParameters.getParcelable(KEY_CONTENT_URI);
-            Assert.isTrue(contentUri != null);
-            final File tempFile = MmsFileProvider.getFile(contentUri);
-            long messageSize = 0;
-            if (tempFile.exists()) {
-                messageSize = tempFile.length();
-                tempFile.delete();
-                if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
-                    LogUtil.v(TAG, "ProcessSentMessageAction: Deleted temp file with outgoing "
-                            + "MMS pdu: " + contentUri);
-                }
-            }
-
-            final int resultCode = actionParameters.getInt(KEY_RESULT_CODE);
-            final boolean responseImportant = actionParameters.getBoolean(KEY_RESPONSE_IMPORTANT);
-            if (resultCode == Activity.RESULT_OK) {
-                if (responseImportant) {
-                    // Get the status from the response PDU and update telephony
-                    final byte[] response = actionParameters.getByteArray(KEY_RESPONSE);
-                    final SendConf sendConf = MmsSender.parseSendConf(response, subId);
-                    if (sendConf != null) {
-                        final MmsUtils.StatusPlusUri result =
-                                MmsUtils.updateSentMmsMessageStatus(context, messageUri, sendConf);
-                        status = result.status;
-                        rawStatus = result.rawStatus;
-                    }
-                }
-            } else {
-                String errorMsg = "ProcessSentMessageAction: Platform returned error resultCode: "
-                        + resultCode;
-                final int httpStatusCode = actionParameters.getInt(KEY_HTTP_STATUS_CODE);
-                if (httpStatusCode != 0) {
-                    errorMsg += (", HTTP status code: " + httpStatusCode);
-                }
-                LogUtil.w(TAG, errorMsg);
-                status = MmsSender.getErrorResultStatus(resultCode, httpStatusCode);
-
-                // Check for MMS messages that failed because they exceeded the maximum size,
-                // indicated by an I/O error from the platform.
-                if (resultCode == SmsManager.MMS_ERROR_IO_ERROR) {
-                    if (messageSize > MmsConfig.get(subId).getMaxMessageSize()) {
-                        rawStatus = MessageData.RAW_TELEPHONY_STATUS_MESSAGE_TOO_BIG;
-                    }
-                }
-            }
-        }
         if (messageId != null) {
             final int resultCode = actionParameters.getInt(KEY_RESULT_CODE);
             final int httpStatusCode = actionParameters.getInt(KEY_HTTP_STATUS_CODE);
@@ -212,27 +156,6 @@ public class ProcessSentMessageAction extends Action {
             return;
         }
         final String conversationId = message.getConversationId();
-        if (updatedMessageUri != null) {
-            // Update message if we have newly written final message in the telephony db
-            final MessageData update = MmsUtils.readSendingMmsMessage(updatedMessageUri,
-                    conversationId, message.getParticipantId(), message.getSelfId());
-            if (update != null) {
-                // Set message Id of final message to that of the existing place holder.
-                update.updateMessageId(message.getMessageId());
-                // Update image sizes.
-                update.updateSizesForImageParts();
-                // Temp attachments are no longer needed
-                for (final MessagePartData part : message.getParts()) {
-                    part.destroySync();
-                }
-                message = update;
-                // processResult will rewrite the complete message as part of update
-            } else {
-                updatedMessageUri = null;
-                status = MmsUtils.MMS_REQUEST_MANUAL_RETRY;
-                LogUtil.e(TAG, "ProcessSentMessageAction: Unable to read sending message");
-            }
-        }
 
         final long timestamp = System.currentTimeMillis();
         boolean failed;
