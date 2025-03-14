@@ -36,7 +36,6 @@ import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.action.DeleteConversationAction;
 import com.android.messaging.datamodel.action.DeleteMessageAction;
 import com.android.messaging.datamodel.action.InsertNewMessageAction;
-import com.android.messaging.datamodel.action.RedownloadMmsAction;
 import com.android.messaging.datamodel.action.ResendMessageAction;
 import com.android.messaging.datamodel.action.UpdateConversationArchiveStatusAction;
 import com.android.messaging.datamodel.binding.BindableData;
@@ -48,7 +47,6 @@ import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.Assert.RunsOnMainThread;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.widget.WidgetConversationProvider;
 
@@ -591,7 +589,7 @@ public class ConversationData extends BindableData {
         Assert.isTrue(TextUtils.equals(mConversationId, message.getConversationId()));
         Assert.isTrue(binding.getData() == this);
 
-        if (!OsUtil.isAtLeastL_MR1() || message.getSelfId() == null) {
+        if (message.getSelfId() == null) {
             InsertNewMessageAction.insertNewMessage(message);
         } else {
             final int systemDefaultSubId = PhoneUtils.getDefault().getDefaultSmsSubscriptionId();
@@ -621,13 +619,6 @@ public class ConversationData extends BindableData {
                 }
             }
         }
-    }
-
-    public void downloadMessage(final BindingBase<ConversationData> binding,
-            final String messageId) {
-        Assert.isTrue(binding.getData() == this);
-        Assert.notNull(messageId);
-        RedownloadMmsAction.redownloadMessage(messageId);
     }
 
     public void resendMessage(final BindingBase<ConversationData> binding, final String messageId) {
@@ -734,8 +725,7 @@ public class ConversationData extends BindableData {
         // 1. Framework has MSIM support AND
         // 2. The device has had multiple *active* subscriptions. AND
         // 3. The message's subscription is active.
-        if (OsUtil.isAtLeastL_MR1() &&
-                selfParticipantsData.getSelfParticipantsCountExcludingDefault(true) > 1) {
+        if (selfParticipantsData.getSelfParticipantsCountExcludingDefault(true) > 1) {
             return subscriptionListData.getActiveSubscriptionEntryBySelfId(selfParticipantId,
                     excludeDefault);
         }

@@ -19,23 +19,17 @@ package com.android.messaging.datamodel.action;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
-import android.provider.Telephony.Mms;
 import android.provider.Telephony.Sms;
-import androidx.collection.LongSparseArray;
 import android.text.TextUtils;
 
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseWrapper;
-import com.android.messaging.datamodel.SyncManager;
 import com.android.messaging.datamodel.DatabaseHelper.MessageColumns;
 import com.android.messaging.datamodel.SyncManager.ThreadInfoCache;
-import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.mmslib.SqliteWrapper;
-import com.android.messaging.sms.DatabaseMessages;
 import com.android.messaging.sms.DatabaseMessages.DatabaseMessage;
 import com.android.messaging.sms.DatabaseMessages.LocalDatabaseMessage;
-import com.android.messaging.sms.DatabaseMessages.MmsMessage;
 import com.android.messaging.sms.DatabaseMessages.SmsMessage;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.Assert;
@@ -62,24 +56,6 @@ class SyncCursorPair {
 
     private final String mLocalSelection;
     private final String mRemoteSmsSelection;
-    private final String mRemoteMmsSelection;
-
-    /**
-     * Check if SMS has been synchronized. We compare the counts of messages on both
-     * sides and return true if they are equal.
-     *
-     * Note that this may not be the most reliable way to tell if messages are in sync.
-     * For example, the local misses one message and has one obsolete message.
-     * However, we have background sms sync once a while, also some other events might
-     * trigger a full sync. So we will eventually catch up. And this should be rare to
-     * happen.
-     *
-     * @return If sms is in sync with telephony sms/mms providers
-     */
-    static boolean allSynchronized(final DatabaseWrapper db) {
-        return isSynchronized(db, LOCAL_MESSAGES_SELECTION, null,
-                getSmsTypeSelectionSql(), null, getMmsTypeSelectionSql(), null);
-    }
 
     SyncCursorPair(final long lowerBound, final long upperBound) {
         mLocalSelection = getTimeConstrainedQuery(
@@ -94,47 +70,17 @@ class SyncCursorPair {
                 lowerBound,
                 upperBound,
                 null /* threadColumn */, null /* threadId */);
-        mRemoteMmsSelection = getTimeConstrainedQuery(
-                getMmsTypeSelectionSql(),
-                "date",
-                ((lowerBound < 0) ? lowerBound : (lowerBound + 999) / 1000), /*seconds*/
-                ((upperBound < 0) ? upperBound : (upperBound + 999) / 1000),  /*seconds*/
-                null /* threadColumn */, null /* threadId */);
-    }
-
-    SyncCursorPair(final long threadId, final String conversationId) {
-        mLocalSelection = getTimeConstrainedQuery(
-                LOCAL_MESSAGES_SELECTION,
-                MessageColumns.RECEIVED_TIMESTAMP,
-                -1L,
-                -1L,
-                MessageColumns.CONVERSATION_ID, conversationId);
-        // Find all SMS messages (excluding drafts) within the sync window
-        mRemoteSmsSelection = getTimeConstrainedQuery(
-                getSmsTypeSelectionSql(),
-                "date",
-                -1L,
-                -1L,
-                Sms.THREAD_ID, Long.toString(threadId));
-        mRemoteMmsSelection = getTimeConstrainedQuery(
-                getMmsTypeSelectionSql(),
-                "date",
-                -1L, /*seconds*/
-                -1L,  /*seconds*/
-                Mms.THREAD_ID, Long.toString(threadId));
     }
 
     void query(final DatabaseWrapper db) {
         // Load local messages in the sync window
         mLocalCursorIterator = new LocalCursorIterator(db, mLocalSelection);
         // Load remote messages in the sync window
-        mRemoteCursorsIterator = new RemoteCursorsIterator(mRemoteSmsSelection,
-                mRemoteMmsSelection);
+        mRemoteCursorsIterator = new RemoteCursorsIterator(mRemoteSmsSelection);
     }
 
     boolean isSynchronized(final DatabaseWrapper db) {
-        return isSynchronized(db, mLocalSelection, null, mRemoteSmsSelection,
-                null, mRemoteMmsSelection, null);
+        return isSynchronized(db, mLocalSelection, null, mRemoteSmsSelection, null);
     }
 
     void close() {
@@ -149,7 +95,7 @@ class SyncCursorPair {
     long scan(final int maxMessagesToScan,
             final int maxMessagesToUpdate, final ArrayList<SmsMessage> smsToAdd,
             final ArrayList<LocalDatabaseMessage> messagesToDelete,
-            final SyncManager.ThreadInfoCache threadInfoCache) {
+            final ThreadInfoCache threadInfoCache) {
         // Set of local messages matched with the timestamp of a remote message
         final Set<DatabaseMessage> matchedLocalMessages = Sets.newHashSet();
         // Set of remote messages matched with the timestamp of a local message
@@ -428,14 +374,11 @@ class SyncCursorPair {
      */
     private static class RemoteCursorsIterator implements CursorIterator {
         private Cursor mSmsCursor;
-        private Cursor mMmsCursor;
         private DatabaseMessage mNextSms;
-        private DatabaseMessage mNextMms;
 
-        RemoteCursorsIterator(final String smsSelection, final String mmsSelection)
+        RemoteCursorsIterator(final String smsSelection)
                 throws SQLiteException {
             mSmsCursor = null;
-            mMmsCursor = null;
             try {
                 final Context context = Factory.get().getApplicationContext();
                 if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
@@ -455,26 +398,8 @@ class SyncCursorPair {
                             + "need to cancel sync");
                     throw new RuntimeException("Null cursor from remote SMS query");
                 }
-                if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
-                    LogUtil.v(TAG, "SyncCursorPair: Querying for remote MMS; selection = "
-                            + mmsSelection);
-                }
-                mMmsCursor = SqliteWrapper.query(
-                        context,
-                        context.getContentResolver(),
-                        Mms.CONTENT_URI,
-                        DatabaseMessages.MmsMessage.getProjection(),
-                        mmsSelection,
-                        null /* selectionArgs */,
-                        ORDER_BY_DATE_DESC);
-                if (mMmsCursor == null) {
-                    LogUtil.w(TAG, "SyncCursorPair: Remote MMS query returned null cursor; "
-                            + "need to cancel sync");
-                    throw new RuntimeException("Null cursor from remote MMS query");
-                }
                 // Move to the first element in the combined stream from both cursors
                 mNextSms = getSmsCursorNext();
-                mNextMms = getMmsCursorNext();
             } catch (final SQLiteException e) {
                 LogUtil.e(TAG, "SyncCursorPair: failed to query remote messages", e);
                 // If we ignore this, the following code would think there is no remote message
@@ -488,22 +413,9 @@ class SyncCursorPair {
         @Override
         public DatabaseMessage next() {
             DatabaseMessage result = null;
-            if (mNextSms != null && mNextMms != null) {
-                if (mNextSms.getTimestampInMillis() >= mNextMms.getTimestampInMillis()) {
-                    result = mNextSms;
-                    mNextSms = getSmsCursorNext();
-                } else {
-                    result = mNextMms;
-                    mNextMms = getMmsCursorNext();
-                }
-            } else {
-                if (mNextSms != null) {
-                    result = mNextSms;
-                    mNextSms = getSmsCursorNext();
-                } else {
-                    result = mNextMms;
-                    mNextMms = getMmsCursorNext();
-                }
+            if (mNextSms != null) {
+                result = mNextSms;
+                mNextSms = getSmsCursorNext();
             }
             return result;
         }
@@ -515,24 +427,15 @@ class SyncCursorPair {
             return null;
         }
 
-        private DatabaseMessage getMmsCursorNext() {
-            if (mMmsCursor != null && mMmsCursor.moveToNext()) {
-                return MmsMessage.get(mMmsCursor);
-            }
-            return null;
-        }
-
         @Override
         // Return approximate cursor position allowing for read ahead on two cursors (hence -1)
         public int getPosition() {
-            return (mSmsCursor == null ? 0 : mSmsCursor.getPosition()) +
-                    (mMmsCursor == null ? 0 : mMmsCursor.getPosition()) - 1;
+            return (mSmsCursor == null ? 0 : mSmsCursor.getPosition()) - 1;
         }
 
         @Override
         public int getCount() {
-            return (mSmsCursor == null ? 0 : mSmsCursor.getCount()) +
-                    (mMmsCursor == null ? 0 : mMmsCursor.getCount());
+            return (mSmsCursor == null ? 0 : mSmsCursor.getCount());
         }
 
         @Override
@@ -540,10 +443,6 @@ class SyncCursorPair {
             if (mSmsCursor != null) {
                 mSmsCursor.close();
                 mSmsCursor = null;
-            }
-            if (mMmsCursor != null) {
-                mMmsCursor.close();
-                mMmsCursor = null;
             }
         }
     }
@@ -555,20 +454,6 @@ class SyncCursorPair {
      */
     public static String getSmsTypeSelectionSql() {
         return MmsUtils.getSmsTypeSelectionSql();
-    }
-
-    /**
-     * Type selection for importing mms messages.
-     *
-     * Criteria:
-     * MESSAGE_BOX is INBOX, SENT or OUTBOX
-     * MESSAGE_TYPE is SEND_REQ (sent), RETRIEVE_CONF (received) or NOTIFICATION_IND (download)
-     *
-     * @return The SQL selection for importing mms messages. This selects the message type,
-     * not including the selection on timestamp.
-     */
-    public static String getMmsTypeSelectionSql() {
-        return MmsUtils.getMmsTypeSelectionSql();
     }
 
     /**
@@ -638,12 +523,10 @@ class SyncCursorPair {
      */
     private static boolean isSynchronized(final DatabaseWrapper db, final String localSelection,
             final String[] localSelectionArgs, final String smsSelection,
-            final String[] smsSelectionArgs, final String mmsSelection,
-            final String[] mmsSelectionArgs) {
+            final String[] smsSelectionArgs) {
         final Context context = Factory.get().getApplicationContext();
         Cursor localCursor = null;
         Cursor remoteSmsCursor = null;
-        Cursor remoteMmsCursor = null;
         try {
             localCursor = db.query(
                     DatabaseHelper.MESSAGES_TABLE,
@@ -662,17 +545,7 @@ class SyncCursorPair {
                     smsSelection,
                     smsSelectionArgs,
                     null/*orderBy*/);
-            final int smsCount = getCountFromCursor(remoteSmsCursor);
-            remoteMmsCursor = SqliteWrapper.query(
-                    context,
-                    context.getContentResolver(),
-                    Mms.CONTENT_URI,
-                    COUNT_PROJECTION,
-                    mmsSelection,
-                    mmsSelectionArgs,
-                    null/*orderBy*/);
-            final int mmsCount = getCountFromCursor(remoteMmsCursor);
-            final int remoteCount = smsCount + mmsCount;
+            final int remoteCount = getCountFromCursor(remoteSmsCursor);
             final boolean isInSync = (localCount == remoteCount);
             if (isInSync) {
                 if (LogUtil.isLoggable(TAG, LogUtil.DEBUG)) {
@@ -694,9 +567,6 @@ class SyncCursorPair {
             }
             if (remoteSmsCursor != null) {
                 remoteSmsCursor.close();
-            }
-            if (remoteMmsCursor != null) {
-                remoteMmsCursor.close();
             }
         }
         return true;

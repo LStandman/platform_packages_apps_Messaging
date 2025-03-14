@@ -22,7 +22,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.provider.Telephony.Mms;
 import android.provider.Telephony.Sms;
 
 import com.android.messaging.Factory;
@@ -31,7 +30,6 @@ import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseHelper.MessageColumns;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.MessagingContentProvider;
-import com.android.messaging.datamodel.SyncManager;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.sms.MmsUtils;
@@ -218,19 +216,6 @@ public class SendMessageAction extends Action implements Parcelable {
         return null;
     }
 
-    private void updateMessageUri(final String messageId, final Uri updatedMessageUri) {
-        final DatabaseWrapper db = DataModel.get().getDatabase();
-        db.beginTransaction();
-        try {
-            final ContentValues values = new ContentValues();
-            values.put(MessageColumns.SMS_MESSAGE_URI, updatedMessageUri.toString());
-            BugleDatabaseOperations.updateMessageRow(db, messageId, values);
-            db.setTransactionSuccessful();
-        } finally {
-            db.endTransaction();
-        }
-    }
-
     @Override
     protected Object processBackgroundResponse(final Bundle response) {
         // Nothing to do here, post-send tasks handled by ProcessSentMessageAction
@@ -279,51 +264,35 @@ public class SendMessageAction extends Action implements Parcelable {
         // QUEUED or OUTBOX), and in MmsUtils.insertSendReq (should be OUTBOX).
 
         boolean updatedTelephony = true;
-        int messageBox;
         int type;
         switch(message.getStatus()) {
             case MessageData.BUGLE_STATUS_OUTGOING_COMPLETE:
             case MessageData.BUGLE_STATUS_OUTGOING_DELIVERED:
                 type = Sms.MESSAGE_TYPE_SENT;
-                messageBox = Mms.MESSAGE_BOX_SENT;
                 break;
             case MessageData.BUGLE_STATUS_OUTGOING_YET_TO_SEND:
             case MessageData.BUGLE_STATUS_OUTGOING_AWAITING_RETRY:
                 type = Sms.MESSAGE_TYPE_SENT;
-                messageBox = Mms.MESSAGE_BOX_SENT;
                 break;
             case MessageData.BUGLE_STATUS_OUTGOING_SENDING:
             case MessageData.BUGLE_STATUS_OUTGOING_RESENDING:
                 type = Sms.MESSAGE_TYPE_SENT;
-                messageBox = Mms.MESSAGE_BOX_SENT;
                 break;
             case MessageData.BUGLE_STATUS_OUTGOING_FAILED:
             case MessageData.BUGLE_STATUS_OUTGOING_FAILED_EMERGENCY_NUMBER:
                 type = Sms.MESSAGE_TYPE_FAILED;
-                messageBox = Mms.MESSAGE_BOX_FAILED;
                 break;
             default:
                 type = Sms.MESSAGE_TYPE_ALL;
-                messageBox = Mms.MESSAGE_BOX_ALL;
                 break;
         }
         // First in the telephony DB
-        if (isSms) {
-            // Ignore update message Uri
-            if (type != Sms.MESSAGE_TYPE_ALL) {
-                if (!MmsUtils.updateSmsMessageSendingStatus(context, message.getSmsMessageUri(),
-                        type, message.getReceivedTimeStamp())) {
-                    message.markMessageFailed(message.getSentTimeStamp());
-                    updatedTelephony = false;
-                }
-            }
-        } else if (message.getSmsMessageUri() != null) {
-            if (messageBox != Mms.MESSAGE_BOX_ALL) {
-                if (!MmsUtils.updateMmsMessageSendingStatus(context, message.getSmsMessageUri(),
-                        messageBox, message.getReceivedTimeStamp())) {
-                    message.markMessageFailed(message.getSentTimeStamp());
-                    updatedTelephony = false;
-                }
+        // Ignore update message Uri
+        if (type != Sms.MESSAGE_TYPE_ALL) {
+            if (!MmsUtils.updateSmsMessageSendingStatus(context, message.getSmsMessageUri(),
+                    type, message.getReceivedTimeStamp())) {
+                message.markMessageFailed(message.getSentTimeStamp());
+                updatedTelephony = false;
             }
         }
         if (updatedTelephony) {

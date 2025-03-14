@@ -60,7 +60,6 @@ import com.android.messaging.util.Assert.RunsOnMainThread;
 import com.android.messaging.util.ContactUtil;
 import com.android.messaging.util.ImeUtil;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.UiUtils;
 import com.google.common.annotations.VisibleForTesting;
@@ -103,7 +102,7 @@ public class ContactPickerFragment extends Fragment implements ContactPickerData
     }
 
     @VisibleForTesting
-    final Binding<ContactPickerData> mBinding = BindingBase.createBinding(this);
+    final Binding<ContactPickerData> mBinding = BindingBase.createBinding();
 
     private ContactPickerFragmentHost mHost;
     private ContactRecipientAutoCompleteView mRecipientTextView;
@@ -148,8 +147,8 @@ public class ContactPickerFragment extends Fragment implements ContactPickerData
 
         mRecipientTextView.setContactChipsListener(this);
         mRecipientTextView.setDropdownChipLayouter(new ContactDropdownLayouter(inflater,
-                getActivity(), this));
-        mRecipientTextView.setAdapter(new ContactRecipientAdapter(getActivity(), this));
+                getActivity()));
+        mRecipientTextView.setAdapter(new ContactRecipientAdapter(getActivity()));
         mRecipientTextView.addTextChangedListener(new TextWatcher() {
             @Override
             public void onTextChanged(final CharSequence s, final int start, final int before,
@@ -501,10 +500,6 @@ public class ContactPickerFragment extends Fragment implements ContactPickerData
      * @param show whether the contact lists are to be shown or hidden.
      */
     private void startExplodeTransitionForContactLists(final boolean show) {
-        if (!OsUtil.isAtLeastL()) {
-            // Explode animation is not supported pre-L.
-            return;
-        }
         final Explode transition = new Explode();
         final Rect epicenter = mPendingExplodeView == null ? null :
             UiUtils.getMeasuredBoundsOnScreen(mPendingExplodeView);
@@ -531,10 +526,6 @@ public class ContactPickerFragment extends Fragment implements ContactPickerData
      * the transition manager for pending explode transition.
      */
     private void toggleContactListItemsVisibilityForPendingTransition(final boolean show) {
-        if (!OsUtil.isAtLeastL()) {
-            // Explode animation is not supported pre-L.
-            return;
-        }
         mAllContactsListViewHolder.toggleVisibilityForPendingTransition(show, mPendingExplodeView);
         mFrequentContactsListViewHolder.toggleVisibilityForPendingTransition(show,
                 mPendingExplodeView);

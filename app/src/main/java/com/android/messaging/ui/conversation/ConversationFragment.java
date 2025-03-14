@@ -21,14 +21,12 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.app.Fragment;
-import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.DialogInterface.OnCancelListener;
 import android.content.DialogInterface.OnClickListener;
 import android.content.DialogInterface.OnDismissListener;
 import android.content.Intent;
@@ -41,7 +39,6 @@ import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
 import android.os.Parcelable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.core.text.BidiFormatter;
@@ -66,7 +63,6 @@ import android.widget.TextView;
 
 import com.android.messaging.R;
 import com.android.messaging.datamodel.DataModel;
-import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.action.InsertNewMessageAction;
 import com.android.messaging.datamodel.binding.Binding;
 import com.android.messaging.datamodel.binding.BindingBase;
@@ -141,7 +137,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
     private ComposeMessageView mComposeMessageView;
     private RecyclerView mRecyclerView;
     private ConversationMessageAdapter mAdapter;
-    private ConversationFastScroller mFastScroller;
 
     private View mConversationComposeDivider;
     private ChangeDefaultSmsAppHelper mChangeDefaultSmsAppHelper;
@@ -154,7 +149,7 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
     // A binding should have the lifetime of the owning component,
     //  don't recreate, unbind and bind if you need new data
     @VisibleForTesting
-    final Binding<ConversationData> mBinding = BindingBase.createBinding(this);
+    final Binding<ConversationData> mBinding = BindingBase.createBinding();
 
     // Saved Instance State Data - only for temporal data which is nice to maintain but not
     // critical for correctness.
@@ -164,11 +159,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
     private ConversationFragmentHost mHost;
 
     protected List<Integer> mFilterResults;
-
-    // The minimum scrolling distance between RecyclerView's scroll change event beyong which
-    // a fling motion is considered fast, in which case we'll delay load image attachments for
-    // perf optimization.
-    private int mFastFlingThreshold;
 
     // ConversationMessageView that is currently selected
     private ConversationMessageView mSelectedMessage;
@@ -329,12 +319,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
                         deleteMessage(messageId);
                     }
                     return true;
-                case R.id.action_download:
-                    if (mSelectedMessage != null) {
-                        retryDownload(messageId);
-                        mHost.dismissActionMode();
-                    }
-                    return true;
                 case R.id.action_send:
                     if (mSelectedMessage != null) {
                         retrySend(messageId);
@@ -410,24 +394,15 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
     @Override
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mFastFlingThreshold = getResources().getDimensionPixelOffset(
-                R.dimen.conversation_fast_fling_threshold);
         mAdapter = new ConversationMessageAdapter(getActivity(), null, this,
-                null,
                 // Sets the item click listener on the Recycler item views.
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(final View v) {
-                        final ConversationMessageView messageView = (ConversationMessageView) v;
-                        handleMessageClick(messageView);
-                    }
+                v -> {
+                    final ConversationMessageView messageView = (ConversationMessageView) v;
+                    handleMessageClick(messageView);
                 },
-                new View.OnLongClickListener() {
-                    @Override
-                    public boolean onLongClick(final View view) {
-                        selectMessage((ConversationMessageView) view);
-                        return true;
-                    }
+                view -> {
+                    selectMessage((ConversationMessageView) view);
+                    return true;
                 }
         );
     }
@@ -452,8 +427,8 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
         // Build the input manager with all its required dependencies and pass it along to the
         // compose message view.
         final ConversationInputManager inputManager = new ConversationInputManager(
-                getActivity(), this, mComposeMessageView, mHost, getFragmentManagerToUse(),
-                mBinding, mComposeMessageView.getDraftDataModel(), savedInstanceState);
+                getActivity(), this, mComposeMessageView, mHost,
+                mBinding, savedInstanceState);
         mComposeMessageView.setInputManager(inputManager);
         mComposeMessageView.setConversationDataModel(BindingBase.createBindingReference(mBinding));
         mHost.invalidateActionBar();
@@ -495,8 +470,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
         }
         intent.putExtra(UIIntents.UI_INTENT_EXTRA_MESSAGE_POSITION, -1);
     }
-
-    private final Handler mHandler = new Handler();
 
     /**
      * {@inheritDoc} from Fragment
@@ -595,7 +568,7 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
         mConversationComposeDivider = view.findViewById(R.id.conversation_compose_divider);
         mScrollToDismissThreshold = ViewConfiguration.get(getActivity()).getScaledTouchSlop();
         mRecyclerView.addOnScrollListener(mListScrollListener);
-        mFastScroller = ConversationFastScroller.addTo(mRecyclerView,
+        ConversationFastScroller.addTo(mRecyclerView,
                 UiUtils.isRtlMode() ? ConversationFastScroller.POSITION_LEFT_SIDE :
                     ConversationFastScroller.POSITION_RIGHT_SIDE);
 
@@ -983,10 +956,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
         return mBinding.isBound();
     }
 
-    private FragmentManager getFragmentManagerToUse() {
-        return OsUtil.isAtLeastJB_MR1() ? getChildFragmentManager() : getFragmentManager();
-    }
-
     @Override
     public void sendMessage(final MessageData message) {
         if (isReadyForAction()) {
@@ -1075,15 +1044,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
         return true;
     }
 
-    public void retryDownload(final String messageId) {
-        if (isReadyForAction()) {
-            mBinding.getData().downloadMessage(mBinding, messageId);
-        } else {
-            warnOfMissingActionConditions(false /*sending*/,
-                    null /*commandToRunAfterActionConditionResolved*/);
-        }
-    }
-
     public void retrySend(final String messageId) {
         if (isReadyForAction()) {
             if (ensureKnownRecipients()) {
@@ -1114,21 +1074,12 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
                         }
                     })
                     .setNegativeButton(android.R.string.cancel, null);
-            if (OsUtil.isAtLeastJB_MR1()) {
-                builder.setOnDismissListener(new OnDismissListener() {
-                    @Override
-                    public void onDismiss(final DialogInterface dialog) {
-                        mHost.dismissActionMode();
-                    }
-                });
-            } else {
-                builder.setOnCancelListener(new OnCancelListener() {
-                    @Override
-                    public void onCancel(final DialogInterface dialog) {
-                        mHost.dismissActionMode();
-                    }
-                });
-            }
+            builder.setOnDismissListener(new OnDismissListener() {
+                @Override
+                public void onDismiss(final DialogInterface dialog) {
+                    mHost.dismissActionMode();
+                }
+            });
             builder.create().show();
         } else {
             warnOfMissingActionConditions(false /*sending*/,
@@ -1139,7 +1090,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
 
     public void deleteConversation() {
         if (isReadyForAction()) {
-            final Context context = getActivity();
             mBinding.getData().deleteConversation(mBinding);
             closeConversation(mConversationId);
         } else {
@@ -1228,9 +1178,6 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
             } else if (data.getShowResendMessage() && isReadyToSend) {
                 // Select the message to show the resend/download/delete options
                 selectMessage(messageView);
-            } else if (data.getShowDownloadMessage() && isReadyToSend) {
-                // Directly download the message on tap
-                retryDownload(data.getMessageId());
             } else {
                 // Let the toast from warnOfMissingActionConditions show and skip
                 // selecting

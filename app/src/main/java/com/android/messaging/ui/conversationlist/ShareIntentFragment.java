@@ -51,7 +51,7 @@ public class ShareIntentFragment extends DialogFragment implements ConversationL
         public void onCreateConversationClick();
     }
 
-    private final Binding<ConversationListData> mListBinding = BindingBase.createBinding(this);
+    private final Binding<ConversationListData> mListBinding = BindingBase.createBinding();
     private RecyclerView mRecyclerView;
     private ListEmptyView mEmptyListMessageView;
     private ShareIntentAdapter mAdapter;

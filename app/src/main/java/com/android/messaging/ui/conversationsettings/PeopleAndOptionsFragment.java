@@ -63,7 +63,7 @@ public class PeopleAndOptionsFragment extends Fragment
     private OptionsListAdapter mOptionsListAdapter;
     private PeopleListAdapter mPeopleListAdapter;
     private final Binding<PeopleAndOptionsData> mBinding =
-            BindingBase.createBinding(this);
+            BindingBase.createBinding();
 
     private static final int REQUEST_CODE_RINGTONE_PICKER = 1000;
 

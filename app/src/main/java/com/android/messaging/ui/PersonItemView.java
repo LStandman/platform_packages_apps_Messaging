@@ -60,7 +60,7 @@ public class PersonItemView extends LinearLayout implements PersonItemDataListen
 
     public PersonItemView(final Context context, final AttributeSet attrs) {
         super(context, attrs);
-        mBinding = BindingBase.createDetachableBinding(this);
+        mBinding = BindingBase.createDetachableBinding();
         LayoutInflater.from(getContext()).inflate(R.layout.person_item_view, this, true);
     }
 

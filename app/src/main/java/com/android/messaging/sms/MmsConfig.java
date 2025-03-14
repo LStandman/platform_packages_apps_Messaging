@@ -24,7 +24,6 @@ import com.android.messaging.Factory;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.SafeAsyncTask;
 import com.google.common.collect.Maps;
@@ -150,27 +149,21 @@ public class MmsConfig {
         // Rebuild the entire MmsConfig map.
         sSubIdToMmsConfigMap.clear();
         loader.reset();
-        if (OsUtil.isAtLeastL_MR1()) {
-            final List<SubscriptionInfo> subInfoRecords =
-                    PhoneUtils.getDefault().toLMr1().getActiveSubscriptionInfoList();
-            if (subInfoRecords == null) {
-                LogUtil.w(TAG, "Loading mms config failed: no active SIM");
-                return;
-            }
-            for (SubscriptionInfo subInfoRecord : subInfoRecords) {
-                final int subId = subInfoRecord.getSubscriptionId();
-                final Bundle values = loader.get(subId);
-                addMmsConfig(new MmsConfig(subId, values));
-            }
-        } else {
-            final Bundle values = loader.get(ParticipantData.DEFAULT_SELF_SUB_ID);
-            addMmsConfig(new MmsConfig(ParticipantData.DEFAULT_SELF_SUB_ID, values));
+        final List<SubscriptionInfo> subInfoRecords =
+                PhoneUtils.getDefault().toLMr1().getActiveSubscriptionInfoList();
+        if (subInfoRecords == null) {
+            LogUtil.w(TAG, "Loading mms config failed: no active SIM");
+            return;
+        }
+        for (SubscriptionInfo subInfoRecord : subInfoRecords) {
+            final int subId = subInfoRecord.getSubscriptionId();
+            final Bundle values = loader.get(subId);
+            addMmsConfig(new MmsConfig(subId, values));
         }
     }
 
     private static void addMmsConfig(MmsConfig mmsConfig) {
-        Assert.isTrue(OsUtil.isAtLeastL_MR1() !=
-                (mmsConfig.mSubId == ParticipantData.DEFAULT_SELF_SUB_ID));
+        Assert.isTrue(mmsConfig.mSubId != ParticipantData.DEFAULT_SELF_SUB_ID);
         sSubIdToMmsConfigMap.put(mmsConfig.mSubId, mmsConfig);
     }
 
@@ -203,27 +196,6 @@ public class MmsConfig {
     public boolean getTransIdEnabled() {
         return mValues.getBoolean(CarrierConfigValuesLoader.CONFIG_ENABLED_TRANS_ID,
                 CarrierConfigValuesLoader.CONFIG_ENABLED_TRANS_ID_DEFAULT);
-    }
-
-    public String getEmailGateway() {
-        return mValues.getString(CarrierConfigValuesLoader.CONFIG_EMAIL_GATEWAY_NUMBER,
-                CarrierConfigValuesLoader.CONFIG_EMAIL_GATEWAY_NUMBER_DEFAULT);
-    }
-
-    public int getMaxImageHeight() {
-        return mValues.getInt(CarrierConfigValuesLoader.CONFIG_MAX_IMAGE_HEIGHT,
-                CarrierConfigValuesLoader.CONFIG_MAX_IMAGE_HEIGHT_DEFAULT);
-    }
-
-    public int getMaxImageWidth() {
-        return mValues.getInt(CarrierConfigValuesLoader.CONFIG_MAX_IMAGE_WIDTH,
-                CarrierConfigValuesLoader.CONFIG_MAX_IMAGE_WIDTH_DEFAULT);
-    }
-
-    public int getRecipientLimit() {
-        final int limit = mValues.getInt(CarrierConfigValuesLoader.CONFIG_RECIPIENT_LIMIT,
-                CarrierConfigValuesLoader.CONFIG_RECIPIENT_LIMIT_DEFAULT);
-        return limit < 0 ? Integer.MAX_VALUE : limit;
     }
 
     public int getMaxTextLimit() {

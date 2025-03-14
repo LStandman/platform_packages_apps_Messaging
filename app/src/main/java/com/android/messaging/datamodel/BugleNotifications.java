@@ -19,7 +19,6 @@ package com.android.messaging.datamodel;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -34,7 +33,6 @@ import android.provider.ContactsContract.Contacts;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationCompat.WearableExtender;
 import androidx.core.app.NotificationManagerCompat;
-import androidx.core.app.RemoteInput;
 import androidx.collection.SimpleArrayMap;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -45,12 +43,9 @@ import android.text.style.TextAppearanceSpan;
 import com.android.messaging.Factory;
 import com.android.messaging.R;
 import com.android.messaging.datamodel.MessageNotificationState.BundledMessageNotificationState;
-import com.android.messaging.datamodel.MessageNotificationState.ConversationLineInfo;
 import com.android.messaging.datamodel.MessageNotificationState.MultiConversationNotificationState;
-import com.android.messaging.datamodel.MessageNotificationState.MultiMessageNotificationState;
 import com.android.messaging.datamodel.action.MarkAsReadAction;
 import com.android.messaging.datamodel.action.MarkAsSeenAction;
-import com.android.messaging.datamodel.action.RedownloadMmsAction;
 import com.android.messaging.datamodel.data.ConversationListItemData;
 import com.android.messaging.datamodel.media.AvatarRequestDescriptor;
 import com.android.messaging.datamodel.media.ImageResource;
@@ -69,7 +64,6 @@ import com.android.messaging.util.ConversationIdSet;
 import com.android.messaging.util.ImageUtils;
 import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.NotificationPlayer;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PendingIntentConstants;
 import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.RingtoneUtil;
@@ -470,7 +464,7 @@ public class BugleNotifications {
         if (state.mParticipantAvatarsUris != null) {
             final Uri avatarUri = state.mParticipantAvatarsUris.get(0);
             final AvatarRequestDescriptor descriptor = new AvatarRequestDescriptor(avatarUri,
-                    sIconWidth, sIconHeight, OsUtil.isAtLeastL());
+                    sIconWidth, sIconHeight, true);
             final MediaRequest<ImageResource> imageRequest = descriptor.buildSyncMediaRequest(
                     context);
 
@@ -739,13 +733,6 @@ public class BugleNotifications {
             wearableExtender.setBackground(defaultBackground);
         }
 
-        if (notificationState instanceof MultiMessageNotificationState) {
-            maybeAddWearableConversationLog(wearableExtender,
-                    (MultiMessageNotificationState) notificationState);
-            addDownloadMmsAction(notifBuilder, wearableExtender, notificationState);
-            addWearableVoiceReplyAction(wearableExtender, notificationState);
-        }
-
         // Apply the wearable options and build & post the notification
         notifBuilder.extend(wearableExtender);
         doNotify(notifBuilder.build(), notificationState);
@@ -767,88 +754,6 @@ public class BugleNotifications {
             final String sortKey = String.format(Locale.US, "%02d", order);
             notifBuilder.setGroup(groupKey).setSortKey(sortKey);
         }
-    }
-
-    private static void maybeAddWearableConversationLog(
-            final WearableExtender wearableExtender,
-            final MultiMessageNotificationState notificationState) {
-        if (!isWearCompanionAppInstalled()) {
-            return;
-        }
-        final String convId = notificationState.mConversationIds.first();
-        ConversationLineInfo convInfo = notificationState.mConvList.mConvInfos.get(0);
-        final Notification page = MessageNotificationState.buildConversationPageForWearable(
-                convId,
-                convInfo.mParticipantCount);
-        if (page != null) {
-            wearableExtender.addPage(page);
-        }
-    }
-
-    private static void addWearableVoiceReplyAction(
-            final WearableExtender wearableExtender, final NotificationState notificationState) {
-        if (!(notificationState instanceof MultiMessageNotificationState)) {
-            return;
-        }
-        final MultiMessageNotificationState multiMessageNotificationState =
-                (MultiMessageNotificationState) notificationState;
-        final Context context = Factory.get().getApplicationContext();
-
-        final String conversationId = notificationState.mConversationIds.first();
-        final ConversationLineInfo convInfo =
-                multiMessageNotificationState.mConvList.mConvInfos.get(0);
-        final String selfId = convInfo.mSelfParticipantId;
-
-        final int requestCode = multiMessageNotificationState.getReplyIntentRequestCode();
-        final PendingIntent replyPendingIntent = UIIntents.get()
-                .getPendingIntentForSendingMessageToConversation(context,
-                        conversationId, selfId, requestCode);
-
-        final int replyLabelRes = R.string.notification_reply_via_sms;
-
-        final NotificationCompat.Action.Builder actionBuilder =
-                new NotificationCompat.Action.Builder(R.drawable.ic_wear_reply,
-                        context.getString(replyLabelRes), replyPendingIntent);
-        final String[] choices = context.getResources().getStringArray(
-                R.array.notification_reply_choices);
-        final RemoteInput remoteInput = new RemoteInput.Builder(Intent.EXTRA_TEXT).setLabel(
-                context.getString(R.string.notification_reply_prompt)).
-                setChoices(choices)
-                .build();
-        actionBuilder.addRemoteInput(remoteInput);
-        wearableExtender.addAction(actionBuilder.build());
-    }
-
-    private static void addDownloadMmsAction(final NotificationCompat.Builder notifBuilder,
-            final WearableExtender wearableExtender, final NotificationState notificationState) {
-        if (!(notificationState instanceof MultiMessageNotificationState)) {
-            return;
-        }
-        final MultiMessageNotificationState multiMessageNotificationState =
-                (MultiMessageNotificationState) notificationState;
-        final ConversationLineInfo convInfo =
-                multiMessageNotificationState.mConvList.mConvInfos.get(0);
-        if (!convInfo.getDoesLatestMessageNeedDownload()) {
-            return;
-        }
-        final String messageId = convInfo.getLatestMessageId();
-        if (messageId == null) {
-            // No message Id, no download for you
-            return;
-        }
-        final Context context = Factory.get().getApplicationContext();
-        final PendingIntent downloadPendingIntent =
-                RedownloadMmsAction.getPendingIntentForRedownloadMms(context, messageId);
-
-        final NotificationCompat.Action.Builder actionBuilder =
-                new NotificationCompat.Action.Builder(R.drawable.ic_file_download_light,
-                        context.getString(R.string.notification_download_mms),
-                        downloadPendingIntent);
-        final NotificationCompat.Action downloadAction = actionBuilder.build();
-        notifBuilder.addAction(downloadAction);
-
-        // Support the action on a wearable device as well
-        wearableExtender.addAction(downloadAction);
     }
 
     private static synchronized void doNotify(final Notification notification,

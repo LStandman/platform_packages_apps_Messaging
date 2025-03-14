@@ -23,15 +23,12 @@ public class Binding<T extends BindableData> extends BindingBase<T> {
 
     private String mBindingId;
     private T mData;
-    private final Object mOwner;
     private boolean mWasBound;
 
     /**
      * Initialize a binding instance - the owner is typically the containing class
      */
-    Binding(final Object owner) {
-        mOwner = owner;
-    }
+    Binding() {}
 
     @Override
     public T getData() {

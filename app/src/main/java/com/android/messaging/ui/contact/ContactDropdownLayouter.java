@@ -43,8 +43,7 @@ import com.android.messaging.util.ContactUtil;
 public class ContactDropdownLayouter extends DropdownChipLayouter {
     private final ContactListItemView.HostInterface mClivHostInterface;
 
-    public ContactDropdownLayouter(final LayoutInflater inflater, final Context context,
-            final ContactListItemView.HostInterface clivHostInterface) {
+    public ContactDropdownLayouter(final LayoutInflater inflater, final Context context) {
         super(inflater, context);
         mClivHostInterface = new ContactListItemView.HostInterface() {
 

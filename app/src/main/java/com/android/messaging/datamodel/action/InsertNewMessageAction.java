@@ -31,16 +31,13 @@ import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.SyncManager;
 import com.android.messaging.datamodel.data.ConversationListItemData;
 import com.android.messaging.datamodel.data.MessageData;
-import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Action used to convert a draft message to an outgoing message. Its writes SMS messages to
@@ -145,7 +142,7 @@ public class InsertNewMessageAction extends Action implements Parcelable {
         final long timestamp = System.currentTimeMillis();
         final ArrayList<String> recipients =
                 BugleDatabaseOperations.getRecipientsForConversation(db, conversationId);
-        if (recipients.size() < 1) {
+        if (recipients.isEmpty()) {
             LogUtil.w(TAG, "InsertNewMessageAction: message recipients is empty");
             return null;
         }
@@ -153,40 +150,16 @@ public class InsertNewMessageAction extends Action implements Parcelable {
         LogUtil.i(TAG, "InsertNewMessageAction: inserting new message for subId " + subId);
         actionParameters.putInt(KEY_SUB_ID, subId);
 
-        // TODO: Work out whether to send with SMS or MMS (taking into account recipients)?
-        final boolean isSms = (message.getProtocol() == MessageData.PROTOCOL_SMS);
-        if (isSms) {
-            String sendingConversationId = conversationId;
-            if (recipients.size() > 1) {
-                // Broadcast SMS - put message in "fake conversation" before farming out to real 1:1
-                final long laterTimestamp = timestamp + 1;
-                // Send a single message
-                insertBroadcastSmsMessage(conversationId, message, subId,
-                        laterTimestamp, recipients);
-
-                sendingConversationId = null;
-            }
-
-            for (final String recipient : recipients) {
-                // Start actual sending
-                insertSendingSmsMessage(message, subId, recipient,
-                        timestamp, sendingConversationId);
-            }
-
-            // Can now clear draft from conversation (deleting attachments if necessary)
-            BugleDatabaseOperations.updateDraftMessageData(db, conversationId,
-                    null /* message */, BugleDatabaseOperations.UPDATE_MODE_CLEAR_DRAFT);
-        } else {
-            final long timestampRoundedToSecond = 1000 * ((timestamp + 500) / 1000);
-            // Write place holder message directly referencing parts from the draft
-            final MessageData messageToSend = insertSendingMmsMessage(conversationId,
-                    message, timestampRoundedToSecond);
-
-            // Can now clear draft from conversation (preserving attachments which are now
-            // referenced by messageToSend)
-            BugleDatabaseOperations.updateDraftMessageData(db, conversationId,
-                    messageToSend, BugleDatabaseOperations.UPDATE_MODE_CLEAR_DRAFT);
+        for (final String recipient : recipients) {
+            // Start actual sending
+            insertSendingSmsMessage(message, subId, recipient,
+                    timestamp, conversationId);
         }
+
+        // Can now clear draft from conversation (deleting attachments if necessary)
+        BugleDatabaseOperations.updateDraftMessageData(db, conversationId,
+                null /* message */, BugleDatabaseOperations.UPDATE_MODE_CLEAR_DRAFT);
+
         MessagingContentProvider.notifyConversationListChanged();
         ProcessPendingMessagesAction.scheduleProcessPendingMessagesAction(false, this);
 
@@ -225,8 +198,7 @@ public class InsertNewMessageAction extends Action implements Parcelable {
             // to bind the message to the system default subscription if it's unbound.
             final ParticipantData unboundSelf = BugleDatabaseOperations.getExistingParticipant(
                     db, selfId);
-            if (unboundSelf.getSubId() == ParticipantData.DEFAULT_SELF_SUB_ID
-                    && OsUtil.isAtLeastL_MR1()) {
+            if (unboundSelf.getSubId() == ParticipantData.DEFAULT_SELF_SUB_ID) {
                 final int defaultSubId = PhoneUtils.getDefault().getDefaultSmsSubscriptionId();
                 self = BugleDatabaseOperations.getOrCreateSelf(db, defaultSubId);
             } else {
@@ -416,43 +388,6 @@ public class InsertNewMessageAction extends Action implements Parcelable {
         } else {
             LogUtil.e(TAG, "InsertNewMessageAction: No uri for SMS inserted into telephony DB");
         }
-
-        return message;
-    }
-
-    /**
-     * Insert MMS messaging into our database.
-     */
-    private MessageData insertSendingMmsMessage(final String conversationId,
-            final MessageData message, final long timestamp) {
-        final DatabaseWrapper db = DataModel.get().getDatabase();
-        db.beginTransaction();
-        final List<MessagePartData> attachmentsUpdated = new ArrayList<>();
-        try {
-            sLastSentMessageTimestamp = timestamp;
-
-            // Insert "draft" message as placeholder until the final message is written to
-            // the telephony db
-            message.updateSendingMessage(conversationId, null/*messageUri*/, timestamp);
-
-            // No need to inform SyncManager as message currently has no Uri...
-            BugleDatabaseOperations.insertNewMessageInTransaction(db, message);
-
-            BugleDatabaseOperations.updateConversationMetadataInTransaction(db,
-                    conversationId, message.getMessageId(), timestamp,
-                    false /* senderBlocked */, false /* shouldAutoSwitchSelfId */);
-
-            db.setTransactionSuccessful();
-        } finally {
-            db.endTransaction();
-        }
-
-        if (LogUtil.isLoggable(TAG, LogUtil.DEBUG)) {
-            LogUtil.d(TAG, "InsertNewMessageAction: Inserted MMS message "
-                    + message.getMessageId() + " (timestamp = " + timestamp + ")");
-        }
-        MessagingContentProvider.notifyMessagesChanged(conversationId);
-        MessagingContentProvider.notifyPartsChanged();
 
         return message;
     }

@@ -19,7 +19,6 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.net.Uri;
 import androidx.core.text.BidiFormatter;
@@ -39,11 +38,9 @@ import android.widget.TextView;
 import com.android.messaging.Factory;
 import com.android.messaging.R;
 import com.android.messaging.annotation.VisibleForAnimation;
-import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.action.UpdateConversationArchiveStatusAction;
 import com.android.messaging.datamodel.data.ConversationListItemData;
 import com.android.messaging.datamodel.data.MessageData;
-import com.android.messaging.datamodel.media.UriImageRequestDescriptor;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.AsyncImageView;
 import com.android.messaging.ui.ContactIconView;
@@ -51,12 +48,9 @@ import com.android.messaging.ui.SnackBar;
 import com.android.messaging.ui.SnackBarInteraction;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.ContentType;
-import com.android.messaging.util.ImageUtils;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.Typefaces;
 import com.android.messaging.util.UiUtils;
-import com.android.messaging.util.UriUtil;
 
 import java.util.List;
 
@@ -106,7 +100,6 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
     public ConversationListItemView(final Context context, final AttributeSet attrs) {
         super(context, attrs);
         mData = new ConversationListItemData();
-        final Resources res = context.getResources();
     }
 
     @Override
@@ -136,9 +129,7 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
         mListItemReadTypeface = Typefaces.getRobotoNormal();
         mListItemUnreadTypeface = Typefaces.getRobotoBold();
 
-        if (OsUtil.isAtLeastL()) {
-            setTransitionGroup(true);
-        }
+        setTransitionGroup(true);
     }
 
     @Override
@@ -269,8 +260,6 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
     private static final int MESSAGE_STATUS_SUCCESSFUL_INDEX = 1;
     private static final int MESSAGE_STATUS_DRAFT_INDEX = 2;
     private static final int MESSAGE_STATUS_SENDING_INDEX = 3;
-
-    private static final int WIDTH_FOR_ACCESSIBLE_CONVERSATION_NAME = 600;
 
     public static String buildContentDescription(final Resources resources,
             final ConversationListItemData data, final TextPaint conversationNameViewPaint) {
@@ -430,14 +419,6 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
 
         mContactCheckmarkView.setVisibility(checkmarkVisiblity);
         mFailedStatusIconView.setVisibility(failStatusVisiblity);
-
-        final Uri previewUri = mData.getShowDraft() ?
-                mData.getDraftPreviewUri() : mData.getPreviewUri();
-        final String previewContentType = mData.getShowDraft() ?
-                mData.getDraftPreviewContentType() : mData.getPreviewContentType();
-        OnClickListener previewClickListener = null;
-        Uri previewImageUri = null;
-        int previewImageVisibility = GONE;
 
         final int notificationBellVisiblity = mData.getNotificationEnabled() ? GONE : VISIBLE;
         mNotificationBellView.setVisibility(notificationBellVisiblity);

@@ -21,8 +21,6 @@ import android.telephony.PhoneStateListener;
 import android.telephony.ServiceState;
 import android.telephony.TelephonyManager;
 
-import com.android.messaging.datamodel.data.ParticipantData;
-
 /**
  * ConnectivityUtil listens to the network service state changes.
  *
@@ -50,7 +48,6 @@ public class ConnectivityUtil {
     }
 
     public ConnectivityUtil(final Context context, final int subId) {
-        Assert.isTrue(OsUtil.isAtLeastN());
         mTelephonyManager =
                 ((TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE))
                         .createForSubscriptionId(subId);

@@ -223,7 +223,6 @@ public class ActionServiceImpl extends JobIntentService {
      */
     private static void startServiceWithIntent(final Intent intent) {
         final Context context = Factory.get().getApplicationContext();
-        final int opcode = intent.getIntExtra(EXTRA_OP_CODE, 0);
         intent.setClass(context, ActionServiceImpl.class);
         enqueueWork(context, intent);
     }

@@ -19,7 +19,6 @@ package com.android.messaging.util;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.FragmentManager;
-import android.app.FragmentTransaction;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -218,7 +217,7 @@ public class DebugUtils {
                 return;
             }
             final FragmentManager fragmentManager = mHost.getFragmentManager();
-            final FragmentTransaction ft = fragmentManager.beginTransaction();
+            fragmentManager.beginTransaction();
             final DebugSmsMmsFromDumpFileDialogFragment dialog =
                     DebugSmsMmsFromDumpFileDialogFragment.newInstance(result, mAction);
             dialog.show(fragmentManager, ""/*tag*/);
@@ -302,10 +301,7 @@ public class DebugUtils {
                     final int length = dis.readInt();
                     final byte[] pdu = new byte[length];
                     dis.read(pdu, 0, length);
-                    messagesTemp[i] =
-                            OsUtil.isAtLeastM()
-                                    ? SmsMessage.createFromPdu(pdu, format)
-                                    : SmsMessage.createFromPdu(pdu);
+                    messagesTemp[i] = SmsMessage.createFromPdu(pdu, format);
                 }
                 messages = messagesTemp;
             } catch (final FileNotFoundException e) {

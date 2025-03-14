@@ -19,8 +19,6 @@ import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
 import android.database.Cursor;
-import android.graphics.Rect;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Parcelable;
 import androidx.core.view.ViewCompat;
@@ -51,7 +49,6 @@ import com.android.messaging.datamodel.data.ConversationListItemData;
 import com.android.messaging.ui.BugleAnimationTags;
 import com.android.messaging.ui.ListEmptyView;
 import com.android.messaging.ui.SnackBarInteraction;
-import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.AccessibilityUtil;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.ImeUtil;
@@ -101,7 +98,7 @@ public class ConversationListFragment extends Fragment implements ConversationLi
     private Parcelable mListState;
 
     @VisibleForTesting
-    final Binding<ConversationListData> mListBinding = BindingBase.createBinding(this);
+    final Binding<ConversationListData> mListBinding = BindingBase.createBinding();
 
     public static ConversationListFragment createArchivedConversationListFragment() {
         return createConversationListFragment(BUNDLE_ARCHIVED_MODE);

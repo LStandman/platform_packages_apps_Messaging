@@ -51,7 +51,7 @@ public class LaunchConversationActivity extends Activity implements
     private static final int MAX_RECIPIENT_LENGTH = 100;
     static final String SMS_BODY = "sms_body";
     static final String ADDRESS = "address";
-    final Binding<LaunchConversationData> mBinding = BindingBase.createBinding(this);
+    final Binding<LaunchConversationData> mBinding = BindingBase.createBinding();
     String mSmsBody;
 
     @Override

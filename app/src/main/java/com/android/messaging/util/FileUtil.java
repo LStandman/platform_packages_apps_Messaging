@@ -21,7 +21,6 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
-import android.text.TextUtils;
 
 import com.android.messaging.Factory;
 import com.android.messaging.R;

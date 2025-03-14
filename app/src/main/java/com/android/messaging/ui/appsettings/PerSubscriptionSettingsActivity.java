@@ -73,7 +73,6 @@ public class PerSubscriptionSettingsActivity extends BugleActionBarActivity {
             implements OnSharedPreferenceChangeListener {
         private PhoneNumberPreference mPhoneNumberPreference;
         private Preference mGroupMmsPreference;
-        private String mGroupMmsPrefKey;
         private String mPhoneNumberKey;
         private int mSubId;
 
@@ -99,8 +98,6 @@ public class PerSubscriptionSettingsActivity extends BugleActionBarActivity {
             mPhoneNumberPreference = (PhoneNumberPreference) findPreference(mPhoneNumberKey);
             final PreferenceCategory advancedCategory = (PreferenceCategory)
                     findPreference(getString(R.string.advanced_category_pref_key));
-            final PreferenceCategory mmsCategory = (PreferenceCategory)
-                    findPreference(getString(R.string.mms_messaging_category_pref_key));
 
             mPhoneNumberPreference.setDefaultPhoneNumber(
                     PhoneUtils.get(mSubId).getCanonicalForSelf(false/*allowOverride*/), mSubId);

@@ -26,8 +26,6 @@ import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.receiver.SmsReceiver;
 import com.android.messaging.sms.ApnDatabase;
 import com.android.messaging.ui.ConversationDrawables;
-import com.android.messaging.util.BugleGservices;
-import com.android.messaging.util.BuglePrefs;
 import com.android.messaging.util.BuglePrefsKeys;
 import com.android.messaging.util.DebugUtils;
 import com.android.messaging.util.LogUtil;
@@ -90,8 +88,6 @@ public class BugleApplication extends Application implements UncaughtExceptionHa
     public void initializeSync(final Factory factory) {
         Trace.beginSection("app.initializeSync");
         final Context context = factory.getApplicationContext();
-        final BugleGservices bugleGservices = factory.getBugleGservices();
-        final BuglePrefs buglePrefs = factory.getApplicationPrefs();
         final DataModel dataModel = factory.getDataModel();
 
         maybeStartProfiling();

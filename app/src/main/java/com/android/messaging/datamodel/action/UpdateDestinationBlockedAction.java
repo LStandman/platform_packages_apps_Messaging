@@ -46,10 +46,7 @@ public class UpdateDestinationBlockedAction extends Action {
         }
 
         private void onActionDone(final boolean succeeded,
-                                  final ActionMonitor monitor,
-                                  final Action action,
-                                  final Object data,
-                                  final Object result) {
+                                  final Action action) {
             mListener.onUpdateDestinationBlockedAction(
                     (UpdateDestinationBlockedAction) action,
                     succeeded,
@@ -62,7 +59,7 @@ public class UpdateDestinationBlockedAction extends Action {
                                       final Action action,
                                       final Object data,
                                       final Object result) {
-            onActionDone(true, monitor, action, data, result);
+            onActionDone(true, action);
         }
 
         @Override
@@ -70,7 +67,7 @@ public class UpdateDestinationBlockedAction extends Action {
                                    final Action action,
                                    final Object data,
                                    final Object result) {
-            onActionDone(false, monitor, action, data, result);
+            onActionDone(false, action);
         }
     }
 

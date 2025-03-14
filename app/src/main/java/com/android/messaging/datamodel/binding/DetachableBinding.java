@@ -27,8 +27,8 @@ import com.android.messaging.util.Assert;
 public class DetachableBinding<T extends BindableData> extends Binding<T> {
     private T mDetachedData;
 
-    DetachableBinding(Object owner) {
-        super(owner);
+    DetachableBinding() {
+        super();
     }
 
     @Override

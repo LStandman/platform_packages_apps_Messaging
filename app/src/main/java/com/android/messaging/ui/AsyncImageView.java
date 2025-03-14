@@ -99,7 +99,7 @@ public class AsyncImageView extends ImageView implements MediaResourceLoadListen
 
     public AsyncImageView(final Context context, final AttributeSet attrs) {
         super(context, attrs);
-        mImageRequestBinding = BindingBase.createBinding(this);
+        mImageRequestBinding = BindingBase.createBinding();
         final TypedArray attr = context.obtainStyledAttributes(attrs, R.styleable.AsyncImageView,
                 0, 0);
         mFadeIn = attr.getBoolean(R.styleable.AsyncImageView_fadeIn, true);
@@ -239,7 +239,6 @@ public class AsyncImageView extends ImageView implements MediaResourceLoadListen
     }
 
     private void releaseImageResource() {
-        final Drawable drawable = getDrawable();
         if (mImageResource != null) {
             mImageResource.release();
             mImageResource = null;

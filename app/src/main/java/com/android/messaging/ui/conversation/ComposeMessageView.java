@@ -16,7 +16,6 @@
 package com.android.messaging.ui.conversation;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Bundle;
 import androidx.appcompat.app.ActionBar;
@@ -26,7 +25,6 @@ import android.text.InputFilter;
 import android.text.InputFilter.LengthFilter;
 import android.text.TextUtils;
 import android.text.TextWatcher;
-import android.text.format.Formatter;
 import android.util.AttributeSet;
 import android.view.ContextThemeWrapper;
 import android.view.KeyEvent;
@@ -47,10 +45,8 @@ import com.android.messaging.datamodel.data.ConversationData.ConversationDataLis
 import com.android.messaging.datamodel.data.ConversationData.SimpleConversationDataListener;
 import com.android.messaging.datamodel.data.DraftMessageData;
 import com.android.messaging.datamodel.data.DraftMessageData.CheckDraftForSendTask;
-import com.android.messaging.datamodel.data.DraftMessageData.CheckDraftTaskCallback;
 import com.android.messaging.datamodel.data.DraftMessageData.DraftMessageDataListener;
 import com.android.messaging.datamodel.data.MessageData;
-import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.datamodel.data.SubscriptionListData.SubscriptionListEntry;
 import com.android.messaging.ui.BugleActionBarActivity;
@@ -62,12 +58,7 @@ import com.android.messaging.util.AvatarUriUtil;
 import com.android.messaging.util.BuglePrefs;
 import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.MediaUtil;
-import com.android.messaging.util.OsUtil;
-import com.android.messaging.util.SafeAsyncTask;
 import com.android.messaging.util.UiUtils;
-import com.android.messaging.util.UriUtil;
-
-import java.util.List;
 
 /**
  * This view contains the UI required to generate and send messages.
@@ -148,7 +139,7 @@ public class ComposeMessageView extends LinearLayout
     public ComposeMessageView(final Context context, final AttributeSet attrs) {
         super(new ContextThemeWrapper(context, R.style.ColorAccentBlueOverrideStyle), attrs);
         mOriginalContext = context;
-        mBinding = BindingBase.createBinding(this);
+        mBinding = BindingBase.createBinding();
     }
 
     /**
@@ -204,24 +195,18 @@ public class ComposeMessageView extends LinearLayout
                 new LengthFilter(DEFAULT_MAX_TEXT_LENGTH) });
 
         mSelfSendIcon = (SimIconView) findViewById(R.id.self_send_icon);
-        mSelfSendIcon.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                boolean shown = mInputManager.toggleSimSelector(true /* animate */,
+        mSelfSendIcon.setOnClickListener(v -> {
+            mInputManager.toggleSimSelector(true /* animate */,
+                    getSelfSubscriptionListEntry());
+        });
+        mSelfSendIcon.setOnLongClickListener(v -> {
+            if (mHost.shouldShowSubjectEditor()) {
+                showSubjectEditor();
+            } else {
+                mInputManager.toggleSimSelector(true /* animate */,
                         getSelfSubscriptionListEntry());
             }
-        });
-        mSelfSendIcon.setOnLongClickListener(new OnLongClickListener() {
-            @Override
-            public boolean onLongClick(final View v) {
-                if (mHost.shouldShowSubjectEditor()) {
-                    showSubjectEditor();
-                } else {
-                    boolean shown = mInputManager.toggleSimSelector(true /* animate */,
-                            getSelfSubscriptionListEntry());
-                }
-                return true;
-            }
+            return true;
         });
 
         mComposeSubjectText = (PlainTextEditText) findViewById(
@@ -247,22 +232,14 @@ public class ComposeMessageView extends LinearLayout
         mSubjectView = findViewById(R.id.subject_view);
 
         mSendButton = (ImageButton) findViewById(R.id.send_message_button);
-        mSendButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(final View clickView) {
-                sendMessageInternal(true /* checkMessageSize */);
+        mSendButton.setOnClickListener(clickView -> sendMessageInternal(true /* checkMessageSize */));
+        mSendButton.setOnLongClickListener(arg0 -> {
+            mInputManager.toggleSimSelector(true /* animate */,
+                    getSelfSubscriptionListEntry());
+            if (mHost.shouldShowSubjectEditor()) {
+                showSubjectEditor();
             }
-        });
-        mSendButton.setOnLongClickListener(new OnLongClickListener() {
-            @Override
-            public boolean onLongClick(final View arg0) {
-                boolean shown = mInputManager.toggleSimSelector(true /* animate */,
-                        getSelfSubscriptionListEntry());
-                if (mHost.shouldShowSubjectEditor()) {
-                    showSubjectEditor();
-                }
-                return true;
-            }
+            return true;
         });
         mSendButton.setAccessibilityDelegate(new AccessibilityDelegate() {
             @Override
@@ -352,49 +329,46 @@ public class ComposeMessageView extends LinearLayout
             final String subject = mComposeSubjectText.getText().toString();
             mBinding.getData().setMessageSubject(subject);
             // Asynchronously check the draft against various requirements before sending.
-            mBinding.getData().checkDraftForAction(checkMessageSize,
-                    mHost.getConversationSelfSubId(), new CheckDraftTaskCallback() {
-                @Override
-                public void onDraftChecked(DraftMessageData data, int result) {
-                    mBinding.ensureBound(data);
-                    switch (result) {
-                        case CheckDraftForSendTask.RESULT_PASSED:
-                            // Continue sending after check succeeded.
-                            final MessageData message = mBinding.getData()
-                                    .prepareMessageForSending(mBinding);
-                            if (message != null && message.hasContent()) {
-                                playSentSound();
-                                mHost.sendMessage(message);
-                                hideSubjectEditor();
-                                if (AccessibilityUtil.isTouchExplorationEnabled(getContext())) {
-                                    AccessibilityUtil.announceForAccessibilityCompat(
-                                            ComposeMessageView.this, null,
-                                            R.string.sending_message);
+            mBinding.getData().checkDraftForAction(
+                    (data, result) -> {
+                        mBinding.ensureBound(data);
+                        switch (result) {
+                            case CheckDraftForSendTask.RESULT_PASSED:
+                                // Continue sending after check succeeded.
+                                final MessageData message = mBinding.getData()
+                                        .prepareMessageForSending(mBinding);
+                                if (message != null && message.hasContent()) {
+                                    playSentSound();
+                                    mHost.sendMessage(message);
+                                    hideSubjectEditor();
+                                    if (AccessibilityUtil.isTouchExplorationEnabled(getContext())) {
+                                        AccessibilityUtil.announceForAccessibilityCompat(
+                                                ComposeMessageView.this, null,
+                                                R.string.sending_message);
+                                    }
                                 }
-                            }
-                            break;
+                                break;
 
-                        case CheckDraftForSendTask.RESULT_HAS_PENDING_ATTACHMENTS:
-                            // Cannot send while there's still attachment(s) being loaded.
-                            UiUtils.showToastAtBottom(
-                                    R.string.cant_send_message_while_loading_attachments);
-                            break;
+                            case CheckDraftForSendTask.RESULT_HAS_PENDING_ATTACHMENTS:
+                                // Cannot send while there's still attachment(s) being loaded.
+                                UiUtils.showToastAtBottom(
+                                        R.string.cant_send_message_while_loading_attachments);
+                                break;
 
-                        case CheckDraftForSendTask.RESULT_NO_SELF_PHONE_NUMBER_IN_GROUP_MMS:
-                            mHost.promptForSelfPhoneNumber();
-                            break;
+                            case CheckDraftForSendTask.RESULT_NO_SELF_PHONE_NUMBER_IN_GROUP_MMS:
+                                mHost.promptForSelfPhoneNumber();
+                                break;
 
-                        case CheckDraftForSendTask.RESULT_SIM_NOT_READY:
-                            // Cannot send if there is no active subscription
-                            UiUtils.showToastAtBottom(
-                                    R.string.cant_send_message_without_active_subscription);
-                            break;
+                            case CheckDraftForSendTask.RESULT_SIM_NOT_READY:
+                                // Cannot send if there is no active subscription
+                                UiUtils.showToastAtBottom(
+                                        R.string.cant_send_message_without_active_subscription);
+                                break;
 
-                        default:
-                            break;
-                    }
-                }
-            }, mBinding);
+                            default:
+                                break;
+                        }
+                    }, mBinding);
         } else {
             mHost.warnOfMissingActionConditions(true /*sending*/,
                     new Runnable() {
@@ -436,8 +410,6 @@ public class ComposeMessageView extends LinearLayout
         final String subject = data.getMessageSubject();
         final String message = data.getMessageText();
 
-        boolean hasAttachmentsChanged = false;
-
         if ((changeFlags & DraftMessageData.MESSAGE_SUBJECT_CHANGED) ==
                 DraftMessageData.MESSAGE_SUBJECT_CHANGED) {
             mComposeSubjectText.setText(subject);
@@ -454,16 +426,7 @@ public class ComposeMessageView extends LinearLayout
             mComposeEditText.setSelection(mComposeEditText.getText().length());
         }
 
-        updateVisualsOnDraftChanged(hasAttachmentsChanged);
-    }
-
-    private void announceMediaItemState(final boolean isSelected) {
-        final Resources res = getContext().getResources();
-        final String announcement = isSelected ? res.getString(
-                R.string.mediapicker_gallery_item_selected_content_description) :
-                res.getString(R.string.mediapicker_gallery_item_unselected_content_description);
-        AccessibilityUtil.announceForAccessibilityCompat(
-                this, null, announcement);
+        updateVisualsOnDraftChanged();
     }
 
     @Override
@@ -521,44 +484,7 @@ public class ComposeMessageView extends LinearLayout
                 mConversationDataModel.getData().getParticipantsLoaded();
     }
 
-    private static class AsyncUpdateMessageBodySizeTask
-            extends SafeAsyncTask<List<MessagePartData>, Void, Long> {
-
-        private final Context mContext;
-        private final TextView mSizeTextView;
-
-        public AsyncUpdateMessageBodySizeTask(final Context context, final TextView tv) {
-            mContext = context;
-            mSizeTextView = tv;
-        }
-
-        @Override
-        protected Long doInBackgroundTimed(final List<MessagePartData>... params) {
-            final List<MessagePartData> attachments = params[0];
-            long totalSize = 0;
-            for (final MessagePartData attachment : attachments) {
-                final Uri contentUri = attachment.getContentUri();
-                if (contentUri != null) {
-                    totalSize += UriUtil.getContentSize(attachment.getContentUri());
-                }
-            }
-            return totalSize;
-        }
-
-        @Override
-        protected void onPostExecute(Long size) {
-            if (mSizeTextView != null) {
-                mSizeTextView.setText(Formatter.formatFileSize(mContext, size));
-                mSizeTextView.setVisibility(View.VISIBLE);
-            }
-        }
-    }
-
     private void updateVisualsOnDraftChanged() {
-        updateVisualsOnDraftChanged(false);
-    }
-
-    private void updateVisualsOnDraftChanged(boolean hasAttachmentsChanged) {
         final String messageText = mComposeEditText.getText().toString();
         final DraftMessageData draftMessageData = mBinding.getData();
         draftMessageData.setMessageText(messageText);
@@ -678,18 +604,16 @@ public class ComposeMessageView extends LinearLayout
 
     // Set accessibility traversal order of the components in the send widget.
     private void setSendWidgetAccessibilityTraversalOrder(final int mode) {
-        if (OsUtil.isAtLeastL_MR1()) {
-            mAttachMediaButton.setAccessibilityTraversalBefore(R.id.compose_message_text);
-            switch (mode) {
-                case SEND_WIDGET_MODE_SIM_SELECTOR:
-                    mComposeEditText.setAccessibilityTraversalBefore(R.id.self_send_icon);
-                    break;
-                case SEND_WIDGET_MODE_SEND_BUTTON:
-                    mComposeEditText.setAccessibilityTraversalBefore(R.id.send_message_button);
-                    break;
-                default:
-                    break;
-            }
+        mAttachMediaButton.setAccessibilityTraversalBefore(R.id.compose_message_text);
+        switch (mode) {
+            case SEND_WIDGET_MODE_SIM_SELECTOR:
+                mComposeEditText.setAccessibilityTraversalBefore(R.id.self_send_icon);
+                break;
+            case SEND_WIDGET_MODE_SEND_BUTTON:
+                mComposeEditText.setAccessibilityTraversalBefore(R.id.send_message_button);
+                break;
+            default:
+                break;
         }
     }
 
@@ -778,8 +702,7 @@ public class ComposeMessageView extends LinearLayout
     }
 
     public static boolean shouldShowSimSelector(final ConversationData convData) {
-        return OsUtil.isAtLeastL_MR1() &&
-                convData.getSelfParticipantsCountExcludingDefault(true /* activeOnly */) > 1;
+        return convData.getSelfParticipantsCountExcludingDefault(true /* activeOnly */) > 1;
     }
 
     public void sendMessageIgnoreMessageSizeLimit() {

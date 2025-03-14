@@ -151,7 +151,7 @@ public abstract class MessageNotificationState extends NotificationState {
         boolean mIsManualDownloadNeeded;
         final String mMessageId;
 
-        MessageLineInfo(final boolean isGroup, final String authorFullName,
+        MessageLineInfo(final String authorFullName,
                 final String authorFirstName, final CharSequence text, final Uri attachmentUrl,
                 final String attachmentType, final boolean isManualDownloadNeeded,
                 final String messageId) {
@@ -925,7 +925,7 @@ public abstract class MessageNotificationState extends NotificationState {
                             attachmentUri = messagePartData.getContentUri();
                             attachmentType = messagePartData.getContentType();
                         }
-                        currConvInfo.mLineInfos.add(new MessageLineInfo(currConvInfo.mIsGroup,
+                        currConvInfo.mLineInfos.add(new MessageLineInfo(
                                 authorFullName, authorFirstName, text,
                                 attachmentUri, attachmentType, isManualDownloadNeeded, messageId));
                     }

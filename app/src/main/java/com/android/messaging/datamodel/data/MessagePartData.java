@@ -19,7 +19,6 @@ package com.android.messaging.datamodel.data;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteStatement;
-import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -29,21 +28,15 @@ import com.android.messaging.Factory;
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseHelper.PartColumns;
 import com.android.messaging.datamodel.DatabaseWrapper;
-import com.android.messaging.datamodel.MediaScratchFileProvider;
 import com.android.messaging.datamodel.MessagingContentProvider;
-import com.android.messaging.datamodel.action.UpdateMessagePartSizeAction;
-import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 import com.android.messaging.util.ContentType;
-import com.android.messaging.util.GifTranscoder;
-import com.android.messaging.util.ImageUtils;
 import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.SafeAsyncTask;
 import com.android.messaging.util.UriUtil;
 
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Represents a single message part. Messages consist of one or more parts which may contain
@@ -408,9 +401,7 @@ public class MessagePartData implements Parcelable {
         mContentUri = null;
         mContentType = null;
         // Only destroy the image if it's staged in our scratch space.
-        if (!MediaScratchFileProvider.isMediaScratchSpaceUri(contentUri)) {
-            contentUri = null;
-        }
+        contentUri = null;
         return contentUri;
     }
 

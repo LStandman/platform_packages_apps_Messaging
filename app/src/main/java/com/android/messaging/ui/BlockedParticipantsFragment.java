@@ -42,7 +42,7 @@ public class BlockedParticipantsFragment extends Fragment
     private ListView mListView;
     private BlockedParticipantListAdapter mAdapter;
     private final Binding<BlockedParticipantsData> mBinding =
-            BindingBase.createBinding(this);
+            BindingBase.createBinding();
 
     @Override
     public void onCreate(final Bundle savedInstanceState) {

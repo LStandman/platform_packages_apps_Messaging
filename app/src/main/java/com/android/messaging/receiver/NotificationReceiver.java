@@ -41,8 +41,6 @@ public class NotificationReceiver extends BroadcastReceiver {
         if (intent.getAction().equals(UIIntents.ACTION_RESET_NOTIFICATIONS)) {
             final String conversationIdSetString =
                     intent.getStringExtra(UIIntents.UI_INTENT_EXTRA_CONVERSATION_ID_SET);
-            final int notificationTargets = intent.getIntExtra(
-                    UIIntents.UI_INTENT_EXTRA_NOTIFICATIONS_UPDATE, BugleNotifications.UPDATE_ALL);
             if (conversationIdSetString == null) {
                 BugleNotifications.markAllMessagesAsSeen();
             } else {

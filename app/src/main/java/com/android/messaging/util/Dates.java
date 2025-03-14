@@ -135,7 +135,7 @@ public class Dates {
         if (!minPeriodToday && timeDiff < DateUtils.MINUTE_IN_MILLIS) {
             return getLessThanAMinuteOldTimeString(abbreviated);
         } else if (!minPeriodToday && timeDiff < DateUtils.HOUR_IN_MILLIS) {
-            return getLessThanAnHourOldTimeString(timeDiff, flags);
+            return getLessThanAnHourOldTimeString(timeDiff);
         } else if (getNumberOfDaysPassed(time, now) == 0) {
             return getTodayTimeStamp(time, flags);
         } else if (timeDiff < DateUtils.WEEK_IN_MILLIS) {
@@ -153,8 +153,7 @@ public class Dates {
                 abbreviated ? R.string.posted_just_now : R.string.posted_now);
     }
 
-    private static CharSequence getLessThanAnHourOldTimeString(final long timeDiff,
-            final int flags) {
+    private static CharSequence getLessThanAnHourOldTimeString(final long timeDiff) {
         final long count = (timeDiff / MINUTE_IN_MILLIS);
         final String format = getContext().getResources().getQuantityString(
                 R.plurals.num_minutes_ago, (int) count);

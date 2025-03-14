@@ -25,7 +25,6 @@ import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.ui.BaseBugleActivity;
 import com.android.messaging.ui.UIIntents;
 import com.android.messaging.ui.conversationlist.ConversationListFragment.ConversationListFragmentHost;
-import com.android.messaging.util.Assert;
 
 /**
  * An activity that lets the user forward a SMS/MMS message by picking from a conversation in the

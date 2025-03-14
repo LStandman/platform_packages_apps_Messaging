@@ -26,7 +26,6 @@ import androidx.annotation.NonNull;
 import android.text.TextUtils;
 
 import com.android.messaging.Factory;
-import com.android.messaging.datamodel.MediaScratchFileProvider;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 import com.google.common.io.ByteStreams;
 
@@ -175,52 +174,6 @@ public class UriUtil {
             return 0;
         } finally {
             retriever.release();
-        }
-    }
-
-    /**
-     * Persist a piece of content from the given input stream, byte by byte to the scratch
-     * directory.
-     * @return the output Uri if the operation succeeded, or null if failed.
-     */
-    @DoesNotRunOnMainThread
-    public static Uri persistContentToScratchSpace(final InputStream inputStream) {
-        final Context context = Factory.get().getApplicationContext();
-        final Uri scratchSpaceUri = MediaScratchFileProvider.buildMediaScratchSpaceUri(null);
-        return copyContent(context, inputStream, scratchSpaceUri);
-    }
-
-    /**
-     * Persist a piece of content from the given sourceUri, byte by byte to the scratch
-     * directory.
-     * @return the output Uri if the operation succeeded, or null if failed.
-     */
-    @DoesNotRunOnMainThread
-    public static Uri persistContentToScratchSpace(final Uri sourceUri) {
-        InputStream inputStream = null;
-        final Context context = Factory.get().getApplicationContext();
-        try {
-            if (UriUtil.isLocalResourceUri(sourceUri)) {
-                inputStream = context.getContentResolver().openInputStream(sourceUri);
-            } else {
-                // The content is remote. Download it.
-                inputStream = getInputStreamFromRemoteUri(sourceUri);
-                if (inputStream == null) {
-                    return null;
-                }
-            }
-            return persistContentToScratchSpace(inputStream);
-        } catch (final Exception ex) {
-            LogUtil.e(LogUtil.BUGLE_TAG, "Error while retrieving media ", ex);
-            return null;
-        } finally {
-            if (inputStream != null) {
-                try {
-                    inputStream.close();
-                } catch (final IOException e) {
-                    LogUtil.e(LogUtil.BUGLE_TAG, "error trying to close the inputStream", e);
-                }
-            }
         }
     }
 

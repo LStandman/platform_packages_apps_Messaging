@@ -27,7 +27,6 @@ import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DataModelImpl;
 import com.android.messaging.datamodel.DatabaseHelper;
-import com.android.messaging.datamodel.DatabaseHelper.MessageColumns;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.data.MessageData;
@@ -39,11 +38,7 @@ import com.android.messaging.util.BuglePrefsKeys;
 import com.android.messaging.util.ConnectivityUtil;
 import com.android.messaging.util.ConnectivityUtil.ConnectivityListener;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
-
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Action used to lookup any messages in the pending send/download state and either fail them or
@@ -230,14 +225,11 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
         if (toSendMessageId != null) {
             return true;
         } else {
-            final String toDownloadMessageId = findNextMessageToDownload(db, now, selfId);
-            if (toDownloadMessageId != null) {
-                return true;
-            }
+            final String toDownloadMessageId = findNextMessageToDownload(db, selfId);
+            return toDownloadMessageId != null;
         }
         // Messages may be in the process of sending/downloading even when there are no pending
         // messages...
-        return false;
     }
 
     /**
@@ -266,7 +258,6 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
         // This keeps outgoing messages "in order" but allow downloads to happen even if sending
         // gets blocked until messages time out. Manual resend bumps messages to head of queue.
         final String toSendMessageId = findNextMessageToSend(db, now, selfId);
-        final String toDownloadMessageId = findNextMessageToDownload(db, now, selfId);
         if (toSendMessageId != null) {
             LogUtil.i(TAG, "ProcessPendingMessagesAction: Queueing message " + toSendMessageId
                     + " for sending");
@@ -277,8 +268,8 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
                 succeeded = false;
             }
         }
-        if (toSendMessageId == null && toDownloadMessageId == null) {
-            LogUtil.i(TAG, "ProcessPendingMessagesAction: No messages to send or download");
+        if (toSendMessageId == null) {
+            LogUtil.i(TAG, "ProcessPendingMessagesAction: No messages to send");
         }
         return succeeded;
     }
@@ -345,12 +336,10 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
 
             // Prior to L_MR1, isActiveSubscription is true always
             boolean isActiveSubscription = true;
-            if (OsUtil.isAtLeastL_MR1()) {
-                final ParticipantData messageSelf =
-                        BugleDatabaseOperations.getExistingParticipant(db, selfId);
-                if (messageSelf == null || !messageSelf.isActiveSubscription()) {
-                    isActiveSubscription = false;
-                }
+            final ParticipantData messageSelf =
+                    BugleDatabaseOperations.getExistingParticipant(db, selfId);
+            if (messageSelf == null || !messageSelf.isActiveSubscription()) {
+                isActiveSubscription = false;
             }
             while (cursor.moveToNext()) {
                 final MessageData message = new MessageData();
@@ -391,7 +380,7 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
         return toSendMessageId;
     }
 
-    private static String findNextMessageToDownload(final DatabaseWrapper db, final long now,
+    private static String findNextMessageToDownload(final DatabaseWrapper db,
             final String selfId) {
         String toDownloadMessageId = null;
         Cursor cursor = null;

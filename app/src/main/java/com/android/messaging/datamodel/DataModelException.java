@@ -56,10 +56,9 @@ public class DataModelException extends Exception {
     private final boolean mIsInjection;
     private final int mErrorCode;
     private final String mMessage;
-    private final long mBackoff;
 
     public DataModelException(final int errorCode, final Exception innerException,
-            final long backoff, final boolean injection, final String message) {
+            final boolean injection, final String message) {
         // Since some of the exceptions passed in may not be serializable, only record message
         // instead of setting inner exception for Exception class. Otherwise, we will get
         // serialization issues when we pass ServerRequestException as intent extra later.
@@ -74,20 +73,18 @@ public class DataModelException extends Exception {
         } else {
             mMessage = (mIsInjection ? "[INJECTED] -- " : "") + message;
         }
-
-        mBackoff = backoff;
     }
 
     public DataModelException(final int errorCode) {
-        this(errorCode, null, 0, false, null);
+        this(errorCode, null, false, null);
     }
 
     public DataModelException(final int errorCode, final Exception innerException) {
-        this(errorCode, innerException, 0, false, null);
+        this(errorCode, innerException, false, null);
     }
 
     public DataModelException(final int errorCode, final String message) {
-        this(errorCode, null, 0, false, message);
+        this(errorCode, null, false, message);
     }
 
     @Override

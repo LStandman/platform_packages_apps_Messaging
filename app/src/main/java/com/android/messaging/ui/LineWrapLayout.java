@@ -22,7 +22,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.UiUtils;
 
 import java.util.ArrayList;
@@ -171,7 +170,7 @@ public class LineWrapLayout extends ViewGroup {
                 }
             }
 
-            if (OsUtil.isAtLeastJB_MR2() && getResources().getConfiguration()
+            if (getResources().getConfiguration()
                     .getLayoutDirection() == View.LAYOUT_DIRECTION_RTL) {
                 currChild.layout(width - startPositionX - childWidth, startPositionY,
                         width - startPositionX, startPositionY + childHeight);
@@ -214,19 +213,11 @@ public class LineWrapLayout extends ViewGroup {
         }
 
         public int getStartMargin() {
-            if (OsUtil.isAtLeastJB_MR2()) {
-                return getMarginStart();
-            } else {
-                return leftMargin;
-            }
+            return getMarginStart();
         }
 
         public int getEndMargin() {
-            if (OsUtil.isAtLeastJB_MR2()) {
-                return getMarginEnd();
-            } else {
-                return rightMargin;
-            }
+            return getMarginEnd();
         }
     }
 }

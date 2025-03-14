@@ -19,7 +19,6 @@ package com.android.messaging.datamodel.action;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteConstraintException;
 import android.provider.Telephony;
-import android.provider.Telephony.Mms;
 import android.provider.Telephony.Sms;
 import android.text.TextUtils;
 
@@ -32,9 +31,7 @@ import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.SyncManager.ThreadInfoCache;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.ParticipantData;
-import com.android.messaging.mmslib.pdu.PduHeaders;
 import com.android.messaging.sms.DatabaseMessages.LocalDatabaseMessage;
-import com.android.messaging.sms.DatabaseMessages.MmsMessage;
 import com.android.messaging.sms.DatabaseMessages.SmsMessage;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.Assert;
@@ -212,70 +209,6 @@ class SyncMessageBatch {
             bugleStatus = MessageData.BUGLE_STATUS_INCOMING_COMPLETE;
         }
         return bugleStatus;
-    }
-
-    /**
-     * Store the MMS message into local database
-     *
-     * @param mms
-     */
-    private void storeMms(final DatabaseWrapper db, final MmsMessage mms) {
-        if (mms.mParts.size() < 1) {
-            LogUtil.w(TAG, "SyncMessageBatch: MMS " + mms.mUri + " has no parts");
-        }
-
-        // TODO : We need to also deal with messages in a failed/retry state
-        final boolean isOutgoing = mms.mType != Mms.MESSAGE_BOX_INBOX;
-        final boolean isNotification = (mms.mMmsMessageType ==
-                PduHeaders.MESSAGE_TYPE_NOTIFICATION_IND);
-
-        final String senderId = mms.mSender;
-
-        // A forced resync of all messages should still keep the archived states.
-        // The database upgrade code notifies sync manager of this. We need to
-        // honor the original customization to this conversation if created.
-        final String conversationId = mCache.getOrCreateConversation(db, mms.mThreadId, mms.mSubId,
-                DataModel.get().getSyncManager().getCustomizationForThread(mms.mThreadId));
-        if (conversationId == null) {
-            LogUtil.e(TAG, "SyncMessageBatch: Failed to create conversation for MMS thread "
-                    + mms.mThreadId);
-            return;
-        }
-        final ParticipantData self = ParticipantData.getSelfParticipant(mms.getSubId());
-        final String selfId =
-                BugleDatabaseOperations.getOrCreateParticipantInTransaction(db, self);
-        final ParticipantData sender = isOutgoing ?
-                self : ParticipantData.getFromRawPhoneBySimLocale(senderId, mms.getSubId());
-        final String participantId = (isOutgoing ? selfId :
-                BugleDatabaseOperations.getOrCreateParticipantInTransaction(db, sender));
-
-        final int bugleStatus = MmsUtils.bugleStatusForMms(isOutgoing, isNotification, mms.mType);
-
-        // Import message and all of the parts.
-        // TODO : For now we are importing these in the order we found them in the MMS
-        // database. Ideally we would load and parse the SMIL which describes how the parts relate
-        // to one another.
-
-        // TODO: Need to set correct status on message
-        final MessageData message = MmsUtils.createMmsMessage(mms, conversationId, participantId,
-                selfId, bugleStatus);
-
-        // Inserting mms content into messages table
-        try {
-            BugleDatabaseOperations.insertNewMessageInTransaction(db, message);
-        } catch (SQLiteConstraintException e) {
-            rethrowSQLiteConstraintExceptionWithDetails(e, db, mms.mUri, mms.mThreadId,
-                    conversationId, selfId, participantId);
-        }
-
-        if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
-            LogUtil.v(TAG, "SyncMessageBatch: Inserted new message " + message.getMessageId()
-                    + " for MMS " + message.getSmsMessageUri() + " received at "
-                    + message.getReceivedTimeStamp());
-        }
-
-        // Keep track of updated conversation for later updating the conversation snippet, etc.
-        mConversationsToUpdate.add(conversationId);
     }
 
     // TODO: Remove this after we no longer see this crash (b/18375758)

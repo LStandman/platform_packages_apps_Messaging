@@ -19,7 +19,6 @@ package com.android.messaging.widget;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.Spannable;
@@ -37,7 +36,6 @@ import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.data.ConversationMessageData;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.datamodel.data.MessagePartData;
-import com.android.messaging.datamodel.media.ImageResource;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.AvatarUriUtil;
@@ -51,8 +49,6 @@ import java.util.List;
 public class WidgetConversationService extends RemoteViewsService {
     private static final String TAG = LogUtil.BUGLE_WIDGET_TAG;
 
-    private static final int IMAGE_ATTACHMENT_SIZE = 400;
-
     @Override
     public RemoteViewsFactory onGetViewFactory(Intent intent) {
         if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
@@ -65,7 +61,6 @@ public class WidgetConversationService extends RemoteViewsService {
      * Remote Views Factory for the conversation widget.
      */
     private static class WidgetConversationFactory extends BaseWidgetFactory {
-        private ImageResource mImageResource;
         private String mConversationId;
 
         public WidgetConversationFactory(Context context, Intent intent) {
@@ -178,18 +173,14 @@ public class WidgetConversationService extends RemoteViewsService {
 
                 // Avatar
                 boolean includeAvatar;
-                if (OsUtil.isAtLeastJB()) {
-                    final Bundle options = mAppWidgetManager.getAppWidgetOptions(mAppWidgetId);
-                    if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
-                        LogUtil.v(TAG, "getViewAt BugleWidgetProvider.WIDGET_SIZE_KEY: " +
-                                options.getInt(BugleWidgetProvider.WIDGET_SIZE_KEY));
-                    }
-
-                    includeAvatar = options.getInt(BugleWidgetProvider.WIDGET_SIZE_KEY)
-                            == BugleWidgetProvider.SIZE_LARGE;
-                } else {
-                    includeAvatar = true;
+                final Bundle options = mAppWidgetManager.getAppWidgetOptions(mAppWidgetId);
+                if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
+                    LogUtil.v(TAG, "getViewAt BugleWidgetProvider.WIDGET_SIZE_KEY: " +
+                            options.getInt(BugleWidgetProvider.WIDGET_SIZE_KEY));
                 }
+
+                includeAvatar = options.getInt(BugleWidgetProvider.WIDGET_SIZE_KEY)
+                        == BugleWidgetProvider.SIZE_LARGE;
 
                 // Show the avatar (and shadow) when grande size, otherwise hide it.
                 remoteViews.setViewVisibility(R.id.avatarView, includeAvatar ?
@@ -436,21 +427,6 @@ public class WidgetConversationService extends RemoteViewsService {
         @Override
         protected int getMainLayoutId() {
             return R.layout.widget_conversation;
-        }
-
-        private void setImageResource(final ImageResource resource) {
-            if (mImageResource != resource) {
-                // Clear out any information for what is currently used
-                releaseImageResource();
-                mImageResource = resource;
-            }
-        }
-
-        private void releaseImageResource() {
-            if (mImageResource != null) {
-                mImageResource.release();
-            }
-            mImageResource = null;
         }
     }
 

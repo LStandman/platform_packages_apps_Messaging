@@ -33,7 +33,6 @@ import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.SafeAsyncTask;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class DraftMessageData extends BindableData implements ReadDraftDataActionListener {
@@ -344,9 +343,8 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
         return mCheckDraftForSendTask != null && !mCheckDraftForSendTask.isCancelled();
     }
 
-    public void checkDraftForAction(final boolean checkMessageSize, final int selfSubId,
-            final CheckDraftTaskCallback callback, final Binding<DraftMessageData> binding) {
-        new CheckDraftForSendTask(checkMessageSize, selfSubId, callback, binding)
+    public void checkDraftForAction(final CheckDraftTaskCallback callback, final Binding<DraftMessageData> binding) {
+        new CheckDraftForSendTask(callback, binding)
             .executeOnThreadPool((Void) null);
     }
 
@@ -378,22 +376,13 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
         public static final int RESULT_MESSAGE_OVER_LIMIT = 3;
         public static final int RESULT_VIDEO_ATTACHMENT_LIMIT_EXCEEDED = 4;
         public static final int RESULT_SIM_NOT_READY = 5;
-        private final boolean mCheckMessageSize;
-        private final int mSelfSubId;
         private final CheckDraftTaskCallback mCallback;
         private final String mBindingId;
-        private final List<MessagePartData> mAttachmentsCopy;
         private int mPreExecuteResult = RESULT_PASSED;
 
-        public CheckDraftForSendTask(final boolean checkMessageSize, final int selfSubId,
-                final CheckDraftTaskCallback callback, final Binding<DraftMessageData> binding) {
-            mCheckMessageSize = checkMessageSize;
-            mSelfSubId = selfSubId;
+        public CheckDraftForSendTask(final CheckDraftTaskCallback callback, final Binding<DraftMessageData> binding) {
             mCallback = callback;
             mBindingId = binding.getBindingId();
-            // Obtain an immutable copy of the attachment list so we can operate on it in the
-            // background thread.
-            mAttachmentsCopy = new ArrayList<MessagePartData>(mAttachments);
 
             mCheckDraftForSendTask = this;
         }

@@ -16,7 +16,6 @@
 
 package com.android.messaging.datamodel.action;
 
-import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Parcel;
@@ -24,13 +23,11 @@ import android.os.Parcelable;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SmsManager;
 
-import com.android.messaging.Factory;
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.BugleNotifications;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.data.MessageData;
-import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.ParticipantData;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.LogUtil;
@@ -116,9 +113,7 @@ public class ProcessSentMessageAction extends Action {
     */
     @Override
     protected Object executeAction() {
-        final Context context = Factory.get().getApplicationContext();
         final String messageId = actionParameters.getString(KEY_MESSAGE_ID);
-        final Uri messageUri = actionParameters.getParcelable(KEY_MESSAGE_URI);
         final Uri updatedMessageUri = actionParameters.getParcelable(KEY_UPDATED_MESSAGE_URI);
         final boolean isSms = actionParameters.getBoolean(KEY_SMS);
 
@@ -147,7 +142,6 @@ public class ProcessSentMessageAction extends Action {
             final int subId, final int resultCode, final int httpStatusCode) {
         final DatabaseWrapper db = DataModel.get().getDatabase();
         MessageData message = BugleDatabaseOperations.readMessage(db, messageId);
-        final MessageData originalMessage = message;
         if (message == null) {
             LogUtil.w(TAG, "ProcessSentMessageAction: Sent message " + messageId
                     + " missing from local database");

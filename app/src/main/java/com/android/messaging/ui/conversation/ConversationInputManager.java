@@ -15,7 +15,6 @@
  */
 package com.android.messaging.ui.conversation;
 
-import android.app.FragmentManager;
 import android.content.Context;
 import android.os.Bundle;
 import androidx.appcompat.app.ActionBar;
@@ -26,16 +25,12 @@ import com.android.messaging.datamodel.binding.ImmutableBindingRef;
 import com.android.messaging.datamodel.data.ConversationData;
 import com.android.messaging.datamodel.data.ConversationData.ConversationDataListener;
 import com.android.messaging.datamodel.data.ConversationData.SimpleConversationDataListener;
-import com.android.messaging.datamodel.data.DraftMessageData;
 import com.android.messaging.datamodel.data.DraftMessageData.DraftMessageSubscriptionDataProvider;
-import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.data.SubscriptionListData.SubscriptionListEntry;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.ImeUtil;
 import com.android.messaging.util.ImeUtil.ImeStateHost;
 import com.google.common.annotations.VisibleForTesting;
-
-import java.util.Collection;
 
 /**
  * Manages showing/hiding/persisting different mutually exclusive UI components nested in
@@ -73,11 +68,9 @@ public class ConversationInputManager implements ConversationInput.ConversationI
     private final ConversationInputSink mSink;
 
     /** Dependencies injected from the host during construction */
-    private final FragmentManager mFragmentManager;
     private final Context mContext;
     private final ImeStateHost mImeStateHost;
     private final ImmutableBindingRef<ConversationData> mConversationDataModel;
-    private final ImmutableBindingRef<DraftMessageData> mDraftDataModel;
 
     private final ConversationInput[] mInputs;
     private final ConversationSimSelector mSimInput;
@@ -109,17 +102,13 @@ public class ConversationInputManager implements ConversationInput.ConversationI
             final ConversationInputHost host,
             final ConversationInputSink sink,
             final ImeStateHost imeStateHost,
-            final FragmentManager fm,
             final BindingBase<ConversationData> conversationDataModel,
-            final BindingBase<DraftMessageData> draftDataModel,
             final Bundle savedState) {
         mHost = host;
         mSink = sink;
-        mFragmentManager = fm;
         mContext = context;
         mImeStateHost = imeStateHost;
         mConversationDataModel = BindingBase.createBindingReference(conversationDataModel);
-        mDraftDataModel = BindingBase.createBindingReference(draftDataModel);
 
         // Register listeners on dependencies.
         mImeStateHost.registerImeStateObserver(mImeStateObserver);

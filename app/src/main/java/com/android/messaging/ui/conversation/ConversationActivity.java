@@ -19,15 +19,11 @@ package com.android.messaging.ui.conversation;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.content.Intent;
-import android.graphics.Rect;
-import android.net.Uri;
 import android.os.Bundle;
 import androidx.appcompat.app.ActionBar;
-import android.text.TextUtils;
 import android.view.MenuItem;
 
 import com.android.messaging.R;
-import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.ui.BugleActionBarActivity;
 import com.android.messaging.ui.UIIntents;
@@ -37,10 +33,7 @@ import com.android.messaging.ui.conversation.ConversationActivityUiState.Convers
 import com.android.messaging.ui.conversation.ConversationFragment.ConversationFragmentHost;
 import com.android.messaging.ui.conversationlist.ConversationListActivity;
 import com.android.messaging.util.Assert;
-import com.android.messaging.util.ContentType;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.OsUtil;
-import com.android.messaging.util.UiUtils;
 
 public class ConversationActivity extends BugleActionBarActivity
         implements ContactPickerFragmentHost, ConversationFragmentHost,
@@ -99,16 +92,6 @@ public class ConversationActivity extends BugleActionBarActivity
 
         // Don't animate UI state change for initial setup.
         updateUiState(false /* animate */);
-
-        // See if we're getting called from a widget to directly display an image or video
-        final String extraToDisplay =
-                intent.getStringExtra(UIIntents.UI_INTENT_EXTRA_ATTACHMENT_URI);
-        if (!TextUtils.isEmpty(extraToDisplay)) {
-            final String contentType =
-                    intent.getStringExtra(UIIntents.UI_INTENT_EXTRA_ATTACHMENT_TYPE);
-            final Rect bounds = UiUtils.getMeasuredBoundsOnScreen(
-                    findViewById(R.id.conversation_and_compose_container));
-        }
     }
 
     @Override
@@ -340,11 +323,7 @@ public class ConversationActivity extends BugleActionBarActivity
     public void onFinishCurrentConversation() {
         // Simply finish the current activity. The current design is to leave any empty
         // conversations as is.
-        if (OsUtil.isAtLeastL()) {
-            finishAfterTransition();
-        } else {
-            finish();
-        }
+        finishAfterTransition();
     }
 
     @Override

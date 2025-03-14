@@ -18,7 +18,6 @@ package com.android.messaging.datamodel;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-import android.net.Uri;
 import android.telephony.SubscriptionManager;
 
 import com.android.messaging.datamodel.action.ActionService;
@@ -49,7 +48,6 @@ import com.android.messaging.util.Assert;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 import com.android.messaging.util.ConnectivityUtil;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -61,8 +59,6 @@ public class DataModelImpl extends DataModel {
     private final DatabaseHelper mDatabaseHelper;
     private final SyncManager mSyncManager;
 
-    // Cached ConnectivityUtil instance for Pre-N.
-    private static ConnectivityUtil sConnectivityUtilInstanceCachePreN = null;
     // Cached ConnectivityUtil subId->instance for N and beyond
     private static final ConcurrentHashMap<Integer, ConnectivityUtil>
             sConnectivityUtilInstanceCacheN = new ConcurrentHashMap<>();
@@ -187,30 +183,22 @@ public class DataModelImpl extends DataModel {
 
     @Override
     public void onApplicationCreated() {
-        if (OsUtil.isAtLeastN()) {
-            createConnectivityUtilForEachActiveSubscription();
-        } else {
-            sConnectivityUtilInstanceCachePreN = new ConnectivityUtil(mContext);
-        }
+        createConnectivityUtilForEachActiveSubscription();
 
         FixupMessageStatusOnStartupAction.fixupMessageStatus();
         ProcessPendingMessagesAction.processFirstPendingMessage();
         SyncManager.immediateSync();
 
-        if (OsUtil.isAtLeastL_MR1()) {
-            // Start listening for subscription change events for refreshing any data associated
-            // with subscriptions.
-            PhoneUtils.getDefault().toLMr1().registerOnSubscriptionsChangedListener(
-                    new SubscriptionManager.OnSubscriptionsChangedListener() {
-                        @Override
-                        public void onSubscriptionsChanged() {
-                            ParticipantRefresh.refreshSelfParticipants();
-                            if (OsUtil.isAtLeastN()) {
-                                createConnectivityUtilForEachActiveSubscription();
-                            }
-                        }
-                    });
-        }
+        // Start listening for subscription change events for refreshing any data associated
+        // with subscriptions.
+        PhoneUtils.getDefault().toLMr1().registerOnSubscriptionsChangedListener(
+                new SubscriptionManager.OnSubscriptionsChangedListener() {
+                    @Override
+                    public void onSubscriptionsChanged() {
+                        ParticipantRefresh.refreshSelfParticipants();
+                        createConnectivityUtilForEachActiveSubscription();
+                    }
+                });
     }
 
     private void createConnectivityUtilForEachActiveSubscription() {
@@ -230,10 +218,6 @@ public class DataModelImpl extends DataModel {
     }
 
     public static ConnectivityUtil getConnectivityUtil(final int subId) {
-        if (OsUtil.isAtLeastN()) {
-            return sConnectivityUtilInstanceCacheN.get(subId);
-        } else {
-            return sConnectivityUtilInstanceCachePreN;
-        }
+        return sConnectivityUtilInstanceCacheN.get(subId);
     }
 }

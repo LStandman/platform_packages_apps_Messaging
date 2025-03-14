@@ -16,13 +16,11 @@
 
 package com.android.messaging.util;
 
-import android.content.Context;
-
 /**
  * A thin wrapper for getting GServices value.
  */
 public class BugleGservicesImpl extends BugleGservices {
-    public BugleGservicesImpl(final Context context) {
+    public BugleGservicesImpl() {
     }
 
     @Override

@@ -32,8 +32,8 @@ public abstract class BindingBase<T extends BindableData> {
     /**
      * Creates a new exclusively owned binding for the owner object.
      */
-    public static <T extends BindableData> Binding<T> createBinding(final Object owner) {
-        return new Binding<T>(owner);
+    public static <T extends BindableData> Binding<T> createBinding() {
+        return new Binding<T>();
     }
 
     /**
@@ -50,9 +50,8 @@ public abstract class BindingBase<T extends BindableData> {
      * Creates a detachable binding for the owner object. Use this if your owner object is a UI
      * component that may undergo a "detached from window" -> "re-attached to window" transition.
      */
-    public static <T extends BindableData> DetachableBinding<T> createDetachableBinding(
-            final Object owner) {
-        return new DetachableBinding<T>(owner);
+    public static <T extends BindableData> DetachableBinding<T> createDetachableBinding() {
+        return new DetachableBinding<T>();
     }
 
     public abstract T getData();

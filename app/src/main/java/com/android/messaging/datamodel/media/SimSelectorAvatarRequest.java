@@ -58,15 +58,13 @@ public class SimSelectorAvatarRequest extends AvatarRequest {
             final String identifier = AvatarUriUtil.getIdentifier(mDescriptor.uri);
             final boolean simSelected = AvatarUriUtil.getSimSelected(mDescriptor.uri);
             final int simColor = AvatarUriUtil.getSimColor(mDescriptor.uri);
-            final boolean incoming = AvatarUriUtil.getSimIncoming(mDescriptor.uri);
-            return renderSimAvatarInternal(identifier, width, height, simColor, simSelected,
-                    incoming);
+            return renderSimAvatarInternal(identifier, width, height, simColor, simSelected);
         }
         return super.loadMediaInternal(chainedTasks);
     }
 
     private ImageResource renderSimAvatarInternal(final String identifier, final int width,
-            final int height, final int subColor, final boolean selected, final boolean incoming) {
+            final int height, final int subColor, final boolean selected) {
         final Resources resources = mContext.getResources();
         final float halfWidth = width / 2;
         final float halfHeight = height / 2;

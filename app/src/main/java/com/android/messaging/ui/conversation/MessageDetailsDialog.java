@@ -19,9 +19,7 @@ package com.android.messaging.ui.conversation;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.res.Resources;
-import android.net.Uri;
 import android.text.TextUtils;
-import android.text.format.Formatter;
 
 import com.android.messaging.Factory;
 import com.android.messaging.R;
@@ -30,15 +28,11 @@ import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.data.ConversationMessageData;
 import com.android.messaging.datamodel.data.ConversationParticipantsData;
 import com.android.messaging.datamodel.data.ParticipantData;
-import com.android.messaging.mmslib.pdu.PduHeaders;
-import com.android.messaging.sms.DatabaseMessages.MmsMessage;
 import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 import com.android.messaging.util.Dates;
 import com.android.messaging.util.DebugUtils;
-import com.android.messaging.util.OsUtil;
-import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.SafeAsyncTask;
 
 import java.util.List;
@@ -74,12 +68,7 @@ public class MessageDetailsDialog {
             final ConversationMessageData data,
             final ConversationParticipantsData participants, final ParticipantData self) {
         String messageDetails = null;
-        if (data.getIsSms()) {
-            messageDetails = getSmsMessageDetails(data, participants, self);
-        } else {
-            // TODO: Handle SMS_TYPE_MMS_PUSH_NOTIFICATION type differently?
-            messageDetails = getMmsMessageDetails(context, data, participants, self);
-        }
+        messageDetails = getSmsMessageDetails(data, participants, self);
 
         return messageDetails;
     }
@@ -137,72 +126,6 @@ public class MessageDetailsDialog {
         // Sent: Mon 11:43AM
         // or Received: Mon 11:43AM
         appendSentOrReceivedTimestamp(res, details, data);
-
-        appendSimInfo(res, self, details);
-
-        if (DebugUtils.isDebugEnabled()) {
-            appendDebugInfo(details, data);
-        }
-
-        return details.toString();
-    }
-
-    /**
-     * Return a string, separated by newlines, that contains a number of labels and values
-     * for this mms message. The string will be displayed in a modal dialog.
-     * @return string list of various message properties
-     */
-    private static String getMmsMessageDetails(Context context, final ConversationMessageData data,
-            final ConversationParticipantsData participants, final ParticipantData self) {
-        final Resources res = Factory.get().getApplicationContext().getResources();
-        // TODO: when we support non-auto-download of mms messages, we'll have to handle
-        // the case when the message is a PduHeaders.MESSAGE_TYPE_NOTIFICATION_IND and display
-        // something different. See the Messaging app's MessageUtils.getNotificationIndDetails()
-
-        final StringBuilder details = new StringBuilder();
-
-        // Type: Multimedia message.
-        details.append(res.getString(R.string.message_type_label));
-        details.append(res.getString(R.string.multimedia_message));
-
-        // From: +1425xxxxxxx
-        final String rawSender = data.getSenderNormalizedDestination();
-        details.append('\n');
-        details.append(res.getString(R.string.from_label));
-        details.append(!TextUtils.isEmpty(rawSender) ? rawSender :
-                res.getString(R.string.hidden_sender_address));
-
-        // To: +1425xxxxxxx
-        final String rawRecipients = getRecipientParticipantString(participants,
-                data.getParticipantId(), data.getIsIncoming(), data.getSelfParticipantId());
-        if (!TextUtils.isEmpty(rawRecipients)) {
-            details.append('\n');
-            details.append(res.getString(R.string.to_address_label));
-            details.append(rawRecipients);
-        }
-
-        // Sent: Tue 3:05PM
-        // or Received: Tue 3:05PM
-        appendSentOrReceivedTimestamp(res, details, data);
-
-        // Subject: You're awesome
-        details.append('\n');
-        details.append(res.getString(R.string.subject_label));
-        if (!TextUtils.isEmpty(MmsUtils.cleanseMmsSubject(res, data.getMmsSubject()))) {
-            details.append(data.getMmsSubject());
-        }
-
-        // Priority: High/Normal/Low
-        details.append('\n');
-        details.append(res.getString(R.string.priority_label));
-        details.append(getPriorityDescription(res, data.getSmsPriority()));
-
-        // Message size: 30 KB
-        if (data.getSmsMessageSize() > 0) {
-            details.append('\n');
-            details.append(res.getString(R.string.message_size_label));
-            details.append(Formatter.formatFileSize(context, data.getSmsMessageSize()));
-        }
 
         appendSimInfo(res, self, details);
 
@@ -305,31 +228,8 @@ public class MessageDetailsDialog {
         return recipients.toString();
     }
 
-    /**
-     * Convert the numeric mms priority into a human-readable string
-     * @param res
-     * @param priorityValue coded PduHeader priority
-     * @return string representation of the priority
-     */
-    private static String getPriorityDescription(final Resources res, final int priorityValue) {
-        switch(priorityValue) {
-            case PduHeaders.PRIORITY_HIGH:
-                return res.getString(R.string.priority_high);
-            case PduHeaders.PRIORITY_LOW:
-                return res.getString(R.string.priority_low);
-            case PduHeaders.PRIORITY_NORMAL:
-            default:
-                return res.getString(R.string.priority_normal);
-        }
-    }
-
     private static void appendSimInfo(final Resources res,
             final ParticipantData self, final StringBuilder outString) {
-        if (!OsUtil.isAtLeastL_MR1()
-                || self == null
-                || PhoneUtils.getDefault().getActiveSubscriptionCount() < 2) {
-            return;
-        }
         // The appended SIM info would look like:
         // SIM: SUB 01
         // or SIM: SIM 1

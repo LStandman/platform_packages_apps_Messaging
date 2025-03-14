@@ -23,14 +23,9 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.android.messaging.R;
-import com.android.messaging.ui.AsyncImageView;
 import com.android.messaging.ui.CursorRecyclerAdapter;
-import com.android.messaging.ui.AsyncImageView.AsyncImageViewDelayLoader;
 import com.android.messaging.ui.conversation.ConversationMessageView.ConversationMessageViewHost;
 import com.android.messaging.util.Assert;
-
-import java.util.HashSet;
-import java.util.List;
 
 /**
  * Provides an interface to expose Conversation Message Cursor data to a UI widget like a
@@ -40,7 +35,6 @@ public class ConversationMessageAdapter extends
     CursorRecyclerAdapter<ConversationMessageAdapter.ConversationMessageViewHolder> {
 
     private final ConversationMessageViewHost mHost;
-    private final AsyncImageViewDelayLoader mImageViewDelayLoader;
     private final View.OnClickListener mViewClickListener;
     private final View.OnLongClickListener mViewLongClickListener;
     private boolean mOneOnOne;
@@ -48,14 +42,12 @@ public class ConversationMessageAdapter extends
 
     public ConversationMessageAdapter(final Context context, final Cursor cursor,
         final ConversationMessageViewHost host,
-        final AsyncImageViewDelayLoader imageViewDelayLoader,
         final View.OnClickListener viewClickListener,
         final View.OnLongClickListener longClickListener) {
         super(context, cursor, 0);
         mHost = host;
         mViewClickListener = viewClickListener;
         mViewLongClickListener = longClickListener;
-        mImageViewDelayLoader = imageViewDelayLoader;
         setHasStableIds(true);
     }
 

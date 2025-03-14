@@ -139,11 +139,6 @@ public class SmsReleaseStorage {
     public static void deleteMessages(final int actionIndex, final long durationInMillis) {
         int deleted = 0;
         switch (actionIndex) {
-            case 0: {
-                // Delete media
-                deleted = MmsUtils.deleteMediaMessages();
-                break;
-            }
             case 1: {
                 // Delete old messages
                 final long now = System.currentTimeMillis();

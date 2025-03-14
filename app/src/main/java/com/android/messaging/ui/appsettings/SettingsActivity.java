@@ -83,7 +83,7 @@ public class SettingsActivity extends BugleActionBarActivity {
     public static class SettingsFragment extends Fragment implements SettingsDataListener {
         private ListView mListView;
         private SettingsListAdapter mAdapter;
-        private final Binding<SettingsData> mBinding = BindingBase.createBinding(this);
+        private final Binding<SettingsData> mBinding = BindingBase.createBinding();
 
         @Override
         public void onCreate(final Bundle savedInstanceState) {

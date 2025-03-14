@@ -16,41 +16,28 @@
 
 package com.android.messaging.datamodel.action;
 
-import android.content.Context;
-import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemClock;
-import android.provider.Telephony.Mms;
-import androidx.collection.LongSparseArray;
 
-import com.android.messaging.Factory;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.datamodel.SyncManager;
 import com.android.messaging.datamodel.SyncManager.ThreadInfoCache;
-import com.android.messaging.datamodel.data.ParticipantData;
-import com.android.messaging.mmslib.SqliteWrapper;
-import com.android.messaging.sms.DatabaseMessages;
 import com.android.messaging.sms.DatabaseMessages.LocalDatabaseMessage;
-import com.android.messaging.sms.DatabaseMessages.MmsMessage;
 import com.android.messaging.sms.DatabaseMessages.SmsMessage;
-import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.BugleGservices;
 import com.android.messaging.util.BugleGservicesKeys;
 import com.android.messaging.util.BuglePrefs;
 import com.android.messaging.util.BuglePrefsKeys;
-import com.android.messaging.util.ContentType;
 import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.OsUtil;
 
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 
 /**
  * Action used to sync messages from smsmms db to local database
@@ -504,47 +491,6 @@ public class SyncMessagesAction extends Action implements Parcelable {
         // in previous batch
         return (int) ((double) (messagesUpdated) / (double) txnTimeMillis
                         * smsSyncSubsequentBatchTimeLimitMillis);
-    }
-
-    /**
-     * Batch loading MMS sender for the messages in current batch
-     */
-    private void setMmsSenders(final LongSparseArray<MmsMessage> mmses,
-            final ThreadInfoCache cache) {
-        // Store all the MMS messages
-        for (int i = 0; i < mmses.size(); i++) {
-            final MmsMessage mms = mmses.valueAt(i);
-
-            final boolean isOutgoing = mms.mType != Mms.MESSAGE_BOX_INBOX;
-            String senderId = null;
-            if (!isOutgoing) {
-                // We only need to find out sender phone number for received message
-                senderId = getMmsSender(mms, cache);
-                if (senderId == null) {
-                    LogUtil.w(TAG, "SyncMessagesAction: Could not find sender of incoming MMS "
-                            + "message " + mms.getUri() + "; using 'unknown sender' instead");
-                    senderId = ParticipantData.getUnknownSenderDestination();
-                }
-            }
-            mms.setSender(senderId);
-        }
-    }
-
-    /**
-     * Find out the sender of an MMS message
-     */
-    private String getMmsSender(final MmsMessage mms, final ThreadInfoCache cache) {
-        final List<String> recipients = cache.getThreadRecipients(mms.mThreadId);
-        Assert.notNull(recipients);
-        Assert.isTrue(recipients.size() > 0);
-
-        if (recipients.size() == 1
-                && recipients.get(0).equals(ParticipantData.getUnknownSenderDestination())) {
-            LogUtil.w(TAG, "SyncMessagesAction: MMS message " + mms.mUri + " has unknown sender "
-                    + "(thread id = " + mms.mThreadId + ")");
-        }
-
-        return MmsUtils.getMmsSender(recipients, mms.mUri);
     }
 
     private SyncMessagesAction(final Parcel in) {

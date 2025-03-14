@@ -18,10 +18,7 @@ package com.android.messaging.ui.contact;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.MergeCursor;
-import androidx.core.util.Pair;
 import android.text.TextUtils;
-import android.text.util.Rfc822Token;
-import android.text.util.Rfc822Tokenizer;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,8 +26,6 @@ import android.widget.Filter;
 import android.widget.TextView;
 
 import com.android.messaging.shims.chips.BaseRecipientAdapter;
-import com.android.messaging.shims.chips.RecipientAlternatesAdapter;
-import com.android.messaging.shims.chips.RecipientAlternatesAdapter.RecipientMatchCallback;
 import com.android.messaging.shims.chips.RecipientEntry;
 import com.android.messaging.R;
 import com.android.messaging.util.Assert;
@@ -39,18 +34,15 @@ import com.android.messaging.util.BugleGservices;
 import com.android.messaging.util.BugleGservicesKeys;
 import com.android.messaging.util.ContactRecipientEntryUtils;
 import com.android.messaging.util.ContactUtil;
-import com.android.messaging.util.OsUtil;
 import com.android.messaging.util.PhoneUtils;
 
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * An extension on the base {@link BaseRecipientAdapter} that uses data layer from Bugle,
@@ -71,13 +63,12 @@ public final class ContactRecipientAdapter extends BaseRecipientAdapter {
      */
     private static final int ENTRY_TYPE_DIRECTORY = RecipientEntry.ENTRY_TYPE_SIZE;
 
-    public ContactRecipientAdapter(final Context context,
-            final ContactListItemView.HostInterface clivHost) {
-        this(context, Integer.MAX_VALUE, QUERY_TYPE_PHONE, clivHost);
+    public ContactRecipientAdapter(final Context context) {
+        this(context, Integer.MAX_VALUE, QUERY_TYPE_PHONE);
     }
 
     public ContactRecipientAdapter(final Context context, final int preferredMaxResultCount,
-            final int queryMode, final ContactListItemView.HostInterface clivHost) {
+            final int queryMode) {
         super(context, preferredMaxResultCount, queryMode);
         mInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
     }
@@ -121,30 +112,26 @@ public final class ContactRecipientAdapter extends BaseRecipientAdapter {
                         new Cursor[]{personalFilterEmailsCursor, personalFilterPhonesCursor});
                 final CursorResult cursorResult =
                         new CursorResult(personalCursor, false /* sorted */);
-                if (OsUtil.isAtLeastN()) {
-                    // Including enterprise result starting from N.
-                    final Cursor enterpriseFilterPhonesCursor = ContactUtil.filterPhonesEnterprise(
-                            getContext(), searchText).performSynchronousQuery();
-                    final Cursor enterpriseFilterEmailsCursor = ContactUtil.filterEmailsEnterprise(
-                            getContext(), searchText).performSynchronousQuery();
-                    final Cursor enterpriseCursor = new MergeCursor(
-                            new Cursor[]{enterpriseFilterEmailsCursor,
-                                    enterpriseFilterPhonesCursor});
-                    cursorResult.enterpriseCursor = enterpriseCursor;
-                }
+                // Including enterprise result starting from N.
+                final Cursor enterpriseFilterPhonesCursor = ContactUtil.filterPhonesEnterprise(
+                        getContext(), searchText).performSynchronousQuery();
+                final Cursor enterpriseFilterEmailsCursor = ContactUtil.filterEmailsEnterprise(
+                        getContext(), searchText).performSynchronousQuery();
+                final Cursor enterpriseCursor = new MergeCursor(
+                        new Cursor[]{enterpriseFilterEmailsCursor,
+                                enterpriseFilterPhonesCursor});
+                cursorResult.enterpriseCursor = enterpriseCursor;
                 return cursorResult;
             } else {
                 final Cursor personalFilterDestinationCursor = ContactUtil
                         .filterDestination(getContext(), searchText).performSynchronousQuery();
                 final CursorResult cursorResult = new CursorResult(personalFilterDestinationCursor,
                         true);
-                if (OsUtil.isAtLeastN()) {
-                    // Including enterprise result starting from N.
-                    final Cursor enterpriseFilterDestinationCursor = ContactUtil
-                            .filterDestinationEnterprise(getContext(), searchText)
-                            .performSynchronousQuery();
-                    cursorResult.enterpriseCursor = enterpriseFilterDestinationCursor;
-                }
+                // Including enterprise result starting from N.
+                final Cursor enterpriseFilterDestinationCursor = ContactUtil
+                        .filterDestinationEnterprise(getContext(), searchText)
+                        .performSynchronousQuery();
+                cursorResult.enterpriseCursor = enterpriseFilterDestinationCursor;
                 return cursorResult;
             }
         }

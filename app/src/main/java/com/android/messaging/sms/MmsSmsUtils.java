@@ -39,34 +39,6 @@ public class MmsSmsUtils {
         // Forbidden being instantiated.
     }
 
-    // An alias (or commonly called "nickname") is:
-    // Nickname must begin with a letter.
-    // Only letters a-z, numbers 0-9, or . are allowed in Nickname field.
-    public static boolean isAlias(final String string, final int subId) {
-        if (!MmsConfig.get(subId).isAliasEnabled()) {
-            return false;
-        }
-
-        final int len = string == null ? 0 : string.length();
-
-        if (len < MmsConfig.get(subId).getAliasMinChars() ||
-                len > MmsConfig.get(subId).getAliasMaxChars()) {
-            return false;
-        }
-
-        if (!Character.isLetter(string.charAt(0))) {    // Nickname begins with a letter
-            return false;
-        }
-        for (int i = 1; i < len; i++) {
-            final char c = string.charAt(i);
-            if (!(Character.isLetterOrDigit(c) || c == '.')) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     /**
      * mailbox         =       name-addr
      * name-addr       =       [display-name] angle-addr
@@ -125,21 +97,6 @@ public class MmsSmsUtils {
             return match.matches();
         }
         return true;
-    }
-
-    /**
-     * Check if MMS is required when sending to email address
-     *
-     * @param destinationHasEmailAddress destination includes an email address
-     * @return true if MMS is required.
-     */
-    public static boolean getRequireMmsForEmailAddress(final boolean destinationHasEmailAddress,
-            final int subId) {
-        if (!TextUtils.isEmpty(MmsConfig.get(subId).getEmailGateway())) {
-            return false;
-        } else {
-            return destinationHasEmailAddress;
-        }
     }
 
     /**

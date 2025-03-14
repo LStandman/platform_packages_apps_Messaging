@@ -48,7 +48,6 @@ import com.android.messaging.Factory;
 import com.android.messaging.R;
 import com.android.messaging.ui.SnackBar;
 import com.android.messaging.ui.SnackBar.Placement;
-import com.android.messaging.ui.conversationlist.ConversationListActivity;
 import com.android.messaging.ui.SnackBarInteraction;
 import com.android.messaging.ui.SnackBarManager;
 import com.android.messaging.ui.UIIntents;
@@ -251,16 +250,14 @@ public class UiUtils {
     }
 
     public static void setStatusBarColor(final Activity activity, final int color) {
-        if (OsUtil.isAtLeastL()) {
-            // To achieve the appearance of an 80% opacity blend against a black background,
-            // each color channel is reduced in value by 20%.
-            final int blendedRed = (int) Math.floor(0.8 * Color.red(color));
-            final int blendedGreen = (int) Math.floor(0.8 * Color.green(color));
-            final int blendedBlue = (int) Math.floor(0.8 * Color.blue(color));
+        // To achieve the appearance of an 80% opacity blend against a black background,
+        // each color channel is reduced in value by 20%.
+        final int blendedRed = (int) Math.floor(0.8 * Color.red(color));
+        final int blendedGreen = (int) Math.floor(0.8 * Color.green(color));
+        final int blendedBlue = (int) Math.floor(0.8 * Color.blue(color));
 
-            activity.getWindow().setStatusBarColor(
-                    Color.rgb(blendedRed, blendedGreen, blendedBlue));
-        }
+        activity.getWindow().setStatusBarColor(
+                Color.rgb(blendedRed, blendedGreen, blendedBlue));
     }
 
     public static void lockOrientation(final Activity activity) {
@@ -287,20 +284,16 @@ public class UiUtils {
         }
     }
 
-    public static void unlockOrientation(final Activity activity) {
-        activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
-    }
-
     public static int getPaddingStart(final View view) {
-        return OsUtil.isAtLeastJB_MR1() ? view.getPaddingStart() : view.getPaddingLeft();
+        return view.getPaddingStart();
     }
 
     public static int getPaddingEnd(final View view) {
-        return OsUtil.isAtLeastJB_MR1() ? view.getPaddingEnd() : view.getPaddingRight();
+        return view.getPaddingEnd();
     }
 
     public static boolean isRtlMode() {
-        return OsUtil.isAtLeastJB_MR2() && Factory.get().getApplicationContext().getResources()
+        return Factory.get().getApplicationContext().getResources()
                 .getConfiguration().getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
     }
 
