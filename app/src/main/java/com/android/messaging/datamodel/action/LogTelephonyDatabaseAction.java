@@ -24,6 +24,8 @@ import android.os.Parcelable;
 import android.provider.Telephony.Threads;
 import android.provider.Telephony.ThreadsColumns;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.Factory;
 import com.android.messaging.mmslib.SqliteWrapper;
 import com.android.messaging.util.DebugUtils;
@@ -50,7 +52,6 @@ public class LogTelephonyDatabaseAction extends Action implements Parcelable {
     private static final int MESSAGE_COUNT    = 2;
     private static final int RECIPIENT_IDS    = 3;
     private static final int SNIPPET          = 4;
-    private static final int SNIPPET_CHAR_SET = 5;
     private static final int READ             = 6;
     private static final int ERROR            = 7;
     private static final int HAS_ATTACHMENT   = 8;
@@ -109,6 +110,7 @@ public class LogTelephonyDatabaseAction extends Action implements Parcelable {
         cursor = SqliteWrapper.query(context, context.getContentResolver(),
                 Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build(),
                 ALL_THREADS_PROJECTION, null, null, "date ASC");
+        assert cursor != null;
         try {
             while (cursor.moveToNext()) {
                 LogUtil.d(TAG, LogUtil.sanitizePII("threadId: " + cursor.getLong(ID) +
@@ -134,7 +136,7 @@ public class LogTelephonyDatabaseAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<LogTelephonyDatabaseAction> CREATOR
-            = new Parcelable.Creator<LogTelephonyDatabaseAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public LogTelephonyDatabaseAction createFromParcel(final Parcel in) {
             return new LogTelephonyDatabaseAction(in);
@@ -147,7 +149,7 @@ public class LogTelephonyDatabaseAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

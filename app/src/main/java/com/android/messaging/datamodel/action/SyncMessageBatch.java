@@ -26,7 +26,6 @@ import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseHelper.ConversationColumns;
-import com.android.messaging.datamodel.DatabaseHelper.MessageColumns;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.SyncManager.ThreadInfoCache;
 import com.android.messaging.datamodel.data.MessageData;
@@ -65,7 +64,7 @@ class SyncMessageBatch {
         mSmsToAdd = smsToAdd;
         mMessagesToDelete = messagesToDelete;
         mCache = cache;
-        mConversationsToUpdate = new HashSet<String>();
+        mConversationsToUpdate = new HashSet<>();
     }
 
     void updateLocalDatabase() {
@@ -82,7 +81,7 @@ class SyncMessageBatch {
                 mConversationsToUpdate.add(message.getConversationId());
             }
             // Batch delete local messages
-            batchDelete(db, DatabaseHelper.MESSAGES_TABLE, MessageColumns._ID,
+            batchDelete(db,
                     messageListToIds(mMessagesToDelete));
 
             for (final LocalDatabaseMessage message : mMessagesToDelete) {
@@ -113,7 +112,6 @@ class SyncMessageBatch {
     /**
      * Store the SMS message into local database.
      *
-     * @param sms
      */
     private void storeSms(final DatabaseWrapper db, final SmsMessage sms) {
         if (sms.mBody == null) {
@@ -187,7 +185,7 @@ class SyncMessageBatch {
 
     public static int bugleStatusForSms(final boolean isOutgoing, final int type,
             final int status) {
-        int bugleStatus = MessageData.BUGLE_STATUS_UNKNOWN;
+        int bugleStatus;
         // For a message we sync either
         if (isOutgoing) {
             // Outgoing message not yet been sent
@@ -223,20 +221,14 @@ class SyncMessageBatch {
         // with those details.
 
         String foundConversationId = null;
-        Cursor cursor = null;
-        try {
+        try (Cursor cursor = db.rawQuery("SELECT " + ConversationColumns._ID
+                        + " FROM " + DatabaseHelper.CONVERSATIONS_TABLE
+                        + " WHERE " + ConversationColumns._ID + "=" + conversationId,
+                null)) {
             // Look for an existing conversation in the db with the conversation id
-            cursor = db.rawQuery("SELECT " + ConversationColumns._ID
-                    + " FROM " + DatabaseHelper.CONVERSATIONS_TABLE
-                    + " WHERE " + ConversationColumns._ID + "=" + conversationId,
-                    null);
             if (cursor != null && cursor.moveToFirst()) {
                 Assert.isTrue(cursor.getCount() == 1);
                 foundConversationId = cursor.getString(0);
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
 
@@ -278,15 +270,9 @@ class SyncMessageBatch {
     /**
      * Batch delete database rows by matching a column with a list of values, usually some
      * kind of IDs.
-     *
-     * @param table
-     * @param column
-     * @param ids
-     * @return Total number of deleted messages
      */
-    private static int batchDelete(final DatabaseWrapper db, final String table,
-            final String column, final String[] ids) {
-        int totalDeleted = 0;
+    private static void batchDelete(final DatabaseWrapper db,
+                                    final String[] ids) {
         final int totalIds = ids.length;
         for (int start = 0; start < totalIds; start += MmsUtils.MAX_IDS_PER_QUERY) {
             final int end = Math.min(start + MmsUtils.MAX_IDS_PER_QUERY, totalIds); //excluding
@@ -294,15 +280,13 @@ class SyncMessageBatch {
             final String batchSelection = String.format(
                     Locale.US,
                     "%s IN %s",
-                    column,
+                    android.provider.BaseColumns._ID,
                     MmsUtils.getSqlInOperand(count));
             final String[] batchSelectionArgs = Arrays.copyOfRange(ids, start, end);
-            final int deleted = db.delete(
-                    table,
-                    batchSelection,
-                    batchSelectionArgs);
-            totalDeleted += deleted;
+            db.delete(
+                    DatabaseHelper.MESSAGES_TABLE,
+                batchSelection,
+                batchSelectionArgs);
         }
-        return totalDeleted;
     }
 }

@@ -54,7 +54,7 @@ public abstract class BindableData {
 
     /**
      * Check to see if the data is bound to anything
-     *
+     * <p>
      * TODO: This should be package private because it's supposed to only be used by Binding,
      * however, several classes call this directly.  We want the classes to track what they are
      * bound to.

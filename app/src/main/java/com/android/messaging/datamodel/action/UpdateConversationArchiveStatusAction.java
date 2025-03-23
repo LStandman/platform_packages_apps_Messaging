@@ -19,6 +19,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseWrapper;
@@ -74,7 +76,7 @@ public class UpdateConversationArchiveStatusAction extends Action {
     }
 
     public static final Parcelable.Creator<UpdateConversationArchiveStatusAction> CREATOR
-            = new Parcelable.Creator<UpdateConversationArchiveStatusAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public UpdateConversationArchiveStatusAction createFromParcel(final Parcel in) {
             return new UpdateConversationArchiveStatusAction(in);
@@ -87,7 +89,7 @@ public class UpdateConversationArchiveStatusAction extends Action {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

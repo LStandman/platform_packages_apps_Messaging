@@ -16,7 +16,7 @@
 package com.android.messaging.ui.conversationlist;
 
 import android.app.Activity;
-import android.app.Fragment;
+import androidx.fragment.app.Fragment;
 import android.content.Context;
 import android.database.Cursor;
 import android.os.Bundle;

@@ -158,10 +158,6 @@ public class TestDataFactory {
                 ConversationMessageViewColumns._ID, row).toString();
         final List<MessagePartData> parts = ConversationMessageData.makeParts(
                 messageCursor.getAt(ConversationMessageViewColumns.PARTS_IDS, row).toString(),
-                messageCursor.getAt(ConversationMessageViewColumns.PARTS_CONTENT_TYPES, row).toString(),
-                messageCursor.getAt(ConversationMessageViewColumns.PARTS_CONTENT_URIS, row).toString(),
-                messageCursor.getAt(ConversationMessageViewColumns.PARTS_WIDTHS, row).toString(),
-                messageCursor.getAt(ConversationMessageViewColumns.PARTS_HEIGHTS, row).toString(),
                 messageCursor.getAt(ConversationMessageViewColumns.PARTS_TEXTS, row).toString(),
                 partsCount,
                 messageId);

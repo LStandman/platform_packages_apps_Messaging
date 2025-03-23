@@ -16,7 +16,7 @@
 
 package com.android.messaging.ui;
 
-import android.app.Fragment;
+import androidx.fragment.app.Fragment;
 import android.appwidget.AppWidgetManager;
 import android.content.Intent;
 import android.os.Bundle;
@@ -59,7 +59,7 @@ public class WidgetPickConversationActivity extends BaseBugleActivity implements
         final Bundle bundle = new Bundle();
         bundle.putBoolean(ShareIntentFragment.HIDE_NEW_CONVERSATION_BUTTON_KEY, true);
         convPicker.setArguments(bundle);
-        convPicker.show(getFragmentManager(), "ShareIntentFragment");
+        convPicker.show(getSupportFragmentManager(), "ShareIntentFragment");
     }
 
     @Override

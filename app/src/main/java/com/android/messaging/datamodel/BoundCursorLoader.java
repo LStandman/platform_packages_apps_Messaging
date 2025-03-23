@@ -17,7 +17,7 @@
 package com.android.messaging.datamodel;
 
 import android.content.Context;
-import android.content.CursorLoader;
+import androidx.loader.content.CursorLoader;
 import android.net.Uri;
 
 /**

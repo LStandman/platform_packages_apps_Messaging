@@ -16,9 +16,10 @@
 
 package com.android.messaging.datamodel.data;
 
-import android.app.LoaderManager;
+import androidx.annotation.NonNull;
+import androidx.loader.app.LoaderManager;
 import android.content.Context;
-import android.content.Loader;
+import androidx.loader.content.Loader;
 import android.database.Cursor;
 import android.database.CursorWrapper;
 import android.net.Uri;
@@ -51,10 +52,6 @@ import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.widget.WidgetConversationProvider;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 public class ConversationData extends BindableData {
 
@@ -63,47 +60,13 @@ public class ConversationData extends BindableData {
     private static final long LAST_MESSAGE_TIMESTAMP_NaN = -1;
     private static final int MESSAGE_COUNT_NaN = -1;
 
-    /**
-     * Takes a conversation id and a list of message ids and computes the positions
-     * for each message.
-     */
-    public List<Integer> getPositions(final String conversationId, final List<Long> ids) {
-        final ArrayList<Integer> result = new ArrayList<Integer>();
-
-        if (ids.isEmpty()) {
-            return result;
-        }
-
-        final Cursor c = new ConversationData.ReversedCursor(
-                DataModel.get().getDatabase().rawQuery(
-                        ConversationMessageData.getConversationMessageIdsQuerySql(),
-                        new String [] { conversationId }));
-        if (c != null) {
-            try {
-                final Set<Long> idsSet = new HashSet<Long>(ids);
-                if (c.moveToLast()) {
-                    do {
-                        final long messageId = c.getLong(0);
-                        if (idsSet.contains(messageId)) {
-                            result.add(c.getPosition());
-                        }
-                    } while (c.moveToPrevious());
-                }
-            } finally {
-                c.close();
-            }
-        }
-        Collections.sort(result);
-        return result;
-    }
-
     public interface ConversationDataListener {
-        public void onConversationMessagesCursorUpdated(ConversationData data, Cursor cursor,
+        void onConversationMessagesCursorUpdated(ConversationData data, Cursor cursor,
                 @Nullable ConversationMessageData newestMessage, boolean isSync);
-        public void onConversationMetadataUpdated(ConversationData data);
-        public void closeConversation(String conversationId);
-        public void onConversationParticipantDataLoaded(ConversationData data);
-        public void onSubscriptionListDataLoaded(ConversationData data);
+        void onConversationMetadataUpdated(ConversationData data);
+        void closeConversation(String conversationId);
+        void onConversationParticipantDataLoaded(ConversationData data);
+        void onSubscriptionListDataLoaded(ConversationData data);
     }
 
     private static class ReversedCursor extends CursorWrapper {
@@ -174,13 +137,16 @@ public class ConversationData extends BindableData {
      * A trampoline class so that we can inherit from LoaderManager.LoaderCallbacks multiple times.
      */
     private class MetadataLoaderCallbacks implements LoaderManager.LoaderCallbacks<Cursor> {
+        @NonNull
         @Override
         public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
             Assert.equals(CONVERSATION_META_DATA_LOADER, id);
             Loader<Cursor> loader = null;
 
+            assert args != null;
             final String bindingId = args.getString(BINDING_ID);
             // Check if data still bound to the requesting ui element
+            assert bindingId != null;
             if (isBound(bindingId)) {
                 final Uri uri =
                         MessagingContentProvider.buildConversationMetadataUri(mConversationId);
@@ -190,11 +156,12 @@ public class ConversationData extends BindableData {
                 LogUtil.w(TAG, "Creating messages loader after unbinding mConversationId = " +
                         mConversationId);
             }
+            assert loader != null;
             return loader;
         }
 
         @Override
-        public void onLoadFinished(final Loader<Cursor> generic, final Cursor data) {
+        public void onLoadFinished(@NonNull final Loader<Cursor> generic, final Cursor data) {
             final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
             // Check if data still bound to the requesting ui element
@@ -221,7 +188,7 @@ public class ConversationData extends BindableData {
         }
 
         @Override
-        public void onLoaderReset(final Loader<Cursor> generic) {
+        public void onLoaderReset(@NonNull final Loader<Cursor> generic) {
             final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
             // Check if data still bound to the requesting ui element
@@ -240,13 +207,16 @@ public class ConversationData extends BindableData {
      * A trampoline class so that we can inherit from LoaderManager.LoaderCallbacks multiple times.
      */
     private class MessagesLoaderCallbacks implements LoaderManager.LoaderCallbacks<Cursor> {
+        @NonNull
         @Override
         public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
             Assert.equals(CONVERSATION_MESSAGES_LOADER, id);
             Loader<Cursor> loader = null;
 
+            assert args != null;
             final String bindingId = args.getString(BINDING_ID);
             // Check if data still bound to the requesting ui element
+            assert bindingId != null;
             if (isBound(bindingId)) {
                 final Uri uri =
                         MessagingContentProvider.buildConversationMessagesUri(mConversationId);
@@ -258,11 +228,12 @@ public class ConversationData extends BindableData {
                 LogUtil.w(TAG, "Creating messages loader after unbinding mConversationId = " +
                         mConversationId);
             }
+            assert loader != null;
             return loader;
         }
 
         @Override
-        public void onLoadFinished(final Loader<Cursor> generic, final Cursor rawData) {
+        public void onLoadFinished(@NonNull final Loader<Cursor> generic, final Cursor rawData) {
             final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
             // Check if data still bound to the requesting ui element
@@ -310,7 +281,7 @@ public class ConversationData extends BindableData {
         }
 
         @Override
-        public void onLoaderReset(final Loader<Cursor> generic) {
+        public void onLoaderReset(@NonNull final Loader<Cursor> generic) {
             final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
             // Check if data still bound to the requesting ui element
@@ -343,13 +314,16 @@ public class ConversationData extends BindableData {
      * A trampoline class so that we can inherit from LoaderManager.LoaderCallbacks multiple times.
      */
     private class ParticipantLoaderCallbacks implements LoaderManager.LoaderCallbacks<Cursor> {
+        @NonNull
         @Override
         public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
             Assert.equals(PARTICIPANT_LOADER, id);
             Loader<Cursor> loader = null;
 
+            assert args != null;
             final String bindingId = args.getString(BINDING_ID);
             // Check if data still bound to the requesting ui element
+            assert bindingId != null;
             if (isBound(bindingId)) {
                 final Uri uri =
                         MessagingContentProvider.buildConversationParticipantsUri(mConversationId);
@@ -359,11 +333,12 @@ public class ConversationData extends BindableData {
                 LogUtil.w(TAG, "Creating participant loader after unbinding mConversationId = " +
                         mConversationId);
             }
+            assert loader != null;
             return loader;
         }
 
         @Override
-        public void onLoadFinished(final Loader<Cursor> generic, final Cursor data) {
+        public void onLoadFinished(@NonNull final Loader<Cursor> generic, final Cursor data) {
             final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
             // Check if data still bound to the requesting ui element
@@ -377,7 +352,7 @@ public class ConversationData extends BindableData {
         }
 
         @Override
-        public void onLoaderReset(final Loader<Cursor> generic) {
+        public void onLoaderReset(@NonNull final Loader<Cursor> generic) {
             final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
             // Check if data still bound to the requesting ui element
@@ -394,13 +369,16 @@ public class ConversationData extends BindableData {
      * A trampoline class so that we can inherit from LoaderManager.LoaderCallbacks multiple times.
      */
     private class SelfParticipantLoaderCallbacks implements LoaderManager.LoaderCallbacks<Cursor> {
+        @NonNull
         @Override
         public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
             Assert.equals(SELF_PARTICIPANT_LOADER, id);
             Loader<Cursor> loader = null;
 
+            assert args != null;
             final String bindingId = args.getString(BINDING_ID);
             // Check if data still bound to the requesting ui element
+            assert bindingId != null;
             if (isBound(bindingId)) {
                 loader = new BoundCursorLoader(bindingId, mContext,
                         MessagingContentProvider.PARTICIPANTS_URI,
@@ -412,11 +390,12 @@ public class ConversationData extends BindableData {
                 LogUtil.w(TAG, "Creating self loader after unbinding mConversationId = " +
                         mConversationId);
             }
+            assert loader != null;
             return loader;
         }
 
         @Override
-        public void onLoadFinished(final Loader<Cursor> generic, final Cursor data) {
+        public void onLoadFinished(@NonNull final Loader<Cursor> generic, final Cursor data) {
             final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
             // Check if data still bound to the requesting ui element
@@ -431,7 +410,7 @@ public class ConversationData extends BindableData {
         }
 
         @Override
-        public void onLoaderReset(final Loader<Cursor> generic) {
+        public void onLoaderReset(@NonNull final Loader<Cursor> generic) {
             final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
             // Check if data still bound to the requesting ui element
@@ -558,10 +537,6 @@ public class ConversationData extends BindableData {
         return mSelfParticipantsData.getDefaultSelfParticipant();
     }
 
-    public List<ParticipantData> getSelfParticipants(final boolean activeOnly) {
-        return mSelfParticipantsData.getSelfParticipants(activeOnly);
-    }
-
     public int getSelfParticipantsCountExcludingDefault(final boolean activeOnly) {
         return mSelfParticipantsData.getSelfParticipantsCountExcludingDefault(activeOnly);
     }
@@ -602,21 +577,6 @@ public class ConversationData extends BindableData {
                 InsertNewMessageAction.insertNewMessage(message, systemDefaultSubId);
             } else {
                 InsertNewMessageAction.insertNewMessage(message);
-            }
-        }
-        // Update contacts so Frequents will reflect messaging activity.
-        if (!getParticipantsLoaded()) {
-            return;  // oh well, not critical
-        }
-        final ArrayList<String> phones = new ArrayList<>();
-        final ArrayList<String> emails = new ArrayList<>();
-        for (final ParticipantData participant : mParticipantData) {
-            if (!participant.isSelf()) {
-                if (participant.isEmail()) {
-                    emails.add(participant.getSendDestination());
-                } else {
-                    phones.add(participant.getSendDestination());
-                }
             }
         }
     }
@@ -762,7 +722,7 @@ public class ConversationData extends BindableData {
 
     }
 
-    private class ConversationDataEventDispatcher
+    private static class ConversationDataEventDispatcher
             extends ArrayList<ConversationDataListener>
             implements ConversationDataListener {
 

@@ -52,7 +52,7 @@ public class ShareIntentActivity extends BaseBugleActivity implements
             finish();
             return;
         }
-        new ShareIntentFragment().show(getFragmentManager(), "ShareIntentFragment");
+        new ShareIntentFragment().show(getSupportFragmentManager(), "ShareIntentFragment");
     }
 
     @Override

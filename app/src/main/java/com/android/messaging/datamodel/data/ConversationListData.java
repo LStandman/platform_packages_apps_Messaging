@@ -16,9 +16,10 @@
 
 package com.android.messaging.datamodel.data;
 
-import android.app.LoaderManager;
+import androidx.annotation.NonNull;
+import androidx.loader.app.LoaderManager;
 import android.content.Context;
-import android.content.Loader;
+import androidx.loader.content.Loader;
 import android.database.Cursor;
 import android.os.Bundle;
 
@@ -51,8 +52,8 @@ public class ConversationListData extends BindableData
             "(" + ConversationListViewColumns.ARCHIVE_STATUS + " = 0)";
 
     public interface ConversationListDataListener {
-        public void onConversationListCursorUpdated(ConversationListData data, Cursor cursor);
-        public void setBlockedParticipantsAvailable(boolean blockedAvailable);
+        void onConversationListCursorUpdated(ConversationListData data, Cursor cursor);
+        void setBlockedParticipantsAvailable(boolean blockedAvailable);
     }
 
     private ConversationListDataListener mListener;
@@ -74,17 +75,19 @@ public class ConversationListData extends BindableData
             ParticipantColumns._ID,
             ParticipantColumns.NORMALIZED_DESTINATION,
     };
-    private static final int INDEX_BLOCKED_PARTICIPANTS_ID = 0;
     private static final int INDEX_BLOCKED_PARTICIPANTS_NORMALIZED_DESTINATION = 1;
 
     // all blocked participants
-    private final HashSet<String> mBlockedParticipants = new HashSet<String>();
+    private final HashSet<String> mBlockedParticipants = new HashSet<>();
 
+    @NonNull
     @Override
     public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
+        assert args != null;
         final String bindingId = args.getString(BINDING_ID);
         Loader<Cursor> loader = null;
         // Check if data still bound to the requesting ui element
+        assert bindingId != null;
         if (isBound(bindingId)) {
             switch (id) {
                 case BLOCKED_PARTICIPANTS_AVAILABLE_LOADER:
@@ -108,6 +111,7 @@ public class ConversationListData extends BindableData
         } else {
             LogUtil.w(TAG, "Creating loader after unbinding list");
         }
+        assert loader != null;
         return loader;
     }
 
@@ -115,7 +119,7 @@ public class ConversationListData extends BindableData
      * {@inheritDoc}
      */
     @Override
-    public void onLoadFinished(final Loader<Cursor> generic, final Cursor data) {
+    public void onLoadFinished(@NonNull final Loader<Cursor> generic, final Cursor data) {
         final BoundCursorLoader loader = (BoundCursorLoader) generic;
         if (isBound(loader.getBindingId())) {
             switch (loader.getId()) {
@@ -126,7 +130,7 @@ public class ConversationListData extends BindableData
                         mBlockedParticipants.add(data.getString(
                                 INDEX_BLOCKED_PARTICIPANTS_NORMALIZED_DESTINATION));
                     }
-                    mListener.setBlockedParticipantsAvailable(data != null && data.getCount() > 0);
+                    mListener.setBlockedParticipantsAvailable(data.getCount() > 0);
                     break;
                 case CONVERSATION_LIST_LOADER:
                     mListener.onConversationListCursorUpdated(this, data);
@@ -144,7 +148,7 @@ public class ConversationListData extends BindableData
      * {@inheritDoc}
      */
     @Override
-    public void onLoaderReset(final Loader<Cursor> generic) {
+    public void onLoaderReset(@NonNull final Loader<Cursor> generic) {
         final BoundCursorLoader loader = (BoundCursorLoader) generic;
         if (isBound(loader.getBindingId())) {
             switch (loader.getId()) {
@@ -163,11 +167,9 @@ public class ConversationListData extends BindableData
         }
     }
 
-    private Bundle mArgs;
-
     public void init(final LoaderManager loaderManager,
             final BindingBase<ConversationListData> binding) {
-        mArgs = new Bundle();
+        Bundle mArgs = new Bundle();
         mArgs.putString(BINDING_ID, binding.getBindingId());
         mLoaderManager = loaderManager;
         mLoaderManager.initLoader(CONVERSATION_LIST_LOADER, mArgs, this);

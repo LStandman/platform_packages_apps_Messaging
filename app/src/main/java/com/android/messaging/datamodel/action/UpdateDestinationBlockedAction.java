@@ -19,6 +19,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseWrapper;
@@ -28,10 +30,10 @@ import com.android.messaging.util.Assert;
 public class UpdateDestinationBlockedAction extends Action {
     public interface UpdateDestinationBlockedActionListener {
         @Assert.RunsOnMainThread
-        abstract void onUpdateDestinationBlockedAction(final UpdateDestinationBlockedAction action,
-                                                       final boolean success,
-                                                       final boolean block,
-                                                       final String destination);
+        void onUpdateDestinationBlockedAction(final UpdateDestinationBlockedAction action,
+                                              final boolean success,
+                                              final boolean block,
+                                              final String destination);
     }
 
     public static class UpdateDestinationBlockedActionMonitor extends ActionMonitor
@@ -72,7 +74,7 @@ public class UpdateDestinationBlockedAction extends Action {
     }
 
 
-    public static UpdateDestinationBlockedActionMonitor updateDestinationBlocked(
+    public static void updateDestinationBlocked(
             final String destination, final boolean blocked, final String conversationId,
             final UpdateDestinationBlockedActionListener listener) {
         Assert.notNull(listener);
@@ -82,7 +84,6 @@ public class UpdateDestinationBlockedAction extends Action {
                 new UpdateDestinationBlockedAction(destination, blocked, conversationId,
                         monitor.getActionKey());
         action.start(monitor);
-        return monitor;
     }
 
     private static final String KEY_CONVERSATION_ID = "conversation_id";
@@ -126,7 +127,7 @@ public class UpdateDestinationBlockedAction extends Action {
     }
 
     public static final Parcelable.Creator<UpdateDestinationBlockedAction> CREATOR
-            = new Parcelable.Creator<UpdateDestinationBlockedAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public UpdateDestinationBlockedAction createFromParcel(final Parcel in) {
             return new UpdateDestinationBlockedAction(in);
@@ -139,7 +140,7 @@ public class UpdateDestinationBlockedAction extends Action {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

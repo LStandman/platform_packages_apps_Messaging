@@ -20,6 +20,8 @@ import android.content.ContentValues;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseWrapper;
@@ -46,8 +48,8 @@ public class FixupMessageStatusOnStartupAction extends Action implements Parcela
         // Now mark any messages in active sending or downloading state as inactive
         final DatabaseWrapper db = DataModel.get().getDatabase();
         db.beginTransaction();
-        int downloadFailedCnt = 0;
-        int sendFailedCnt = 0;
+        int downloadFailedCnt;
+        int sendFailedCnt;
         try {
             // For both sending and downloading messages, let's assume they failed.
             // For MMS sent/downloaded via platform, the sent/downloaded pending intent
@@ -94,7 +96,7 @@ public class FixupMessageStatusOnStartupAction extends Action implements Parcela
     }
 
     public static final Parcelable.Creator<FixupMessageStatusOnStartupAction> CREATOR
-            = new Parcelable.Creator<FixupMessageStatusOnStartupAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public FixupMessageStatusOnStartupAction createFromParcel(final Parcel in) {
             return new FixupMessageStatusOnStartupAction(in);
@@ -107,7 +109,7 @@ public class FixupMessageStatusOnStartupAction extends Action implements Parcela
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

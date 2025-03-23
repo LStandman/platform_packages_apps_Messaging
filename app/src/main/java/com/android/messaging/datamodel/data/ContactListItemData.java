@@ -17,7 +17,6 @@
 package com.android.messaging.datamodel.data;
 
 import android.database.Cursor;
-import android.net.Uri;
 import android.provider.ContactsContract.DisplayNameSources;
 
 import com.android.messaging.shims.chips.RecipientEntry;
@@ -104,11 +103,6 @@ public class ContactListItemData {
         final CharSequence displayName = mStyledName != null ? mStyledName :
             ContactRecipientEntryUtils.getDisplayNameForContactList(mRecipientEntry);
         return displayName == null ? "" : displayName;
-    }
-
-    public Uri getPhotoThumbnailUri() {
-        return mRecipientEntry.getPhotoThumbnailUri() == null ? null :
-            mRecipientEntry.getPhotoThumbnailUri();
     }
 
     public CharSequence getDestination() {

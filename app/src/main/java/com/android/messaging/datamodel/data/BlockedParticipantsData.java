@@ -16,9 +16,10 @@
 
 package com.android.messaging.datamodel.data;
 
-import android.app.LoaderManager;
+import androidx.annotation.NonNull;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.content.Loader;
 import android.content.Context;
-import android.content.Loader;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -36,7 +37,7 @@ import com.android.messaging.util.Assert;
 public class BlockedParticipantsData extends BindableData implements
         LoaderManager.LoaderCallbacks<Cursor> {
     public interface BlockedParticipantsDataListener {
-        public void onBlockedParticipantsCursorUpdated(final Cursor cursor);
+        void onBlockedParticipantsCursorUpdated(final Cursor cursor);
     }
     private static final String BINDING_ID = "bindingId";
     private static final int BLOCKED_PARTICIPANTS_LOADER = 1;
@@ -50,22 +51,23 @@ public class BlockedParticipantsData extends BindableData implements
         mListener = listener;
     }
 
+    @NonNull
     @Override
     public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
         Assert.isTrue(id == BLOCKED_PARTICIPANTS_LOADER);
+        assert args != null;
         final String bindingId = args.getString(BINDING_ID);
         // Check if data still bound to the requesting ui element
-        if (isBound(bindingId)) {
-            final Uri uri = MessagingContentProvider.PARTICIPANTS_URI;
-            return new BoundCursorLoader(bindingId, mContext, uri,
-                    ParticipantData.ParticipantsQuery.PROJECTION,
-                    ParticipantColumns.BLOCKED + "=1", null, null);
-        }
-        return null;
+        assert bindingId != null;
+        assert isBound(bindingId);
+        final Uri uri = MessagingContentProvider.PARTICIPANTS_URI;
+        return new BoundCursorLoader(bindingId, mContext, uri,
+                ParticipantData.ParticipantsQuery.PROJECTION,
+                ParticipantColumns.BLOCKED + "=1", null, null);
     }
 
     @Override
-    public void onLoadFinished(final Loader<Cursor> loader, final Cursor cursor) {
+    public void onLoadFinished(@NonNull Loader<Cursor> loader, Cursor cursor) {
         Assert.isTrue(loader.getId() == BLOCKED_PARTICIPANTS_LOADER);
         final BoundCursorLoader cursorLoader = (BoundCursorLoader) loader;
         Assert.isTrue(isBound(cursorLoader.getBindingId()));
@@ -73,7 +75,7 @@ public class BlockedParticipantsData extends BindableData implements
     }
 
     @Override
-    public void onLoaderReset(final Loader<Cursor> loader) {
+    public void onLoaderReset(@NonNull Loader<Cursor> loader) {
         Assert.isTrue(loader.getId() == BLOCKED_PARTICIPANTS_LOADER);
         final BoundCursorLoader cursorLoader = (BoundCursorLoader) loader;
         Assert.isTrue(isBound(cursorLoader.getBindingId()));

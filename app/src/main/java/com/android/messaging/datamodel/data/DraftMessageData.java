@@ -72,7 +72,7 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
     private String mMessageText;
     private String mMessageSubject;
     private String mSelfId;
-    private MessageTextStats mMessageTextStats;
+    private final MessageTextStats mMessageTextStats;
     private boolean mSending;
 
     /** Keeps track of completed attachments in the message draft. This data is persisted to db */
@@ -87,7 +87,7 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
 
     public DraftMessageData(final String conversationId) {
         mConversationId = conversationId;
-        mAttachments = new ArrayList<MessagePartData>();
+        mAttachments = new ArrayList<>();
         mListeners = new DraftMessageDataEventDispatcher();
         mMessageTextStats = new MessageTextStats();
     }
@@ -112,8 +112,8 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
                 TextUtils.equals(mMessageSubject, message.getMmsSubject()) &&
                 mAttachments.isEmpty())) {
             // No need to clear as just checked it was empty or a subset
-            setMessageText(message.getMessageText(), false /* notify */);
-            setMessageSubject(message.getMmsSubject(), false /* notify */);
+            setMessageText(message.getMessageText());
+            setMessageSubject(message.getMmsSubject());
             dispatchChanged(ALL_CHANGED);
         } else {
             // The user has started a new message so we throw out the draft message data if there
@@ -180,27 +180,13 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
                 mSubscriptionDataProvider.getConversationSelfSubId();
     }
 
-    private void setMessageText(final String messageText, final boolean notify) {
+    private void setMessageText(final String messageText) {
         mMessageText = messageText;
         mMessageTextStats.updateMessageTextStats(getSelfSubId(), mMessageText);
-        if (notify) {
-            dispatchChanged(MESSAGE_TEXT_CHANGED);
-        }
     }
 
-    private void setMessageSubject(final String subject, final boolean notify) {
+    private void setMessageSubject(final String subject) {
         mMessageSubject = subject;
-        if (notify) {
-            dispatchChanged(MESSAGE_SUBJECT_CHANGED);
-        }
-    }
-
-    public void setMessageText(final String messageText) {
-        setMessageText(messageText, false);
-    }
-
-    public void setMessageSubject(final String subject) {
-        setMessageSubject(subject, false);
     }
 
     public void setSelfId(final String selfId, final boolean notify) {
@@ -257,10 +243,8 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
      * sending and clear the local draft data, both from memory and from DB. This will also bind
      * the message data with a self Id through which the message will be sent.
      *
-     * @param binding the binding object from our consumer. We need to make sure we are still bound
-     *        to that binding before saving to storage.
      */
-    public MessageData prepareMessageForSending(final BindingBase<DraftMessageData> binding) {
+    public MessageData prepareMessageForSending() {
         mSending = true;
         // Assembles the message to send and empty working draft data.
         // If self id is null then message is sent with conversation's self id.
@@ -305,7 +289,6 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
 
     /**
      * Check if Bugle is default sms app
-     * @return
      */
     public boolean getIsDefaultSmsApp() {
         return PhoneUtils.getDefault().isDefaultSmsApp();
@@ -351,7 +334,7 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
     /**
      * Allows us to have multiple data listeners for DraftMessageData
      */
-    private class DraftMessageDataEventDispatcher
+    private static class DraftMessageDataEventDispatcher
         extends ArrayList<DraftMessageDataListener>
         implements DraftMessageDataListener {
 
@@ -373,12 +356,9 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
         public static final int RESULT_PASSED = 0;
         public static final int RESULT_HAS_PENDING_ATTACHMENTS = 1;
         public static final int RESULT_NO_SELF_PHONE_NUMBER_IN_GROUP_MMS = 2;
-        public static final int RESULT_MESSAGE_OVER_LIMIT = 3;
-        public static final int RESULT_VIDEO_ATTACHMENT_LIMIT_EXCEEDED = 4;
         public static final int RESULT_SIM_NOT_READY = 5;
         private final CheckDraftTaskCallback mCallback;
         private final String mBindingId;
-        private int mPreExecuteResult = RESULT_PASSED;
 
         public CheckDraftForSendTask(final CheckDraftTaskCallback callback, final Binding<DraftMessageData> binding) {
             mCallback = callback;
@@ -392,10 +372,6 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
 
         @Override
         protected Integer doInBackgroundTimed(Void... params) {
-            if (mPreExecuteResult != RESULT_PASSED) {
-                return mPreExecuteResult;
-            }
-
             return RESULT_PASSED;
         }
 

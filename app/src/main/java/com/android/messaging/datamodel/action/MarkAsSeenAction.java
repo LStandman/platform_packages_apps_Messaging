@@ -21,19 +21,19 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleNotifications;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseHelper.MessageColumns;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.MessagingContentProvider;
-import com.android.messaging.util.LogUtil;
 
 /**
  * Action used to mark all messages as seen
  */
 public class MarkAsSeenAction extends Action implements Parcelable {
-    private static final String TAG = LogUtil.BUGLE_DATAMODEL_TAG;
     private static final String KEY_CONVERSATION_ID = "conversation_id";
 
     /**
@@ -107,7 +107,7 @@ public class MarkAsSeenAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<MarkAsSeenAction> CREATOR
-            = new Parcelable.Creator<MarkAsSeenAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public MarkAsSeenAction createFromParcel(final Parcel in) {
             return new MarkAsSeenAction(in);
@@ -120,7 +120,7 @@ public class MarkAsSeenAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

@@ -21,10 +21,10 @@ package com.android.messaging.datamodel.binding;
  * together.
  * NOTE: Ensure that the UI component uses the same binding instance for it's whole lifetime
  *  (DO NOT CREATE A NEW BINDING EACH TIME A NEW PIECE OF DATA IS BOUND)...
- *
+ * <p>
  * The ui component owns the binding instance.
  * It can use it [isBound(data)] to see if the binding still binds to the right piece of data
- *
+ * <p>
  * Upon binding the data is informed of a unique binding key generated in this class and can use
  * that to ensure that it is still issuing callbacks to the right piece of ui.
  */
@@ -33,7 +33,7 @@ public abstract class BindingBase<T extends BindableData> {
      * Creates a new exclusively owned binding for the owner object.
      */
     public static <T extends BindableData> Binding<T> createBinding() {
-        return new Binding<T>();
+        return new Binding<>();
     }
 
     /**
@@ -43,7 +43,7 @@ public abstract class BindingBase<T extends BindableData> {
      */
     public static <T extends BindableData> ImmutableBindingRef<T> createBindingReference(
             final BindingBase<T> srcBinding) {
-        return new ImmutableBindingRef<T>(srcBinding);
+        return new ImmutableBindingRef<>(srcBinding);
     }
 
     /**
@@ -51,7 +51,7 @@ public abstract class BindingBase<T extends BindableData> {
      * component that may undergo a "detached from window" -> "re-attached to window" transition.
      */
     public static <T extends BindableData> DetachableBinding<T> createDetachableBinding() {
-        return new DetachableBinding<T>();
+        return new DetachableBinding<>();
     }
 
     public abstract T getData();

@@ -23,6 +23,8 @@ import android.os.Parcelable;
 import android.provider.Telephony;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
@@ -150,10 +152,22 @@ public class InsertNewMessageAction extends Action implements Parcelable {
         LogUtil.i(TAG, "InsertNewMessageAction: inserting new message for subId " + subId);
         actionParameters.putInt(KEY_SUB_ID, subId);
 
+        String sendingConversationId = conversationId;
+        if (recipients.size() > 1) {
+            // Broadcast SMS - put message in "fake conversation" before farming out to real 1:1
+            final long laterTimestamp = timestamp + 1;
+            // Send a single message
+            insertBroadcastSmsMessage(conversationId, message, subId,
+                    laterTimestamp, recipients);
+
+            sendingConversationId = null;
+        }
+
+
         for (final String recipient : recipients) {
             // Start actual sending
             insertSendingSmsMessage(message, subId, recipient,
-                    timestamp, conversationId);
+                    timestamp, sendingConversationId);
         }
 
         // Can now clear draft from conversation (deleting attachments if necessary)
@@ -218,10 +232,11 @@ public class InsertNewMessageAction extends Action implements Parcelable {
                 KEY_SUB_ID, ParticipantData.DEFAULT_SELF_SUB_ID);
 
         final ArrayList<ParticipantData> participants = new ArrayList<>();
+        assert recipientsList != null;
         for (final String recipient : recipientsList.split(",")) {
             participants.add(ParticipantData.getFromRawPhoneBySimLocale(recipient, subId));
         }
-        if (participants.size() == 0) {
+        if (participants.isEmpty()) {
             Assert.fail("InsertNewMessage: Empty participants");
             return null;
         }
@@ -230,7 +245,7 @@ public class InsertNewMessageAction extends Action implements Parcelable {
         BugleDatabaseOperations.sanitizeConversationParticipants(participants);
         final ArrayList<String> recipients =
                 BugleDatabaseOperations.getRecipientsFromConversationParticipants(participants);
-        if (recipients.size() == 0) {
+        if (recipients.isEmpty()) {
             Assert.fail("InsertNewMessage: Empty recipients");
             return null;
         }
@@ -240,7 +255,7 @@ public class InsertNewMessageAction extends Action implements Parcelable {
 
         if (threadId < 0) {
             Assert.fail("InsertNewMessage: Couldn't get threadId in SMS db for these recipients: "
-                    + recipients.toString());
+                    + recipients);
             // TODO: How do we fail the action?
             return null;
         }
@@ -318,8 +333,8 @@ public class InsertNewMessageAction extends Action implements Parcelable {
     /**
      * Insert SMS messaging into our database and telephony db.
      */
-    private MessageData insertSendingSmsMessage(final MessageData content, final int subId,
-            final String recipient, final long timestamp, final String sendingConversationId) {
+    private void insertSendingSmsMessage(final MessageData content, final int subId,
+                                         final String recipient, final long timestamp, final String sendingConversationId) {
         sLastSentMessageTimestamp = timestamp;
 
         final Context context = Factory.get().getApplicationContext();
@@ -357,7 +372,7 @@ public class InsertNewMessageAction extends Action implements Parcelable {
                 Telephony.Sms.STATUS_NONE,
                 Telephony.Sms.MESSAGE_TYPE_SENT, threadId);
 
-        MessageData message = null;
+        MessageData message;
         if (messageUri != null && !TextUtils.isEmpty(messageUri.toString())) {
             db.beginTransaction();
             try {
@@ -389,7 +404,6 @@ public class InsertNewMessageAction extends Action implements Parcelable {
             LogUtil.e(TAG, "InsertNewMessageAction: No uri for SMS inserted into telephony DB");
         }
 
-        return message;
     }
 
     private InsertNewMessageAction(final Parcel in) {
@@ -397,7 +411,7 @@ public class InsertNewMessageAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<InsertNewMessageAction> CREATOR
-            = new Parcelable.Creator<InsertNewMessageAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public InsertNewMessageAction createFromParcel(final Parcel in) {
             return new InsertNewMessageAction(in);
@@ -410,7 +424,7 @@ public class InsertNewMessageAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

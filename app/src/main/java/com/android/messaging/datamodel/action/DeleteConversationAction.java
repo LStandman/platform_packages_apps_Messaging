@@ -23,11 +23,12 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.BugleNotifications;
 import com.android.messaging.datamodel.DataModel;
-import com.android.messaging.datamodel.DataModelException;
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseHelper.MessageColumns;
 import com.android.messaging.datamodel.DatabaseWrapper;
@@ -67,7 +68,7 @@ public class DeleteConversationAction extends Action implements Parcelable {
     // telephony database can sometimes be quite slow to delete conversations, so we delete from
     // the local DB first, notify the UI, and then delete from telephony.
     @Override
-    protected Bundle doBackgroundWork() throws DataModelException {
+    protected Bundle doBackgroundWork() {
         final DatabaseWrapper db = DataModel.get().getDatabase();
 
         final String conversationId = actionParameters.getString(KEY_CONVERSATION_ID);
@@ -140,13 +141,11 @@ public class DeleteConversationAction extends Action implements Parcelable {
         Assert.notNull(conversationId);
 
         final List<Uri> messageUris = new ArrayList<>();
-        Cursor cursor = null;
-        try {
-            cursor = db.query(DatabaseHelper.MESSAGES_TABLE,
-                    new String[] { MessageColumns.SMS_MESSAGE_URI },
-                    MessageColumns.CONVERSATION_ID + "=?",
-                    new String[] { conversationId },
-                    null, null, null);
+        try (Cursor cursor = db.query(DatabaseHelper.MESSAGES_TABLE,
+                new String[]{MessageColumns.SMS_MESSAGE_URI},
+                MessageColumns.CONVERSATION_ID + "=?",
+                new String[]{conversationId},
+                null, null, null)) {
             while (cursor.moveToNext()) {
                 String messageUri = cursor.getString(0);
                 try {
@@ -155,10 +154,6 @@ public class DeleteConversationAction extends Action implements Parcelable {
                     LogUtil.e(TAG, "DeleteConversationAction: Could not parse message uri "
                             + messageUri);
                 }
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
         for (Uri messageUri : messageUris) {
@@ -186,7 +181,7 @@ public class DeleteConversationAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<DeleteConversationAction> CREATOR
-            = new Parcelable.Creator<DeleteConversationAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public DeleteConversationAction createFromParcel(final Parcel in) {
             return new DeleteConversationAction(in);
@@ -199,7 +194,7 @@ public class DeleteConversationAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

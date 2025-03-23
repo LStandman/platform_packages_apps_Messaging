@@ -107,8 +107,7 @@ public class ComposeMessageViewTest extends ViewTest<ComposeMessageView> {
         Mockito.when(mockDraftMessageData.isBound(Matchers.anyString()))
                 .thenReturn(true);
         Mockito.when(mockDraftMessageData.getMessageText()).thenReturn(message.getMessageText());
-        Mockito.when(mockDraftMessageData.prepareMessageForSending(
-                Matchers.<BindingBase<DraftMessageData>>any()))
+        Mockito.when(mockDraftMessageData.prepareMessageForSending())
                 .thenReturn(message);
         Mockito.when(mockDraftMessageData.hasPendingAttachments()).thenReturn(false);
         Mockito.doAnswer(new Answer() {
@@ -158,8 +157,7 @@ public class ComposeMessageViewTest extends ViewTest<ComposeMessageView> {
         Mockito.when(mockDraftMessageData.isBound(Matchers.anyString()))
                 .thenReturn(true);
         Mockito.when(mockDraftMessageData.getMessageText()).thenReturn(message.getMessageText());
-        Mockito.when(mockDraftMessageData.prepareMessageForSending(
-                Matchers.<BindingBase<DraftMessageData>>any()))
+        Mockito.when(mockDraftMessageData.prepareMessageForSending())
                 .thenReturn(message);
         Mockito.when(mockDraftMessageData.hasPendingAttachments()).thenReturn(false);
 

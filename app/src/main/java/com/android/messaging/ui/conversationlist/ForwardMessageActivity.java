@@ -16,7 +16,7 @@
 
 package com.android.messaging.ui.conversationlist;
 
-import android.app.Fragment;
+import androidx.fragment.app.Fragment;
 import android.os.Bundle;
 
 import com.android.messaging.datamodel.data.ConversationListData;
@@ -39,7 +39,7 @@ public class ForwardMessageActivity extends BaseBugleActivity
         super.onCreate(savedInstanceState);
         final ConversationListFragment fragment =
                 ConversationListFragment.createForwardMessageConversationListFragment();
-        getFragmentManager().beginTransaction().add(android.R.id.content, fragment).commit();
+        getSupportFragmentManager().beginTransaction().add(android.R.id.content, fragment).commit();
         mDraftMessage = getIntent().getParcelableExtra(UIIntents.UI_INTENT_EXTRA_DRAFT_DATA);
     }
 

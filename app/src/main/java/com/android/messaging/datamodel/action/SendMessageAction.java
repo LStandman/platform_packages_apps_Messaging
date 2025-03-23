@@ -24,6 +24,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.provider.Telephony.Sms;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
@@ -58,9 +60,6 @@ public class SendMessageAction extends Action implements Parcelable {
         return action.queueAction(messageId, processingAction);
     }
 
-    public static final boolean DEFAULT_DELIVERY_REPORT_MODE  = false;
-    public static final int MAX_SMS_RETRY = 3;
-
     // Core parameters needed for all types of message
     private static final String KEY_MESSAGE_ID = "message_id";
     private static final String KEY_MESSAGE = "message";
@@ -75,10 +74,6 @@ public class SendMessageAction extends Action implements Parcelable {
     // Values we attach to the pending intent that's fired when the message is sent.
     // Only applicable when sending via the platform APIs on L+.
     public static final String KEY_SUB_ID = "sub_id";
-    public static final String EXTRA_MESSAGE_ID = "message_id";
-    public static final String EXTRA_UPDATED_MESSAGE_URI = "updated_message_uri";
-    public static final String EXTRA_CONTENT_URI = "content_uri";
-    public static final String EXTRA_RESPONSE_IMPORTANT = "response_important";
 
     /**
      * Constructor used for retrying sending in the background (only message id available)
@@ -191,9 +186,9 @@ public class SendMessageAction extends Action implements Parcelable {
         final MessageData message = actionParameters.getParcelable(KEY_MESSAGE);
         final String messageId = actionParameters.getString(KEY_MESSAGE_ID);
         Uri messageUri = actionParameters.getParcelable(KEY_MESSAGE_URI);
-        Uri updatedMessageUri = null;
         final int subId = actionParameters.getInt(KEY_SUB_ID, ParticipantData.DEFAULT_SELF_SUB_ID);
 
+        assert message != null;
         LogUtil.i(TAG, "SendMessageAction: Sending SMS message "
                 + messageId + " in conversation " + message.getConversationId());
 
@@ -212,7 +207,7 @@ public class SendMessageAction extends Action implements Parcelable {
         // When we fast-fail before calling the MMS lib APIs (e.g. airplane mode,
         // sending message is deleted).
         ProcessSentMessageAction.processMessageSentFastFailed(messageId, messageUri,
-                updatedMessageUri, subId, status, rawStatus, resultCode);
+                null, subId, status, rawStatus, resultCode);
         return null;
     }
 
@@ -229,15 +224,13 @@ public class SendMessageAction extends Action implements Parcelable {
     protected Object processBackgroundFailure() {
         final String messageId = actionParameters.getString(KEY_MESSAGE_ID);
         final MessageData message = actionParameters.getParcelable(KEY_MESSAGE);
+        assert message != null;
         final boolean isSms = message.getProtocol() == MessageData.PROTOCOL_SMS;
         final int subId = actionParameters.getInt(KEY_SUB_ID, ParticipantData.DEFAULT_SELF_SUB_ID);
-        final int resultCode = actionParameters.getInt(ProcessSentMessageAction.KEY_RESULT_CODE);
-        final int httpStatusCode =
-                actionParameters.getInt(ProcessSentMessageAction.KEY_HTTP_STATUS_CODE);
 
         ProcessSentMessageAction.processResult(messageId, null /* updatedMessageUri */,
                 MmsUtils.MMS_REQUEST_MANUAL_RETRY, MessageData.RAW_TELEPHONY_STATUS_UNDEFINED,
-                isSms, this, subId, resultCode, httpStatusCode);
+                isSms, this, subId);
 
         return null;
     }
@@ -268,12 +261,8 @@ public class SendMessageAction extends Action implements Parcelable {
         switch(message.getStatus()) {
             case MessageData.BUGLE_STATUS_OUTGOING_COMPLETE:
             case MessageData.BUGLE_STATUS_OUTGOING_DELIVERED:
-                type = Sms.MESSAGE_TYPE_SENT;
-                break;
             case MessageData.BUGLE_STATUS_OUTGOING_YET_TO_SEND:
             case MessageData.BUGLE_STATUS_OUTGOING_AWAITING_RETRY:
-                type = Sms.MESSAGE_TYPE_SENT;
-                break;
             case MessageData.BUGLE_STATUS_OUTGOING_SENDING:
             case MessageData.BUGLE_STATUS_OUTGOING_RESENDING:
                 type = Sms.MESSAGE_TYPE_SENT;
@@ -317,16 +306,7 @@ public class SendMessageAction extends Action implements Parcelable {
                         db, message.getConversationId(), false/* shouldAutoSwitchSelfId */,
                         false/*archived*/);
             } else {
-                final ContentValues values = new ContentValues();
-                values.put(MessageColumns.STATUS, message.getStatus());
-
-                if (clearSeen) {
-                    // When a message fails to send, the message needs to
-                    // be unseen to be selected as an error notification.
-                    values.put(MessageColumns.SEEN, 0);
-                }
-                values.put(MessageColumns.RECEIVED_TIMESTAMP, message.getReceivedTimeStamp());
-                values.put(MessageColumns.RAW_TELEPHONY_STATUS, message.getRawTelephonyStatus());
+                final ContentValues values = getContentValues(message, clearSeen);
 
                 BugleDatabaseOperations.updateMessageRowIfExists(db, message.getMessageId(),
                         values);
@@ -349,12 +329,27 @@ public class SendMessageAction extends Action implements Parcelable {
         return updatedTelephony;
     }
 
+    @NonNull
+    private static ContentValues getContentValues(MessageData message, boolean clearSeen) {
+        final ContentValues values = new ContentValues();
+        values.put(MessageColumns.STATUS, message.getStatus());
+
+        if (clearSeen) {
+            // When a message fails to send, the message needs to
+            // be unseen to be selected as an error notification.
+            values.put(MessageColumns.SEEN, 0);
+        }
+        values.put(MessageColumns.RECEIVED_TIMESTAMP, message.getReceivedTimeStamp());
+        values.put(MessageColumns.RAW_TELEPHONY_STATUS, message.getRawTelephonyStatus());
+        return values;
+    }
+
     private SendMessageAction(final Parcel in) {
         super(in);
     }
 
     public static final Parcelable.Creator<SendMessageAction> CREATOR
-            = new Parcelable.Creator<SendMessageAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public SendMessageAction createFromParcel(final Parcel in) {
             return new SendMessageAction(in);
@@ -367,7 +362,7 @@ public class SendMessageAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

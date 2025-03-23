@@ -20,6 +20,8 @@ import android.content.ContentValues;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.BugleNotifications;
 import com.android.messaging.datamodel.DataModel;
@@ -28,13 +30,11 @@ import com.android.messaging.datamodel.DatabaseHelper.MessageColumns;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.sms.MmsUtils;
-import com.android.messaging.util.LogUtil;
 
 /**
  * Action used to mark all the messages in a conversation as read
  */
 public class MarkAsReadAction extends Action implements Parcelable {
-    private static final String TAG = LogUtil.BUGLE_DATAMODEL_TAG;
 
     private static final String KEY_CONVERSATION_ID = "conversation_id";
 
@@ -94,7 +94,7 @@ public class MarkAsReadAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<MarkAsReadAction> CREATOR
-            = new Parcelable.Creator<MarkAsReadAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public MarkAsReadAction createFromParcel(final Parcel in) {
             return new MarkAsReadAction(in);
@@ -107,7 +107,7 @@ public class MarkAsReadAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

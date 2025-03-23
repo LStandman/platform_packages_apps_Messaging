@@ -336,7 +336,7 @@ public class ComposeMessageView extends LinearLayout
                             case CheckDraftForSendTask.RESULT_PASSED:
                                 // Continue sending after check succeeded.
                                 final MessageData message = mBinding.getData()
-                                        .prepareMessageForSending(mBinding);
+                                        .prepareMessageForSending();
                                 if (message != null && message.hasContent()) {
                                     playSentSound();
                                     mHost.sendMessage(message);

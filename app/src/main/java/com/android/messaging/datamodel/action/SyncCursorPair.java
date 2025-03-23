@@ -20,7 +20,6 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.provider.Telephony.Sms;
-import android.text.TextUtils;
 
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.DatabaseHelper;
@@ -62,14 +61,14 @@ class SyncCursorPair {
                 LOCAL_MESSAGES_SELECTION,
                 MessageColumns.RECEIVED_TIMESTAMP,
                 lowerBound,
-                upperBound,
-                null /* threadColumn */, null /* threadId */);
+                upperBound
+                /* threadColumn */  /* threadId */);
         mRemoteSmsSelection = getTimeConstrainedQuery(
                 getSmsTypeSelectionSql(),
                 "date",
                 lowerBound,
-                upperBound,
-                null /* threadColumn */, null /* threadId */);
+                upperBound
+                /* threadColumn */  /* threadId */);
     }
 
     void query(final DatabaseWrapper db) {
@@ -80,7 +79,7 @@ class SyncCursorPair {
     }
 
     boolean isSynchronized(final DatabaseWrapper db) {
-        return isSynchronized(db, mLocalSelection, null, mRemoteSmsSelection, null);
+        return isSynchronized(db, mLocalSelection, mRemoteSmsSelection);
     }
 
     void close() {
@@ -115,10 +114,8 @@ class SyncCursorPair {
                 // No more message on both sides - scan complete
                 lastTimestampMillis = SYNC_COMPLETE;
                 break;
-            } else if ((remoteMessage == null && localMessage != null) ||
-                    (localMessage != null && remoteMessage != null &&
-                        localMessage.getTimestampInMillis()
-                            > remoteMessage.getTimestampInMillis())) {
+            } else if (remoteMessage == null || localMessage != null && localMessage.getTimestampInMillis()
+                    > remoteMessage.getTimestampInMillis()) {
                 // Found a local message that is not in remote db
                 // Delete the local message
                 messagesToDelete.add((LocalDatabaseMessage) localMessage);
@@ -127,10 +124,8 @@ class SyncCursorPair {
                 // Advance to next local message
                 localMessage = mLocalCursorIterator.next();
                 localCount += 1;
-            } else if ((localMessage == null && remoteMessage != null) ||
-                    (localMessage != null && remoteMessage != null &&
-                        localMessage.getTimestampInMillis()
-                            < remoteMessage.getTimestampInMillis())) {
+            } else if (localMessage == null || localMessage.getTimestampInMillis()
+                    < remoteMessage.getTimestampInMillis()) {
                 // Found a remote message that is not in local db
                 // Add the remote message
                 saveMessageToAdd(smsToAdd, remoteMessage, threadInfoCache);
@@ -218,14 +213,6 @@ class SyncCursorPair {
         return lastTimestampMillis;
     }
 
-    DatabaseMessage getLocalMessage() {
-        return mLocalCursorIterator.next();
-    }
-
-    DatabaseMessage getRemoteMessage() {
-        return mRemoteCursorsIterator.next();
-    }
-
     int getLocalPosition() {
         return mLocalCursorIterator.getPosition();
     }
@@ -251,19 +238,19 @@ class SyncCursorPair {
          *
          * @return The next element (which becomes the current)
          */
-        public DatabaseMessage next();
+        DatabaseMessage next();
         /**
          * Close the cursor
          */
-        public void close();
+        void close();
         /**
          * Get the position
          */
-        public int getPosition();
+        int getPosition();
         /**
          * Get the count
          */
-        public int getCount();
+        int getCount();
     }
 
     private static final String ORDER_BY_DATE_DESC = "date DESC";
@@ -313,17 +300,15 @@ class SyncCursorPair {
      */
     private static class LocalCursorIterator implements CursorIterator {
         private Cursor mCursor;
-        private final DatabaseWrapper mDatabase;
 
         LocalCursorIterator(final DatabaseWrapper database, final String selection)
                 throws SQLiteException {
-            mDatabase = database;
             try {
                 if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
                     LogUtil.v(TAG, "SyncCursorPair: Querying for local messages; selection = "
                             + selection);
                 }
-                mCursor = mDatabase.query(
+                mCursor = database.query(
                         DatabaseHelper.MESSAGES_TABLE,
                         LocalMessageQuery.PROJECTION,
                         selection,
@@ -461,13 +446,12 @@ class SyncCursorPair {
      * The limits are not applied if the value is < 0
      *
      * @param typeSelection The existing selection
-     * @param from The inclusive lower bound
-     * @param to The exclusive upper bound
+     * @param from          The inclusive lower bound
+     * @param to            The exclusive upper bound
      * @return The created SQL selection
      */
     private static String getTimeConstrainedQuery(final String typeSelection,
-            final String timeColumn, final long from, final long to,
-            final String threadColumn, final String threadId) {
+            final String timeColumn, final long from, final long to) {
         final StringBuilder queryBuilder = new StringBuilder();
         queryBuilder.append(typeSelection);
         if (from > 0) {
@@ -475,9 +459,6 @@ class SyncCursorPair {
         }
         if (to > 0) {
             queryBuilder.append(" AND ").append(timeColumn).append("<").append(to);
-        }
-        if (!TextUtils.isEmpty(threadColumn) && !TextUtils.isEmpty(threadId)) {
-            queryBuilder.append(" AND ").append(threadColumn).append("=").append(threadId);
         }
         return queryBuilder.toString();
     }
@@ -512,7 +493,7 @@ class SyncCursorPair {
     /**
      * Check if SMS has been synchronized. We compare the counts of messages on both
      * sides and return true if they are equal.
-     *
+     * <p>
      * Note that this may not be the most reliable way to tell if messages are in sync.
      * For example, the local misses one message and has one obsolete message.
      * However, we have background sms sync once a while, also some other events might
@@ -522,8 +503,7 @@ class SyncCursorPair {
      * @return If sms is in sync with telephony sms/mms providers
      */
     private static boolean isSynchronized(final DatabaseWrapper db, final String localSelection,
-            final String[] localSelectionArgs, final String smsSelection,
-            final String[] smsSelectionArgs) {
+                                          final String smsSelection) {
         final Context context = Factory.get().getApplicationContext();
         Cursor localCursor = null;
         Cursor remoteSmsCursor = null;
@@ -532,7 +512,7 @@ class SyncCursorPair {
                     DatabaseHelper.MESSAGES_TABLE,
                     COUNT_PROJECTION,
                     localSelection,
-                    localSelectionArgs,
+                    null,
                     null/*groupBy*/,
                     null/*having*/,
                     null/*orderBy*/);
@@ -543,7 +523,7 @@ class SyncCursorPair {
                     Sms.CONTENT_URI,
                     COUNT_PROJECTION,
                     smsSelection,
-                    smsSelectionArgs,
+                    null,
                     null/*orderBy*/);
             final int remoteCount = getCountFromCursor(remoteSmsCursor);
             final boolean isInSync = (localCount == remoteCount);

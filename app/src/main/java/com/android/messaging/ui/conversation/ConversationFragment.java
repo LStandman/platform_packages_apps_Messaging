@@ -20,8 +20,8 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
-import android.app.Fragment;
-import android.app.FragmentTransaction;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -104,6 +104,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Shows a list of messages/parts comprising a conversation.
@@ -1134,10 +1135,10 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
     public void promptForSelfPhoneNumber() {
         if (mComposeMessageView != null) {
             // Avoid bug in system which puts soft keyboard over dialog after orientation change
-            ImeUtil.hideSoftInput(getActivity(), mComposeMessageView);
+            ImeUtil.hideSoftInput(requireActivity(), mComposeMessageView);
         }
 
-        final FragmentTransaction ft = getActivity().getFragmentManager().beginTransaction();
+        final FragmentTransaction ft = requireActivity().getSupportFragmentManager().beginTransaction();
         final EnterSelfPhoneNumberDialog dialog = EnterSelfPhoneNumberDialog
                 .newInstance(getConversationSelfSubId());
         dialog.setTargetFragment(this, 0/*requestCode*/);

@@ -24,6 +24,8 @@ import android.os.Parcelable;
 import android.provider.Telephony.Sms;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.BugleNotifications;
@@ -60,6 +62,7 @@ public class ReceiveSmsMessageAction extends Action implements Parcelable {
         final DatabaseWrapper db = DataModel.get().getDatabase();
 
         // Get the SIM subscription ID
+        assert messageValues != null;
         Integer subId = messageValues.getAsInteger(Sms.SUBSCRIPTION_ID);
         if (subId == null) {
             subId = ParticipantData.DEFAULT_SELF_SUB_ID;
@@ -181,7 +184,7 @@ public class ReceiveSmsMessageAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<ReceiveSmsMessageAction> CREATOR
-            = new Parcelable.Creator<ReceiveSmsMessageAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public ReceiveSmsMessageAction createFromParcel(final Parcel in) {
             return new ReceiveSmsMessageAction(in);
@@ -194,7 +197,7 @@ public class ReceiveSmsMessageAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

@@ -43,7 +43,6 @@ import com.google.common.annotations.VisibleForTesting;
 /**
  * Utility class including logic to list, filter, and lookup phone and emails in CP2.
  */
-@VisibleForTesting
 public class ContactUtil {
 
     /**
@@ -220,7 +219,6 @@ public class ContactUtil {
      * Get a list of phones sorted by contact name. One contact may have multiple phones.
      * In that case, each phone will be returned as a separate record in the result cursor.
      */
-    @VisibleForTesting
     public static CursorQueryData getPhones(final Context context) {
         if (!ContactUtil.hasReadContactsPermission()) {
             return CursorQueryData.getEmptyQueryData();

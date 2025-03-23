@@ -22,6 +22,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.telephony.ServiceState;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
@@ -54,18 +56,15 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
     private static final String KEY_SUB_ID = "sub_id";
 
     public static void processFirstPendingMessage() {
-        PhoneUtils.forEachActiveSubscription(new PhoneUtils.SubscriptionRunnable() {
-            @Override
-            public void runForSubscription(final int subId) {
-                // Clear any pending alarms or connectivity events
-                unregister(subId);
-                // Clear retry count
-                setRetry(0, subId);
-                // Start action
-                final ProcessPendingMessagesAction action = new ProcessPendingMessagesAction();
-                action.actionParameters.putInt(KEY_SUB_ID, subId);
-                action.start();
-            }
+        PhoneUtils.forEachActiveSubscription(subId -> {
+            // Clear any pending alarms or connectivity events
+            unregister(subId);
+            // Clear retry count
+            setRetry(subId);
+            // Start action
+            final ProcessPendingMessagesAction action = new ProcessPendingMessagesAction();
+            action.actionParameters.putInt(KEY_SUB_ID, subId);
+            action.start();
         });
     }
 
@@ -84,7 +83,7 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
         // If message succeeded and if Bugle is default SMS app just carry on with next message
         if (!failed && isDefaultSmsApp) {
             // Clear retry attempt count as something just succeeded
-            setRetry(0, subId);
+            setRetry(subId);
 
             // Lookup and queue next message for each sending/downloading for immediate processing
             // by background worker. If there are no pending messages, this will do nothing and
@@ -107,23 +106,20 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
         }
         if (getHavePendingMessages(subId) || scheduleAlarm) {
             // Still have a pending message that needs to be queued for processing
-            final ConnectivityListener listener = new ConnectivityListener() {
-                @Override
-                public void onPhoneStateChanged(final int serviceState) {
-                    if (serviceState == ServiceState.STATE_IN_SERVICE) {
-                        LogUtil.i(TAG, "ProcessPendingMessagesAction: Now connected for subId "
-                                + subId + ", starting action");
+            final ConnectivityListener listener = serviceState -> {
+                if (serviceState == ServiceState.STATE_IN_SERVICE) {
+                    LogUtil.i(TAG, "ProcessPendingMessagesAction: Now connected for subId "
+                            + subId + ", starting action");
 
-                        // Clear any pending alarms or connectivity events but leave attempt count
-                        // alone
-                        unregister(subId);
+                    // Clear any pending alarms or connectivity events but leave attempt count
+                    // alone
+                    unregister(subId);
 
-                        // Start action
-                        final ProcessPendingMessagesAction action =
-                                new ProcessPendingMessagesAction();
-                        action.actionParameters.putInt(KEY_SUB_ID, subId);
-                        action.start();
-                    }
+                    // Start action
+                    final ProcessPendingMessagesAction action =
+                            new ProcessPendingMessagesAction();
+                    action.actionParameters.putInt(KEY_SUB_ID, subId);
+                    action.start();
                 }
             };
             // Read and increment attempt number from shared prefs
@@ -135,7 +131,7 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
             // Clear retry attempt count.
             // TODO Might be premature if send and download in process...
             // but worst case means we try to send a bit more often.
-            setRetry(0, subId);
+            setRetry(subId);
             LogUtil.i(TAG, "ProcessPendingMessagesAction: No more pending messages");
         }
     }
@@ -189,9 +185,9 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
         }
     }
 
-    private static void setRetry(final int retryAttempt, int subId) {
+    private static void setRetry(int subId) {
         final BuglePrefs prefs = Factory.get().getSubscriptionPrefs(subId);
-        prefs.putInt(BuglePrefsKeys.PROCESS_PENDING_MESSAGES_RETRY_COUNT, retryAttempt);
+        prefs.putInt(BuglePrefsKeys.PROCESS_PENDING_MESSAGES_RETRY_COUNT, 0);
     }
 
     private static int getNextRetry(int subId) {
@@ -235,7 +231,6 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
     /**
      * Queue any pending actions
      *
-     * @param actionState
      * @return true if action queued (or no actions to queue) else false
      */
     private boolean queueActions(final Action processingAction) {
@@ -300,8 +295,8 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
             final String selfId) {
         String toSendMessageId = null;
         Cursor cursor = null;
-        int sendingCnt = 0;
-        int pendingCnt = 0;
+        int sendingCnt;
+        int pendingCnt;
         int failedCnt = 0;
         db.beginTransaction();
         try {
@@ -384,8 +379,8 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
             final String selfId) {
         String toDownloadMessageId = null;
         Cursor cursor = null;
-        int downloadingCnt = 0;
-        int pendingCnt = 0;
+        int downloadingCnt;
+        int pendingCnt;
         db.beginTransaction();
         try {
             // First check if we have any messages already downloading
@@ -446,7 +441,7 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<ProcessPendingMessagesAction> CREATOR
-            = new Parcelable.Creator<ProcessPendingMessagesAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public ProcessPendingMessagesAction createFromParcel(final Parcel in) {
             return new ProcessPendingMessagesAction(in);
@@ -459,7 +454,7 @@ public class ProcessPendingMessagesAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

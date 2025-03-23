@@ -21,7 +21,8 @@ import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.telephony.PhoneNumberUtils;
-import android.telephony.SmsManager;
+
+import androidx.annotation.NonNull;
 
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.BugleNotifications;
@@ -54,37 +55,10 @@ public class ProcessSentMessageAction extends Action {
 
     // These are set for messages sent by the platform (L+)
     public static final String KEY_RESULT_CODE = "result_code";
-    public static final String KEY_HTTP_STATUS_CODE = "http_status_code";
-    private static final String KEY_CONTENT_URI = "content_uri";
-    private static final String KEY_RESPONSE = "response";
-    private static final String KEY_RESPONSE_IMPORTANT = "response_important";
 
     // These are set for messages we sent ourself (legacy), or which we fast-failed before sending.
     private static final String KEY_STATUS = "status";
     private static final String KEY_RAW_STATUS = "raw_status";
-
-    // This is called when MMS lib API returns via PendingIntent
-    public static void processMmsSent(final int resultCode, final Uri messageUri,
-            final Bundle extras) {
-        final ProcessSentMessageAction action = new ProcessSentMessageAction();
-        final Bundle params = action.actionParameters;
-        params.putBoolean(KEY_SMS, false);
-        params.putBoolean(KEY_SENT_BY_PLATFORM, true);
-        params.putString(KEY_MESSAGE_ID, extras.getString(SendMessageAction.EXTRA_MESSAGE_ID));
-        params.putParcelable(KEY_MESSAGE_URI, messageUri);
-        params.putParcelable(KEY_UPDATED_MESSAGE_URI,
-                extras.getParcelable(SendMessageAction.EXTRA_UPDATED_MESSAGE_URI));
-        params.putInt(KEY_SUB_ID,
-                extras.getInt(SendMessageAction.KEY_SUB_ID, ParticipantData.DEFAULT_SELF_SUB_ID));
-        params.putInt(KEY_RESULT_CODE, resultCode);
-        params.putInt(KEY_HTTP_STATUS_CODE, extras.getInt(SmsManager.EXTRA_MMS_HTTP_STATUS, 0));
-        params.putParcelable(KEY_CONTENT_URI,
-                extras.getParcelable(SendMessageAction.EXTRA_CONTENT_URI));
-        params.putByteArray(KEY_RESPONSE, extras.getByteArray(SmsManager.EXTRA_MMS_DATA));
-        params.putBoolean(KEY_RESPONSE_IMPORTANT,
-                extras.getBoolean(SendMessageAction.EXTRA_RESPONSE_IMPORTANT));
-        action.start();
-    }
 
     public static void processMessageSentFastFailed(final String messageId,
             final Uri messageUri, final Uri updatedMessageUri, final int subId,
@@ -123,11 +97,8 @@ public class ProcessSentMessageAction extends Action {
         final int subId = actionParameters.getInt(KEY_SUB_ID, ParticipantData.DEFAULT_SELF_SUB_ID);
 
         if (messageId != null) {
-            final int resultCode = actionParameters.getInt(KEY_RESULT_CODE);
-            final int httpStatusCode = actionParameters.getInt(KEY_HTTP_STATUS_CODE);
             processResult(
-                    messageId, updatedMessageUri, status, rawStatus, isSms, this, subId,
-                    resultCode, httpStatusCode);
+                    messageId, updatedMessageUri, status, rawStatus, isSms, this, subId);
         } else {
             if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
                 LogUtil.v(TAG, "ProcessSentMessageAction: No sent message to process (it was "
@@ -139,7 +110,7 @@ public class ProcessSentMessageAction extends Action {
 
     static void processResult(final String messageId, Uri updatedMessageUri, int status,
             final int rawStatus, final boolean isSms, final Action processingAction,
-            final int subId, final int resultCode, final int httpStatusCode) {
+            final int subId) {
         final DatabaseWrapper db = DataModel.get().getDatabase();
         MessageData message = BugleDatabaseOperations.readMessage(db, messageId);
         if (message == null) {
@@ -192,7 +163,7 @@ public class ProcessSentMessageAction extends Action {
                 BugleNotifications.update(false, BugleNotifications.UPDATE_ERRORS);
             }
             BugleActionToasts.onSendMessageOrManualDownloadActionCompleted(
-                    conversationId, !failed, status, isSms, subId, true/*isSend*/);
+                    conversationId, !failed, status, isSms, subId /*isSend*/);
         }
 
         LogUtil.i(TAG, "ProcessSentMessageAction: Done sending " + (isSms ? "SMS" : "MMS")
@@ -210,7 +181,7 @@ public class ProcessSentMessageAction extends Action {
     }
 
     public static final Parcelable.Creator<ProcessSentMessageAction> CREATOR
-            = new Parcelable.Creator<ProcessSentMessageAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public ProcessSentMessageAction createFromParcel(final Parcel in) {
             return new ProcessSentMessageAction(in);
@@ -223,7 +194,7 @@ public class ProcessSentMessageAction extends Action {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

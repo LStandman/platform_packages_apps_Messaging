@@ -29,7 +29,7 @@ public class ConversationParticipantsDataTest extends BugleTestCase {
         data.bind(testCursor);
 
         assertEquals(data.getParticipantListExcludingSelf().size(), testCursor.getCount());
-        final ParticipantData participant2 = data.getParticipantById("2");
+        final ParticipantData participant2 = data.getParticipantById();
         assertNotNull(participant2);
         assertEquals(participant2.getFirstName(), testCursor.getAt(
                 ParticipantColumns.FIRST_NAME, 1) );

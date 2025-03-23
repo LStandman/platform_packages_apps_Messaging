@@ -16,7 +16,7 @@
 
 package com.android.messaging.ui.appsettings;
 
-import android.app.Fragment;
+import androidx.fragment.app.Fragment;
 import android.content.Context;
 import android.os.Bundle;
 import androidx.core.app.NavUtils;
@@ -64,7 +64,7 @@ public class SettingsActivity extends BugleActionBarActivity {
             UIIntents.get().launchApplicationSettingsActivity(this, true /* topLevel */);
             finish();
         } else {
-            getFragmentManager().beginTransaction()
+            getSupportFragmentManager().beginTransaction()
                     .replace(android.R.id.content, new SettingsFragment())
                     .commit();
         }

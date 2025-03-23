@@ -22,6 +22,8 @@ import android.provider.ContactsContract;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseHelper.MessageColumns;
 import com.android.messaging.datamodel.DatabaseHelper.PartColumns;
@@ -29,7 +31,6 @@ import com.android.messaging.datamodel.DatabaseHelper.ParticipantColumns;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.BugleGservices;
 import com.android.messaging.util.BugleGservicesKeys;
-import com.android.messaging.util.ContentType;
 import com.android.messaging.util.Dates;
 import com.android.messaging.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -43,7 +44,7 @@ import java.util.List;
 /**
  * Class representing a message within a conversation sequence. The message parts
  * are available via the getParts() method.
- *
+ * <p>
  * TODO: See if we can delegate to MessageData for the logic that this class duplicates
  * (e.g. getIsMms).
  */
@@ -53,16 +54,13 @@ public class ConversationMessageData {
     private String mMessageId;
     private String mConversationId;
     private String mParticipantId;
-    private int mPartsCount;
     private List<MessagePartData> mParts;
     private long mSentTimestamp;
     private long mReceivedTimestamp;
     private boolean mSeen;
-    private boolean mRead;
     private int mProtocol;
     private int mStatus;
     private String mSmsMessageUri;
-    private int mSmsPriority;
     private int mSmsMessageSize;
     private String mMmsSubject;
     private long mMmsExpiry;
@@ -87,14 +85,10 @@ public class ConversationMessageData {
         mMessageId = cursor.getString(INDEX_MESSAGE_ID);
         mConversationId = cursor.getString(INDEX_CONVERSATION_ID);
         mParticipantId = cursor.getString(INDEX_PARTICIPANT_ID);
-        mPartsCount = cursor.getInt(INDEX_PARTS_COUNT);
+        int mPartsCount = cursor.getInt(INDEX_PARTS_COUNT);
 
         mParts = makeParts(
                 cursor.getString(INDEX_PARTS_IDS),
-                cursor.getString(INDEX_PARTS_CONTENT_TYPES),
-                cursor.getString(INDEX_PARTS_CONTENT_URIS),
-                cursor.getString(INDEX_PARTS_WIDTHS),
-                cursor.getString(INDEX_PARTS_HEIGHTS),
                 cursor.getString(INDEX_PARTS_TEXTS),
                 mPartsCount,
                 mMessageId);
@@ -102,11 +96,9 @@ public class ConversationMessageData {
         mSentTimestamp = cursor.getLong(INDEX_SENT_TIMESTAMP);
         mReceivedTimestamp = cursor.getLong(INDEX_RECEIVED_TIMESTAMP);
         mSeen = (cursor.getInt(INDEX_SEEN) != 0);
-        mRead = (cursor.getInt(INDEX_READ) != 0);
         mProtocol = cursor.getInt(INDEX_PROTOCOL);
         mStatus = cursor.getInt(INDEX_STATUS);
         mSmsMessageUri = cursor.getString(INDEX_SMS_MESSAGE_URI);
-        mSmsPriority = cursor.getInt(INDEX_SMS_PRIORITY);
         mSmsMessageSize = cursor.getInt(INDEX_SMS_MESSAGE_SIZE);
         mMmsSubject = cursor.getString(INDEX_MMS_SUBJECT);
         mMmsExpiry = cursor.getLong(INDEX_MMS_EXPIRY);
@@ -150,25 +142,23 @@ public class ConversationMessageData {
             return false;
         }
         final String otherSelfId = cursor.getString(INDEX_SELF_PARTICIPIANT_ID);
-        if (!TextUtils.equals(getSelfParticipantId(), otherSelfId)) {
-            return false;
-        }
-        return true;
+        return TextUtils.equals(getSelfParticipantId(), otherSelfId);
     }
 
     private static final Character QUOTE_CHAR = '\'';
+    /** @noinspection RegExpEmptyAlternationBranch*/
     private static final char DIVIDER = '|';
 
     // statics to avoid unnecessary object allocation
     private static final StringBuilder sUnquoteStringBuilder = new StringBuilder();
-    private static final ArrayList<String> sUnquoteResults = new ArrayList<String>();
+    private static final ArrayList<String> sUnquoteResults = new ArrayList<>();
 
     // this lock is used to guard access to the above statics
     private static final Object sUnquoteLock = new Object();
 
-    private static void addResult(final ArrayList<String> results, final StringBuilder value) {
-        if (value.length() > 0) {
-            results.add(value.toString());
+    private static void addResult(final ArrayList<String> results) {
+        if (ConversationMessageData.sUnquoteStringBuilder.length() > 0) {
+            results.add(ConversationMessageData.sUnquoteStringBuilder.toString());
         } else {
             results.add(EMPTY_STRING);
         }
@@ -188,19 +178,18 @@ public class ConversationMessageData {
      * parts.  A quoted string starts and ends with a single quote.  Actual single quotes
      * within the string are escaped using a second single quote.  So, for example, an
      * input string with 3 constituent parts might look like this:
-     *
+     * <p>
      * 'now is the time'|'I can''t do it'|'foo'
-     *
+     * <p>
      * This would be returned as an array of 3 strings as follows:
      * now is the time
      * I can't do it
      * foo
-     *
+     * <p>
      * This is achieved by walking through the inputString, character by character,
      * ignoring the outer quotes and the divider and replacing any pair of consecutive
      * single quotes with a single single quote.
      *
-     * @param inputString
      * @return array of constituent strings
      */
     @VisibleForTesting
@@ -229,7 +218,7 @@ public class ConversationMessageData {
                         if (peekAhead == QUOTE_CHAR) {
                             characterPos += 1;  // skip the second quote
                         } else {
-                            addResult(results, sUnquoteStringBuilder);
+                            addResult(results);
                             sUnquoteStringBuilder.setLength(0);
 
                             Assert.isTrue((peekAhead == DIVIDER) || (peekAhead == (char) 0));
@@ -240,63 +229,36 @@ public class ConversationMessageData {
                     sUnquoteStringBuilder.append(currentChar);
                 }
             }
-            return results.toArray(new String[results.size()]);
+            return results.toArray(new String[0]);
         }
     }
 
     static MessagePartData makePartData(
             final String partId,
-            final String contentType,
-            final String contentUriString,
-            final String contentWidth,
-            final String contentHeight,
             final String text,
             final String messageId) {
-        if (ContentType.isTextType(contentType)) {
-            final MessagePartData textPart = MessagePartData.createTextMessagePart(text);
-            textPart.updatePartId(partId);
-            textPart.updateMessageId(messageId);
-            return textPart;
-        } else {
-            final Uri contentUri = Uri.parse(contentUriString);
-            final int width = Integer.parseInt(contentWidth);
-            final int height = Integer.parseInt(contentHeight);
-            final MessagePartData attachmentPart = MessagePartData.createMediaMessagePart(
-                    contentType, contentUri, width, height);
-            attachmentPart.updatePartId(partId);
-            attachmentPart.updateMessageId(messageId);
-            return attachmentPart;
-        }
+        final MessagePartData textPart = MessagePartData.createTextMessagePart(text);
+        textPart.updatePartId(partId);
+        textPart.updateMessageId(messageId);
+        return textPart;
     }
 
     @VisibleForTesting
     static List<MessagePartData> makeParts(
             final String rawIds,
-            final String rawContentTypes,
-            final String rawContentUris,
-            final String rawWidths,
-            final String rawHeights,
             final String rawTexts,
             final int partsCount,
             final String messageId) {
-        final List<MessagePartData> parts = new LinkedList<MessagePartData>();
+        final List<MessagePartData> parts = new LinkedList<>();
         if (partsCount == 1) {
             parts.add(makePartData(
                     rawIds,
-                    rawContentTypes,
-                    rawContentUris,
-                    rawWidths,
-                    rawHeights,
                     rawTexts,
                     messageId));
         } else {
             unpackMessageParts(
                     parts,
                     splitUnquotedString(rawIds),
-                    splitQuotedString(rawContentTypes),
-                    splitQuotedString(rawContentUris),
-                    splitUnquotedString(rawWidths),
-                    splitUnquotedString(rawHeights),
                     splitQuotedString(rawTexts),
                     partsCount,
                     messageId);
@@ -308,28 +270,16 @@ public class ConversationMessageData {
     static void unpackMessageParts(
             final List<MessagePartData> parts,
             final String[] ids,
-            final String[] contentTypes,
-            final String[] contentUris,
-            final String[] contentWidths,
-            final String[] contentHeights,
             final String[] texts,
             final int partsCount,
             final String messageId) {
 
         Assert.equals(partsCount, ids.length);
-        Assert.equals(partsCount, contentTypes.length);
-        Assert.equals(partsCount, contentUris.length);
-        Assert.equals(partsCount, contentWidths.length);
-        Assert.equals(partsCount, contentHeights.length);
         Assert.equals(partsCount, texts.length);
 
         for (int i = 0; i < partsCount; i++) {
             parts.add(makePartData(
                     ids[i],
-                    contentTypes[i],
-                    contentUris[i],
-                    contentWidths[i],
-                    contentHeights[i],
                     texts[i],
                     messageId));
         }
@@ -460,25 +410,8 @@ public class ConversationMessageData {
         return mSeen;
     }
 
-    public final boolean getIsRead() {
-        return mRead;
-    }
-
-    public final boolean getIsMms() {
-        return (mProtocol == MessageData.PROTOCOL_MMS ||
-                mProtocol == MessageData.PROTOCOL_MMS_PUSH_NOTIFICATION);
-    }
-
     public final boolean getIsMmsNotification() {
         return (mProtocol == MessageData.PROTOCOL_MMS_PUSH_NOTIFICATION);
-    }
-
-    public final boolean getIsSms() {
-        return mProtocol == (MessageData.PROTOCOL_SMS);
-    }
-
-    final int getProtocol() {
-        return mProtocol;
     }
 
     public final int getStatus() {
@@ -487,10 +420,6 @@ public class ConversationMessageData {
 
     public final String getSmsMessageUri() {
         return mSmsMessageUri;
-    }
-
-    public final int getSmsPriority() {
-        return mSmsPriority;
     }
 
     public final int getSmsMessageSize() {
@@ -613,6 +542,7 @@ public class ConversationMessageData {
         return mCanClusterWithNextMessage;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return MessageData.toString(mMessageId, mParts);
@@ -620,7 +550,7 @@ public class ConversationMessageData {
 
     // Data definitions
 
-    public static final String getConversationMessagesQuerySql() {
+    public static String getConversationMessagesQuerySql() {
         return CONVERSATION_MESSAGES_QUERY_SQL
                 + " AND "
                 // Inject the conversation id
@@ -628,15 +558,7 @@ public class ConversationMessageData {
                 + CONVERSATION_MESSAGES_QUERY_SQL_GROUP_BY;
     }
 
-    static final String getConversationMessageIdsQuerySql() {
-        return CONVERSATION_MESSAGES_IDS_QUERY_SQL
-                + " AND "
-                // Inject the conversation id
-                + DatabaseHelper.MESSAGES_TABLE + "." + MessageColumns.CONVERSATION_ID + "=?)"
-                + CONVERSATION_MESSAGES_QUERY_SQL_GROUP_BY;
-    }
-
-    public static final String getNotificationQuerySql() {
+    public static String getNotificationQuerySql() {
         return CONVERSATION_MESSAGES_QUERY_SQL
                 + " AND "
                 + "(" + DatabaseHelper.MessageColumns.STATUS + " in ("
@@ -648,7 +570,7 @@ public class ConversationMessageData {
                 + NOTIFICATION_QUERY_SQL_GROUP_BY;
     }
 
-    public static final String getWearableQuerySql() {
+    public static String getWearableQuerySql() {
         return CONVERSATION_MESSAGES_QUERY_SQL
                 + " AND "
                 + DatabaseHelper.MESSAGES_TABLE + "." + MessageColumns.CONVERSATION_ID + "=?"
@@ -787,14 +709,6 @@ public class ConversationMessageData {
             + CONVERSATION_MESSAGES_QUERY_PROJECTION_SQL
             + CONVERSATION_MESSAGES_QUERY_FROM_WHERE_SQL;
 
-    private static final String CONVERSATION_MESSAGE_IDS_PROJECTION_SQL =
-            DatabaseHelper.MESSAGES_TABLE + '.' + MessageColumns._ID
-                    + " as " + ConversationMessageViewColumns._ID + " ";
-
-    private static final String CONVERSATION_MESSAGES_IDS_QUERY_SQL = "SELECT "
-            + CONVERSATION_MESSAGE_IDS_PROJECTION_SQL
-            + CONVERSATION_MESSAGES_QUERY_FROM_WHERE_SQL;
-
     // Note that we sort DESC and ConversationData reverses the cursor.  This is a performance
     // issue (improvement) for large cursors.
     private static final String CONVERSATION_MESSAGES_QUERY_SQL_GROUP_BY =
@@ -808,37 +722,37 @@ public class ConversationMessageData {
           + DatabaseHelper.MESSAGES_TABLE + '.' + MessageColumns.RECEIVED_TIMESTAMP + " DESC";
 
     interface ConversationMessageViewColumns extends BaseColumns {
-        static final String _ID = MessageColumns._ID;
-        static final String CONVERSATION_ID = MessageColumns.CONVERSATION_ID;
-        static final String PARTICIPANT_ID = MessageColumns.SENDER_PARTICIPANT_ID;
-        static final String PARTS_COUNT = "parts_count";
-        static final String SENT_TIMESTAMP = MessageColumns.SENT_TIMESTAMP;
-        static final String RECEIVED_TIMESTAMP = MessageColumns.RECEIVED_TIMESTAMP;
-        static final String SEEN = MessageColumns.SEEN;
-        static final String READ = MessageColumns.READ;
-        static final String PROTOCOL = MessageColumns.PROTOCOL;
-        static final String STATUS = MessageColumns.STATUS;
-        static final String SMS_MESSAGE_URI = MessageColumns.SMS_MESSAGE_URI;
-        static final String SMS_PRIORITY = MessageColumns.SMS_PRIORITY;
-        static final String SMS_MESSAGE_SIZE = MessageColumns.SMS_MESSAGE_SIZE;
-        static final String MMS_SUBJECT = MessageColumns.MMS_SUBJECT;
-        static final String MMS_EXPIRY = MessageColumns.MMS_EXPIRY;
-        static final String RAW_TELEPHONY_STATUS = MessageColumns.RAW_TELEPHONY_STATUS;
-        static final String SELF_PARTICIPANT_ID = MessageColumns.SELF_PARTICIPANT_ID;
-        static final String SENDER_FULL_NAME = ParticipantColumns.FULL_NAME;
-        static final String SENDER_FIRST_NAME = ParticipantColumns.FIRST_NAME;
-        static final String SENDER_DISPLAY_DESTINATION = ParticipantColumns.DISPLAY_DESTINATION;
-        static final String SENDER_NORMALIZED_DESTINATION =
+        String _ID = MessageColumns._ID;
+        String CONVERSATION_ID = MessageColumns.CONVERSATION_ID;
+        String PARTICIPANT_ID = MessageColumns.SENDER_PARTICIPANT_ID;
+        String PARTS_COUNT = "parts_count";
+        String SENT_TIMESTAMP = MessageColumns.SENT_TIMESTAMP;
+        String RECEIVED_TIMESTAMP = MessageColumns.RECEIVED_TIMESTAMP;
+        String SEEN = MessageColumns.SEEN;
+        String READ = MessageColumns.READ;
+        String PROTOCOL = MessageColumns.PROTOCOL;
+        String STATUS = MessageColumns.STATUS;
+        String SMS_MESSAGE_URI = MessageColumns.SMS_MESSAGE_URI;
+        String SMS_PRIORITY = MessageColumns.SMS_PRIORITY;
+        String SMS_MESSAGE_SIZE = MessageColumns.SMS_MESSAGE_SIZE;
+        String MMS_SUBJECT = MessageColumns.MMS_SUBJECT;
+        String MMS_EXPIRY = MessageColumns.MMS_EXPIRY;
+        String RAW_TELEPHONY_STATUS = MessageColumns.RAW_TELEPHONY_STATUS;
+        String SELF_PARTICIPANT_ID = MessageColumns.SELF_PARTICIPANT_ID;
+        String SENDER_FULL_NAME = ParticipantColumns.FULL_NAME;
+        String SENDER_FIRST_NAME = ParticipantColumns.FIRST_NAME;
+        String SENDER_DISPLAY_DESTINATION = ParticipantColumns.DISPLAY_DESTINATION;
+        String SENDER_NORMALIZED_DESTINATION =
                 ParticipantColumns.NORMALIZED_DESTINATION;
-        static final String SENDER_PROFILE_PHOTO_URI = ParticipantColumns.PROFILE_PHOTO_URI;
-        static final String SENDER_CONTACT_ID = ParticipantColumns.CONTACT_ID;
-        static final String SENDER_CONTACT_LOOKUP_KEY = ParticipantColumns.LOOKUP_KEY;
-        static final String PARTS_IDS = "parts_ids";
-        static final String PARTS_CONTENT_TYPES = "parts_content_types";
-        static final String PARTS_CONTENT_URIS = "parts_content_uris";
-        static final String PARTS_WIDTHS = "parts_widths";
-        static final String PARTS_HEIGHTS = "parts_heights";
-        static final String PARTS_TEXTS = "parts_texts";
+        String SENDER_PROFILE_PHOTO_URI = ParticipantColumns.PROFILE_PHOTO_URI;
+        String SENDER_CONTACT_ID = ParticipantColumns.CONTACT_ID;
+        String SENDER_CONTACT_LOOKUP_KEY = ParticipantColumns.LOOKUP_KEY;
+        String PARTS_IDS = "parts_ids";
+        String PARTS_CONTENT_TYPES = "parts_content_types";
+        String PARTS_CONTENT_URIS = "parts_content_uris";
+        String PARTS_WIDTHS = "parts_widths";
+        String PARTS_HEIGHTS = "parts_heights";
+        String PARTS_TEXTS = "parts_texts";
     }
 
     private static int sIndexIncrementer = 0;
@@ -848,9 +762,13 @@ public class ConversationMessageData {
     private static final int INDEX_PARTICIPANT_ID                = sIndexIncrementer++;
 
     private static final int INDEX_PARTS_IDS                     = sIndexIncrementer++;
+    /** @noinspection unused*/
     private static final int INDEX_PARTS_CONTENT_TYPES           = sIndexIncrementer++;
+    /** @noinspection unused*/
     private static final int INDEX_PARTS_CONTENT_URIS            = sIndexIncrementer++;
+    /** @noinspection unused*/
     private static final int INDEX_PARTS_WIDTHS                  = sIndexIncrementer++;
+    /** @noinspection unused*/
     private static final int INDEX_PARTS_HEIGHTS                 = sIndexIncrementer++;
     private static final int INDEX_PARTS_TEXTS                   = sIndexIncrementer++;
 
@@ -859,10 +777,12 @@ public class ConversationMessageData {
     private static final int INDEX_SENT_TIMESTAMP                = sIndexIncrementer++;
     private static final int INDEX_RECEIVED_TIMESTAMP            = sIndexIncrementer++;
     private static final int INDEX_SEEN                          = sIndexIncrementer++;
+    /** @noinspection unused*/
     private static final int INDEX_READ                          = sIndexIncrementer++;
     private static final int INDEX_PROTOCOL                      = sIndexIncrementer++;
     private static final int INDEX_STATUS                        = sIndexIncrementer++;
     private static final int INDEX_SMS_MESSAGE_URI               = sIndexIncrementer++;
+    /** @noinspection unused*/
     private static final int INDEX_SMS_PRIORITY                  = sIndexIncrementer++;
     private static final int INDEX_SMS_MESSAGE_SIZE              = sIndexIncrementer++;
     private static final int INDEX_MMS_SUBJECT                   = sIndexIncrementer++;
@@ -878,7 +798,7 @@ public class ConversationMessageData {
     private static final int INDEX_SENDER_CONTACT_LOOKUP_KEY     = sIndexIncrementer++;
 
 
-    private static String[] sProjection = {
+    private static final String[] sProjection = {
         ConversationMessageViewColumns._ID,
         ConversationMessageViewColumns.CONVERSATION_ID,
         ConversationMessageViewColumns.PARTICIPANT_ID,

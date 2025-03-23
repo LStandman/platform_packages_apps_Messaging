@@ -18,6 +18,8 @@ package com.android.messaging.datamodel.action;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleNotifications;
 
 /**
@@ -44,7 +46,7 @@ public class UpdateMessageNotificationAction extends Action {
     }
 
     public static final Parcelable.Creator<UpdateMessageNotificationAction> CREATOR
-            = new Parcelable.Creator<UpdateMessageNotificationAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public UpdateMessageNotificationAction createFromParcel(final Parcel in) {
             return new UpdateMessageNotificationAction(in);
@@ -57,7 +59,7 @@ public class UpdateMessageNotificationAction extends Action {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

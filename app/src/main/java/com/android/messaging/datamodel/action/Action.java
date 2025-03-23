@@ -25,7 +25,6 @@ import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DataModelException;
 import com.android.messaging.datamodel.action.ActionMonitor.ActionCompletedListener;
 import com.android.messaging.datamodel.action.ActionMonitor.ActionExecutedListener;
-import com.android.messaging.util.LogUtil;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -37,8 +36,6 @@ import java.util.List;
  * Note all derived classes need to provide real implementation of Parcelable (this is abstract)
  */
 public abstract class Action implements Parcelable {
-    private static final String TAG = LogUtil.BUGLE_DATAMODEL_TAG;
-
     // Members holding the parameters common to all actions - no action state
     public final String actionKey;
 
@@ -46,7 +43,7 @@ public abstract class Action implements Parcelable {
     protected Bundle actionParameters;
 
     // This does not get written to the parcel
-    private final List<Action> mBackgroundActions = new LinkedList<Action>();
+    private final List<Action> mBackgroundActions = new LinkedList<>();
 
     /**
      * Process the action locally - runs on action service thread.
@@ -69,9 +66,8 @@ public abstract class Action implements Parcelable {
 
     /**
      * Queues up background actions for background processing after the current action has
-     * completed its processing ({@link #executeAction}, {@link processBackgroundCompletion}
+     * completed its processing ({@link #executeAction}
      * or {@link #processBackgroundFailure}) on the Action thread.
-     * @param backgroundAction
      */
     protected void requestBackgroundWork(final Action backgroundAction) {
         mBackgroundActions.add(backgroundAction);
@@ -180,7 +176,7 @@ public abstract class Action implements Parcelable {
      */
     protected final void markEndExecute(final Object result) {
         final boolean hasBackgroundActions = hasBackgroundActions();
-        ActionMonitor.setExecutedState(this, ActionMonitor.STATE_EXECUTING,
+        ActionMonitor.setExecutedState(this,
                 hasBackgroundActions, result);
         if (!hasBackgroundActions) {
             ActionMonitor.setCompleteState(this, ActionMonitor.STATE_EXECUTING,
@@ -245,7 +241,7 @@ public abstract class Action implements Parcelable {
      * Helper method to generate a unique operation index
      */
     protected static long getActionIdx() {
-        long idx = 0;
+        long idx;
         synchronized (sLock) {
             idx = ++sActionIdx;
         }
@@ -279,7 +275,7 @@ public abstract class Action implements Parcelable {
      * Derived classes need to implement writeToParcel (but typically should call this method
      * to parcel Action member variables before they parcel their member variables).
      */
-    public void writeActionToParcel(final Parcel parcel, final int flags) {
+    public void writeActionToParcel(final Parcel parcel) {
         parcel.writeString(this.actionKey);
         parcel.writeBundle(this.actionParameters);
     }

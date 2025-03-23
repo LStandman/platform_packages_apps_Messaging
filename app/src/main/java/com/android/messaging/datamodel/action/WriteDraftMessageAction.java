@@ -19,6 +19,8 @@ package com.android.messaging.datamodel.action;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseWrapper;
@@ -28,7 +30,6 @@ import com.android.messaging.datamodel.data.MessageData;
 import com.android.messaging.util.LogUtil;
 
 public class WriteDraftMessageAction extends Action implements Parcelable {
-    private static final String TAG = LogUtil.BUGLE_DATAMODEL_TAG;
 
     /**
      * Set draft message (no listener)
@@ -51,6 +52,7 @@ public class WriteDraftMessageAction extends Action implements Parcelable {
         final DatabaseWrapper db = DataModel.get().getDatabase();
         final String conversationId = actionParameters.getString(KEY_CONVERSATION_ID);
         final MessageData message = actionParameters.getParcelable(KEY_MESSAGE);
+        assert message != null;
         if (message.getSelfId() == null || message.getParticipantId() == null) {
             // This could happen when this occurs before the draft message is loaded
             // In this case, we just use the conversation's current self id as draft's
@@ -85,7 +87,7 @@ public class WriteDraftMessageAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<WriteDraftMessageAction> CREATOR
-            = new Parcelable.Creator<WriteDraftMessageAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public WriteDraftMessageAction createFromParcel(final Parcel in) {
             return new WriteDraftMessageAction(in);
@@ -98,7 +100,7 @@ public class WriteDraftMessageAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

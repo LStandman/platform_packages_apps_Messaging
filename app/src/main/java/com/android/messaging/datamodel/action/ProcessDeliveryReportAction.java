@@ -23,6 +23,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.provider.Telephony;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseHelper;
@@ -58,6 +60,7 @@ public class ProcessDeliveryReportAction extends Action implements Parcelable {
 
         final DatabaseWrapper db = DataModel.get().getDatabase();
 
+        assert smsMessageUri != null;
         final long messageRowId = ContentUris.parseId(smsMessageUri);
         if (messageRowId < 0) {
             LogUtil.e(TAG, "ProcessDeliveryReportAction: can't find message");
@@ -65,9 +68,7 @@ public class ProcessDeliveryReportAction extends Action implements Parcelable {
         }
         final long timeSentInMillis = System.currentTimeMillis();
         // Update telephony provider
-        if (smsMessageUri != null) {
-            MmsUtils.updateSmsStatusAndDateSent(smsMessageUri, status, timeSentInMillis);
-        }
+        MmsUtils.updateSmsStatusAndDateSent(smsMessageUri, status, timeSentInMillis);
 
         // Update local message
         db.beginTransaction();
@@ -103,7 +104,7 @@ public class ProcessDeliveryReportAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<ProcessDeliveryReportAction> CREATOR
-            = new Parcelable.Creator<ProcessDeliveryReportAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public ProcessDeliveryReportAction createFromParcel(final Parcel in) {
             return new ProcessDeliveryReportAction(in);
@@ -116,7 +117,7 @@ public class ProcessDeliveryReportAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

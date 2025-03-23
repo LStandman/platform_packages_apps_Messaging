@@ -20,39 +20,22 @@ import android.content.ContentValues;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.DatabaseHelper.PartColumns;
-import com.android.messaging.util.Assert;
 
 /**
  * Action used to update size fields of a single part
  */
 public class UpdateMessagePartSizeAction extends Action implements Parcelable {
-    /**
-     * Update size of part
-     */
-    public static void updateSize(final String partId, final int width, final int height) {
-        Assert.notNull(partId);
-        Assert.inRange(width, 0, Integer.MAX_VALUE);
-        Assert.inRange(height, 0, Integer.MAX_VALUE);
-
-        final UpdateMessagePartSizeAction action = new UpdateMessagePartSizeAction(
-                partId, width, height);
-        action.start();
-    }
 
     private static final String KEY_PART_ID = "part_id";
     private static final String KEY_WIDTH = "width";
     private static final String KEY_HEIGHT = "height";
-
-    private UpdateMessagePartSizeAction(final String partId, final int width, final int height) {
-        actionParameters.putString(KEY_PART_ID, partId);
-        actionParameters.putInt(KEY_WIDTH, width);
-        actionParameters.putInt(KEY_HEIGHT, height);
-    }
 
     @Override
     protected Object executeAction() {
@@ -84,7 +67,7 @@ public class UpdateMessagePartSizeAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<UpdateMessagePartSizeAction> CREATOR
-            = new Parcelable.Creator<UpdateMessagePartSizeAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public UpdateMessagePartSizeAction createFromParcel(final Parcel in) {
             return new UpdateMessagePartSizeAction(in);
@@ -97,7 +80,7 @@ public class UpdateMessagePartSizeAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

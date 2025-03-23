@@ -38,37 +38,28 @@ import javax.annotation.Nullable;
 public class BugleActionToasts {
     /**
      * Called when SendMessageAction or DownloadMmsAction finishes
+     *
      * @param conversationId the conversation of the sent or downloaded message
-     * @param success did the action succeed
-     * @param status the message sending status
-     * @param isSms whether the message is sent using SMS
-     * @param subId the subId of the SIM related to this send
-     * @param isSend whether it is a send (false for download)
+     * @param success        did the action succeed
+     * @param status         the message sending status
+     * @param isSms          whether the message is sent using SMS
+     * @param subId          the subId of the SIM related to this send
      */
     static void onSendMessageOrManualDownloadActionCompleted(
             final String conversationId,
             final boolean success,
             final int status,
             final boolean isSms,
-            final int subId,
-            final boolean isSend) {
+            final int subId) {
         // We only show notifications for two cases, i.e. when mobile data is off or when we are
         // in airplane mode, both of which fail fast with permanent failures.
         if (!success && status == MmsUtils.MMS_REQUEST_MANUAL_RETRY) {
             final PhoneUtils phoneUtils = PhoneUtils.get(subId);
             if (phoneUtils.isAirplaneModeOn()) {
-                if (isSend) {
-                    showToast(R.string.send_message_failure_airplane_mode);
-                } else {
-                    showToast(R.string.download_message_failure_airplane_mode);
-                }
+                showToast(R.string.send_message_failure_airplane_mode);
                 return;
             } else if (!isSms && !phoneUtils.isMobileDataEnabled()) {
-                if (isSend) {
-                    showToast(R.string.send_message_failure_no_data);
-                } else {
-                    showToast(R.string.download_message_failure_no_data);
-                }
+                showToast(R.string.send_message_failure_no_data);
                 return;
             }
         }
@@ -78,8 +69,7 @@ public class BugleActionToasts {
             if (isFocusedConversation && success) {
                 // Using View.announceForAccessibility may be preferable, but we do not have a
                 // View, and so we use a toast instead.
-                showToast(isSend ? R.string.send_message_success
-                        : R.string.download_message_success);
+                showToast(R.string.send_message_success);
                 return;
             }
 
@@ -89,8 +79,7 @@ public class BugleActionToasts {
             final boolean isObservableConversation = DataModel.get().isNewMessageObservable(
                     conversationId);
             if (isObservableConversation && !success) {
-                showToast(isSend ? R.string.send_message_failure
-                        : R.string.download_message_failure);
+                showToast(R.string.send_message_failure);
             }
         }
     }
@@ -118,22 +107,12 @@ public class BugleActionToasts {
     }
 
     private static void showToast(final int messageResId) {
-        ThreadUtil.getMainThreadHandler().post(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(getApplicationContext(),
-                        getApplicationContext().getString(messageResId), Toast.LENGTH_LONG).show();
-            }
-        });
+        ThreadUtil.getMainThreadHandler().post(() -> Toast.makeText(getApplicationContext(),
+                getApplicationContext().getString(messageResId), Toast.LENGTH_LONG).show());
     }
 
     private static void showToast(final String message) {
-        ThreadUtil.getMainThreadHandler().post(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
-            }
-        });
+        ThreadUtil.getMainThreadHandler().post(() -> Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show());
     }
 
     private static Context getApplicationContext() {

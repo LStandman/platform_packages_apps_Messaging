@@ -24,19 +24,20 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseHelper.PartColumns;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.MessagingContentProvider;
 import com.android.messaging.util.Assert;
-import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 import com.android.messaging.util.ContentType;
 import com.android.messaging.util.LogUtil;
-import com.android.messaging.util.SafeAsyncTask;
 import com.android.messaging.util.UriUtil;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Represents a single message part. Messages consist of one or more parts which may contain
@@ -72,18 +73,11 @@ public class MessagePartData implements Parcelable {
                     + ", " + PartColumns.CONVERSATION_ID
                     + ") VALUES (?, ?, ?, ?, ?, ?, ?)";
 
-    // Used for stuff that's ignored or arbitrarily compressed.
-    private static final long NO_MINIMUM_SIZE = 0;
-
     private String mPartId;
     private String mMessageId;
     private String mText;
     private Uri mContentUri;
     private String mContentType;
-    private int mWidth;
-    private int mHeight;
-    // This kind of part can only be attached once and with no other attachment
-    private boolean mSinglePartOnly;
 
     /** Transient data: true if destroy was already called */
     private boolean mDestroyed;
@@ -92,54 +86,32 @@ public class MessagePartData implements Parcelable {
      * Create an "empty" message part
      */
     protected MessagePartData() {
-        this(null, null, UNSPECIFIED_SIZE, UNSPECIFIED_SIZE);
+        this(null, null);
     }
 
     /**
      * Create a populated text message part
      */
     protected MessagePartData(final String messageText) {
-        this(null, messageText, ContentType.TEXT_PLAIN, null, UNSPECIFIED_SIZE, UNSPECIFIED_SIZE,
-                false /*singlePartOnly*/);
+        this(null, messageText, ContentType.TEXT_PLAIN, null);
     }
 
     /**
      * Create a populated attachment message part
      */
-    protected MessagePartData(final String contentType, final Uri contentUri,
-            final int width, final int height) {
-        this(null, null, contentType, contentUri, width, height, false /*singlePartOnly*/);
-    }
-
-    /**
-     * Create a populated attachment message part, with additional caption text
-     */
-    protected MessagePartData(final String messageText, final String contentType,
-            final Uri contentUri, final int width, final int height) {
-        this(null, messageText, contentType, contentUri, width, height, false /*singlePartOnly*/);
-    }
-
-    /**
-     * Create a populated attachment message part, with additional caption text, single part only
-     */
-    protected MessagePartData(final String messageText, final String contentType,
-            final Uri contentUri, final int width, final int height, final boolean singlePartOnly) {
-        this(null, messageText, contentType, contentUri, width, height, singlePartOnly);
+    protected MessagePartData(final String contentType, final Uri contentUri) {
+        this(null, null, contentType, contentUri);
     }
 
     /**
      * Create a populated message part
      */
     private MessagePartData(final String messageId, final String messageText,
-            final String contentType, final Uri contentUri, final int width, final int height,
-            final boolean singlePartOnly) {
+            final String contentType, final Uri contentUri) {
         mMessageId = messageId;
         mText = messageText;
         mContentType = contentType;
         mContentUri = contentUri;
-        mWidth = width;
-        mHeight = height;
-        mSinglePartOnly = singlePartOnly;
     }
 
     /**
@@ -147,31 +119,6 @@ public class MessagePartData implements Parcelable {
      */
     public static MessagePartData createTextMessagePart(final String messageText) {
         return new MessagePartData(messageText);
-    }
-
-    /**
-     * Create a "media" message part
-     */
-    public static MessagePartData createMediaMessagePart(final String contentType,
-            final Uri contentUri, final int width, final int height) {
-        return new MessagePartData(contentType, contentUri, width, height);
-    }
-
-    /**
-     * Create a "media" message part with caption
-     */
-    public static MessagePartData createMediaMessagePart(final String caption,
-            final String contentType, final Uri contentUri, final int width, final int height) {
-        return new MessagePartData(null, caption, contentType, contentUri, width, height,
-                false /*singlePartOnly*/
-        );
-    }
-
-    /**
-     * Create an empty "text" message part
-     */
-    public static MessagePartData createEmptyMessagePart() {
-        return new MessagePartData("");
     }
 
     /**
@@ -217,8 +164,6 @@ public class MessagePartData implements Parcelable {
         mText = cursor.getString(INDEX_TEXT);
         mContentUri = UriUtil.uriFromString(cursor.getString(INDEX_CONTENT_URI));
         mContentType = cursor.getString(INDEX_CONTENT_TYPE);
-        mWidth = cursor.getInt(INDEX_WIDTH);
-        mHeight = cursor.getInt(INDEX_HEIGHT);
     }
 
     public final void populate(final ContentValues values) {
@@ -228,12 +173,6 @@ public class MessagePartData implements Parcelable {
         values.put(PartColumns.TEXT, mText);
         values.put(PartColumns.CONTENT_URI, UriUtil.stringFromUri(mContentUri));
         values.put(PartColumns.CONTENT_TYPE, mContentType);
-        if (mWidth != UNSPECIFIED_SIZE) {
-            values.put(PartColumns.WIDTH, mWidth);
-        }
-        if (mHeight != UNSPECIFIED_SIZE) {
-            values.put(PartColumns.HEIGHT, mHeight);
-        }
     }
 
     /**
@@ -255,8 +194,8 @@ public class MessagePartData implements Parcelable {
         if (mContentType != null) {
             insert.bindString(INDEX_CONTENT_TYPE, mContentType);
         }
-        insert.bindLong(INDEX_WIDTH, mWidth);
-        insert.bindLong(INDEX_HEIGHT, mHeight);
+        insert.bindLong(INDEX_WIDTH, UNSPECIFIED_SIZE);
+        insert.bindLong(INDEX_HEIGHT, UNSPECIFIED_SIZE);
         insert.bindString(INDEX_CONVERSATION_ID, conversationId);
         return insert;
     }
@@ -309,22 +248,6 @@ public class MessagePartData implements Parcelable {
         return mContentType;
     }
 
-    public final int getWidth() {
-        return mWidth;
-    }
-
-    public final int getHeight() {
-        return mHeight;
-    }
-
-    /**
-    *
-    * @return true if this part can only exist by itself, with no other attachments
-    */
-    public boolean getSinglePartOnly() {
-        return mSinglePartOnly;
-    }
-
     @Override
     public int describeContents() {
         return 0;
@@ -335,8 +258,6 @@ public class MessagePartData implements Parcelable {
         mText = in.readString();
         mContentUri = UriUtil.uriFromString(in.readString());
         mContentType = in.readString();
-        mWidth = in.readInt();
-        mHeight = in.readInt();
     }
 
     @Override
@@ -346,8 +267,8 @@ public class MessagePartData implements Parcelable {
         dest.writeString(mText);
         dest.writeString(UriUtil.stringFromUri(mContentUri));
         dest.writeString(mContentType);
-        dest.writeInt(mWidth);
-        dest.writeInt(mHeight);
+        dest.writeInt(UNSPECIFIED_SIZE);
+        dest.writeInt(UNSPECIFIED_SIZE);
     }
 
     @Override
@@ -361,18 +282,16 @@ public class MessagePartData implements Parcelable {
         }
 
         MessagePartData lhs = (MessagePartData) o;
-        return mWidth == lhs.mWidth && mHeight == lhs.mHeight &&
-                TextUtils.equals(mMessageId, lhs.mMessageId) &&
+        return TextUtils.equals(mMessageId, lhs.mMessageId) &&
                 TextUtils.equals(mText, lhs.mText) &&
                 TextUtils.equals(mContentType, lhs.mContentType) &&
-                (mContentUri == null ? lhs.mContentUri == null
-                                     : mContentUri.equals(lhs.mContentUri));
+                Objects.equals(mContentUri, lhs.mContentUri);
     }
 
     @Override public int hashCode() {
         int result = 17;
-        result = 31 * result + mWidth;
-        result = 31 * result + mHeight;
+        result = 31 * result + UNSPECIFIED_SIZE;
+        result = 31 * result + UNSPECIFIED_SIZE;
         result = 31 * result + (mMessageId == null ? 0 : mMessageId.hashCode());
         result = 31 * result + (mText == null ? 0 : mText.hashCode());
         result = 31 * result + (mContentType == null ? 0 : mContentType.hashCode());
@@ -381,7 +300,7 @@ public class MessagePartData implements Parcelable {
       }
 
     public static final Parcelable.Creator<MessagePartData> CREATOR
-            = new Parcelable.Creator<MessagePartData>() {
+            = new Parcelable.Creator<>() {
         @Override
         public MessagePartData createFromParcel(final Parcel in) {
             return new MessagePartData(in);
@@ -397,28 +316,10 @@ public class MessagePartData implements Parcelable {
         // We should never double-destroy.
         Assert.isTrue(!mDestroyed);
         mDestroyed = true;
-        Uri contentUri = mContentUri;
         mContentUri = null;
         mContentType = null;
         // Only destroy the image if it's staged in our scratch space.
-        contentUri = null;
-        return contentUri;
-    }
-
-    /**
-     * If application owns content associated with this part delete it (on background thread)
-     */
-    public void destroyAsync() {
-        final Uri contentUri = shouldDestroy();
-        if (contentUri != null) {
-            SafeAsyncTask.executeOnThreadPool(new Runnable() {
-                @Override
-                public void run() {
-                    Factory.get().getApplicationContext().getContentResolver().delete(
-                            contentUri, null, null);
-                }
-            });
-        }
+        return null;
     }
 
     /**
@@ -432,23 +333,7 @@ public class MessagePartData implements Parcelable {
         }
     }
 
-    /**
-     * Computes the minimum size that this MessagePartData could be compressed/downsampled/encoded
-     * before sending to meet the maximum message size imposed by the carriers. This is used to
-     * determine right before sending a message whether a message could possibly be sent. If not
-     * then the user is given a chance to unselect some/all of the attachments.
-     *
-     * TODO: computing the minimum size could be expensive. Should we cache the
-     * computed value in db to be retrieved later?
-     *
-     * @return the carrier-independent minimum size, in bytes.
-     */
-    @DoesNotRunOnMainThread
-    public long getMinimumSizeInBytesForSending() {
-        Assert.isNotMainThread();
-        return NO_MINIMUM_SIZE;
-    }
-
+    @NonNull
     @Override
     public String toString() {
         if (isText()) {
@@ -456,17 +341,5 @@ public class MessagePartData implements Parcelable {
         } else {
             return getContentType() + " (" + getContentUri() + ")";
         }
-    }
-
-    /**
-     *
-     * @return true if this part can only exist by itself, with no other attachments
-     */
-    public boolean isSinglePartOnly() {
-        return mSinglePartOnly;
-    }
-
-    public void setSinglePartOnly(final boolean isSinglePartOnly) {
-        mSinglePartOnly = isSinglePartOnly;
     }
 }

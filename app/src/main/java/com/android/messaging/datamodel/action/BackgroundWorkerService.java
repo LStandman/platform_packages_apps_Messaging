@@ -20,6 +20,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.JobIntentService;
 
 import com.android.messaging.Factory;
@@ -39,7 +40,6 @@ import java.util.List;
  */
 public class BackgroundWorkerService extends JobIntentService {
     private static final String TAG = LogUtil.BUGLE_DATAMODEL_TAG;
-    private static final boolean VERBOSE = false;
 
     /**
      * Unique job ID for this service.
@@ -58,7 +58,7 @@ public class BackgroundWorkerService extends JobIntentService {
      */
     public static void queueBackgroundWork(final List<Action> actions) {
         for (final Action action : actions) {
-            startServiceWithAction(action, 0);
+            startServiceWithAction(action);
         }
     }
 
@@ -77,22 +77,21 @@ public class BackgroundWorkerService extends JobIntentService {
     /**
      * Queue action intent to the BackgroundWorkerService.
      */
-    private static void startServiceWithAction(final Action action,
-            final int retryCount) {
+    private static void startServiceWithAction(final Action action) {
         final Intent intent = new Intent();
         intent.putExtra(EXTRA_ACTION, action);
-        intent.putExtra(EXTRA_ATTEMPT, retryCount);
-        startServiceWithIntent(OP_PROCESS_REQUEST, intent);
+        intent.putExtra(EXTRA_ATTEMPT, 0);
+        startServiceWithIntent(intent);
     }
 
     /**
      * Queue intent to the BackgroundWorkerService.
      */
-    private static void startServiceWithIntent(final int opcode, final Intent intent) {
+    private static void startServiceWithIntent(final Intent intent) {
         final Context context = Factory.get().getApplicationContext();
 
         intent.setClass(context, BackgroundWorkerService.class);
-        intent.putExtra(EXTRA_OP_CODE, opcode);
+        intent.putExtra(EXTRA_OP_CODE, BackgroundWorkerService.OP_PROCESS_REQUEST);
 
         enqueueWork(context, intent);
     }
@@ -102,34 +101,25 @@ public class BackgroundWorkerService extends JobIntentService {
     }
 
     @Override
-    protected void onHandleWork(final Intent intent) {
-        if (intent == null) {
-            // Shouldn't happen but sometimes does following another crash.
-            LogUtil.w(TAG, "BackgroundWorkerService.onHandleIntent: Called with null intent");
-            return;
-        }
+    protected void onHandleWork(@NonNull final Intent intent) {
         final int opcode = intent.getIntExtra(EXTRA_OP_CODE, 0);
 
-        switch(opcode) {
-            case OP_PROCESS_REQUEST: {
-                final Action action = intent.getParcelableExtra(EXTRA_ACTION);
-                final int attempt = intent.getIntExtra(EXTRA_ATTEMPT, -1);
-                doBackgroundWork(action, attempt);
-                break;
-            }
-
-            default:
-                LogUtil.w(TAG, "Unrecognized opcode in BackgroundWorkerService " + opcode);
-                throw new RuntimeException("Unrecognized opcode in BackgroundWorkerService");
+        if (opcode == OP_PROCESS_REQUEST) {
+            final Action action = intent.getParcelableExtra(EXTRA_ACTION);
+            assert action != null;
+            doBackgroundWork(action);
+        } else {
+            LogUtil.w(TAG, "Unrecognized opcode in BackgroundWorkerService " + opcode);
+            throw new RuntimeException("Unrecognized opcode in BackgroundWorkerService");
         }
     }
 
     /**
      * Local execution of background work for action on ActionService thread
      */
-    private void doBackgroundWork(final Action action, final int attempt) {
+    private void doBackgroundWork(final Action action) {
         action.markBackgroundWorkStarting();
-        Bundle response = null;
+        Bundle response;
         try {
             final LoggingTimer timer = new LoggingTimer(
                     TAG, action.getClass().getSimpleName() + "#doBackgroundWork");
@@ -141,20 +131,14 @@ public class BackgroundWorkerService extends JobIntentService {
             action.markBackgroundCompletionQueued();
             mHost.handleResponseFromBackgroundWorker(action, response);
         } catch (final Exception exception) {
-            final boolean retry = false;
             LogUtil.e(TAG, "Error in background worker", exception);
             if (!(exception instanceof DataModelException)) {
                 // DataModelException is expected (sort-of) and handled in handleFailureFromWorker
                 // below, but other exceptions should crash ENG builds
                 Assert.fail("Unexpected error in background worker - abort");
             }
-            if (retry) {
-                action.markBackgroundWorkQueued();
-                startServiceWithAction(action, attempt + 1);
-            } else {
-                action.markBackgroundCompletionQueued();
-                mHost.handleFailureFromBackgroundWorker(action, exception);
-            }
+            action.markBackgroundCompletionQueued();
+            mHost.handleFailureFromBackgroundWorker(action, exception);
         }
     }
 }

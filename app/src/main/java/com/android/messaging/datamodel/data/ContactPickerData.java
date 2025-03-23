@@ -16,9 +16,10 @@
 
 package com.android.messaging.datamodel.data;
 
-import android.app.LoaderManager;
+import androidx.annotation.NonNull;
+import androidx.loader.app.LoaderManager;
 import android.content.Context;
-import android.content.Loader;
+import androidx.loader.content.Loader;
 import android.database.Cursor;
 import android.os.Bundle;
 
@@ -60,37 +61,42 @@ public class ContactPickerData extends BindableData implements
     private static final int FREQUENT_CONTACTS_LOADER = 2;
     private static final int PARTICIPANT_LOADER = 3;
 
+    @NonNull
     @Override
     public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
+        assert args != null;
         final String bindingId = args.getString(BINDING_ID);
         // Check if data still bound to the requesting ui element
-        if (isBound(bindingId)) {
-            switch (id) {
-                case ALL_CONTACTS_LOADER:
-                    return ContactUtil.getPhones(mContext)
-                            .createBoundCursorLoader(bindingId);
-                case FREQUENT_CONTACTS_LOADER:
-                    return ContactUtil.getFrequentContacts(mContext)
-                            .createBoundCursorLoader(bindingId);
-                case PARTICIPANT_LOADER:
-                    return new BoundCursorLoader(bindingId, mContext,
-                            MessagingContentProvider.PARTICIPANTS_URI,
-                            ParticipantData.ParticipantsQuery.PROJECTION, null, null, null);
-                default:
-                    Assert.fail("Unknown loader id for contact picker!");
-                    break;
-            }
-        } else {
-            LogUtil.w(LogUtil.BUGLE_TAG, "Loader created after unbinding the contacts list");
+        assert bindingId != null;
+        assert isBound(bindingId);
+        Loader<Cursor> out = null;
+        switch (id) {
+            case ALL_CONTACTS_LOADER:
+                out = ContactUtil.getPhones(mContext)
+                        .createBoundCursorLoader(bindingId);
+                break;
+            case FREQUENT_CONTACTS_LOADER:
+                out = ContactUtil.getFrequentContacts(mContext)
+                        .createBoundCursorLoader(bindingId);
+                break;
+            case PARTICIPANT_LOADER:
+                out = new BoundCursorLoader(bindingId, mContext,
+                        MessagingContentProvider.PARTICIPANTS_URI,
+                        ParticipantData.ParticipantsQuery.PROJECTION, null, null, null);
+                break;
+            default:
+                Assert.fail("Unknown loader id for contact picker!");
+                break;
         }
-        return null;
+        assert out != null;
+        return out;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onLoadFinished(final Loader<Cursor> loader, final Cursor data) {
+    public void onLoadFinished(@NonNull final Loader<Cursor> loader, final Cursor data) {
         final BoundCursorLoader cursorLoader = (BoundCursorLoader) loader;
         if (isBound(cursorLoader.getBindingId())) {
             switch (loader.getId()) {
@@ -128,7 +134,7 @@ public class ContactPickerData extends BindableData implements
      * {@inheritDoc}
      */
     @Override
-    public void onLoaderReset(final Loader<Cursor> loader) {
+    public void onLoaderReset(@NonNull final Loader<Cursor> loader) {
         final BoundCursorLoader cursorLoader = (BoundCursorLoader) loader;
         if (isBound(cursorLoader.getBindingId())) {
             switch (loader.getId()) {

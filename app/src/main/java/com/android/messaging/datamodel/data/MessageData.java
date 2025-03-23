@@ -24,6 +24,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.datamodel.DatabaseHelper.MessageColumns;
 import com.android.messaging.datamodel.DatabaseWrapper;
@@ -31,7 +33,6 @@ import com.android.messaging.sms.MmsUtils;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.BugleGservices;
 import com.android.messaging.util.BugleGservicesKeys;
-import com.android.messaging.util.Dates;
 import com.android.messaging.util.DebugUtils;
 import com.android.messaging.util.OsUtil;
 
@@ -141,7 +142,7 @@ public class MessageData implements Parcelable {
     public static final int BUGLE_STATUS_INCOMING_DOWNLOAD_FAILED            = 106;
     public static final int BUGLE_STATUS_INCOMING_EXPIRED_OR_NOT_AVAILABLE   = 107;
 
-    public static final String getStatusDescription(int status) {
+    public static String getStatusDescription(int status) {
         switch (status) {
             case BUGLE_STATUS_UNKNOWN:
                 return "UNKNOWN";
@@ -180,7 +181,7 @@ public class MessageData implements Parcelable {
             case BUGLE_STATUS_INCOMING_EXPIRED_OR_NOT_AVAILABLE:
                 return "INCOMING_EXPIRED_OR_NOT_AVAILABLE";
             default:
-                return String.valueOf(status) + " (check MessageData)";
+                return status + " (check MessageData)";
         }
     }
 
@@ -201,7 +202,7 @@ public class MessageData implements Parcelable {
      * Create an "empty" message
      */
     public MessageData() {
-        mParts = new ArrayList<MessagePartData>();
+        mParts = new ArrayList<>();
     }
 
     public static String[] getProjection() {
@@ -295,20 +296,6 @@ public class MessageData implements Parcelable {
     }
 
     /**
-     * Create a message not yet associated with a particular conversation
-     */
-    public static MessageData createSharedMessage(final String messageText,
-            final String subjectText) {
-        final MessageData message = new MessageData();
-        message.mStatus = BUGLE_STATUS_OUTGOING_DRAFT;
-        message.mMmsSubject = subjectText;
-        if (!TextUtils.isEmpty(messageText)) {
-            message.mParts.add(MessagePartData.createTextMessagePart(messageText));
-        }
-        return message;
-    }
-
-    /**
      * Create a message from Sms table fields
      */
     public static MessageData createSmsMessage(final String messageUri, final String participantId,
@@ -327,42 +314,6 @@ public class MessageData implements Parcelable {
         message.mStatus = bugleStatus;
         message.mSmsMessageUri = Uri.parse(messageUri);
         message.mParts.add(MessagePartData.createTextMessagePart(messageText));
-        return message;
-    }
-
-    /**
-     * Create a message from Mms table fields
-     */
-    public static MessageData createMmsMessage(final String messageUri, final String participantId,
-            final String selfId, final String conversationId, final boolean isNotification,
-            final int bugleStatus, final String contentLocation, final String transactionId,
-            final int smsPriority, final String subject, final boolean seen, final boolean read,
-            final long size, final int rawStatus, final long expiry, final long sent,
-            final long received) {
-        final MessageData message = new MessageData();
-        message.mParticipantId = participantId;
-        message.mSelfId = selfId;
-        message.mConversationId = conversationId;
-        message.mSentTimestamp = sent;
-        message.mReceivedTimestamp = received;
-        message.mMmsContentLocation = contentLocation;
-        message.mMmsTransactionId = transactionId;
-        message.mSeen = seen;
-        message.mRead = read;
-        message.mStatus = bugleStatus;
-        message.mProtocol = (isNotification ? PROTOCOL_MMS_PUSH_NOTIFICATION : PROTOCOL_MMS);
-        message.mSmsMessageUri = Uri.parse(messageUri);
-        message.mSmsPriority = smsPriority;
-        message.mSmsMessageSize = size;
-        message.mMmsSubject = subject;
-        message.mMmsExpiry = expiry;
-        message.mRawStatus = rawStatus;
-        if (bugleStatus == BUGLE_STATUS_INCOMING_RETRYING_AUTO_DOWNLOAD ||
-                bugleStatus == BUGLE_STATUS_OUTGOING_RESENDING) {
-            // Set the retry start timestamp if this message is already in process of retrying
-            // Either as autodownload is starting or sending already in progress (MMS update)
-            message.mRetryStartTimestamp = received;
-        }
         return message;
     }
 
@@ -404,10 +355,6 @@ public class MessageData implements Parcelable {
     public void bindDraft(final Cursor cursor, final String conversationSelfId) {
         bind(cursor);
         mSelfId = conversationSelfId;
-    }
-
-    protected static String getParticipantId(final Cursor cursor) {
-        return cursor.getString(INDEX_PARTICIPANT_ID);
     }
 
     public void populate(final ContentValues values) {
@@ -493,10 +440,6 @@ public class MessageData implements Parcelable {
         return mReceivedTimestamp;
     }
 
-    public final String getFormattedReceivedTimeStamp() {
-        return Dates.getMessageTimeString(mReceivedTimestamp).toString();
-    }
-
     public final int getProtocol() {
         return mProtocol;
     }
@@ -509,36 +452,12 @@ public class MessageData implements Parcelable {
         return mSmsMessageUri;
     }
 
-    public final int getSmsPriority() {
-        return mSmsPriority;
-    }
-
-    public final long getSmsMessageSize() {
-        return mSmsMessageSize;
-    }
-
     public final String getMmsSubject() {
         return mMmsSubject;
     }
 
     public final void setMmsSubject(final String subject) {
         mMmsSubject = subject;
-    }
-
-    public final String getMmsContentLocation() {
-        return mMmsContentLocation;
-    }
-
-    public final String getMmsTransactionId() {
-        return mMmsTransactionId;
-    }
-
-    public final boolean getMessageSeen() {
-        return mSeen;
-    }
-
-    public final long getMmsExpiry() {
-        return mMmsExpiry;
     }
 
     /**
@@ -563,14 +482,6 @@ public class MessageData implements Parcelable {
         return age < maxAgeToResend;
     }
 
-    public final boolean getInDownloadWindow(final long now) {
-        final long maxAgeToRedownload = BugleGservices.get().getLong(
-                BugleGservicesKeys.MESSAGE_DOWNLOAD_TIMEOUT_MS,
-                BugleGservicesKeys.MESSAGE_DOWNLOAD_TIMEOUT_MS_DEFAULT);
-        final long age = now - mRetryStartTimestamp;
-        return age < maxAgeToRedownload;
-    }
-
     static boolean getShowDownloadMessage(final int status) {
         if (OsUtil.isSecondaryUser()) {
             // Secondary users can't download mms's. Mms's are downloaded by bugle running as the
@@ -583,31 +494,6 @@ public class MessageData implements Parcelable {
                 // If debug is enabled, allow to download an expired or unavailable message.
                 (DebugUtils.isDebugEnabled()
                         && status == BUGLE_STATUS_INCOMING_EXPIRED_OR_NOT_AVAILABLE));
-    }
-
-    public boolean canDownloadMessage() {
-        if (OsUtil.isSecondaryUser()) {
-            // Secondary users can't download mms's. Mms's are downloaded by bugle running as the
-            // primary user.
-            return false;
-        }
-        // Can download if status is retrying auto/manual downloading
-        return (mStatus == BUGLE_STATUS_INCOMING_RETRYING_MANUAL_DOWNLOAD ||
-                mStatus == BUGLE_STATUS_INCOMING_RETRYING_AUTO_DOWNLOAD);
-    }
-
-    public boolean canRedownloadMessage() {
-        if (OsUtil.isSecondaryUser()) {
-            // Secondary users can't download mms's. Mms's are downloaded by bugle running as the
-            // primary user.
-            return false;
-        }
-        // Can redownload if status is manual download not started or download failed
-        return (mStatus == BUGLE_STATUS_INCOMING_DOWNLOAD_FAILED ||
-                mStatus == BUGLE_STATUS_INCOMING_YET_TO_MANUAL_DOWNLOAD ||
-                // If debug is enabled, allow to download an expired or unavailable message.
-                (DebugUtils.isDebugEnabled()
-                        && mStatus == BUGLE_STATUS_INCOMING_EXPIRED_OR_NOT_AVAILABLE));
     }
 
     static boolean getShowResendMessage(final int status) {
@@ -641,15 +527,7 @@ public class MessageData implements Parcelable {
                 || mProtocol == MessageData.PROTOCOL_MMS_PUSH_NOTIFICATION;
     }
 
-    public static final boolean getIsMmsNotification(final int protocol) {
-        return (protocol == MessageData.PROTOCOL_MMS_PUSH_NOTIFICATION);
-    }
-
-    public final boolean getIsMmsNotification() {
-        return getIsMmsNotification(mProtocol);
-    }
-
-    public static final boolean getIsSms(final int protocol) {
+    public static boolean getIsSms(final int protocol) {
         return protocol == (MessageData.PROTOCOL_SMS);
     }
 
@@ -670,7 +548,7 @@ public class MessageData implements Parcelable {
     }
 
     public final String getMessageText() {
-        final String separator = System.getProperty("line.separator");
+        final String separator = System.lineSeparator();
         final StringBuilder text = new StringBuilder();
         for (final MessagePartData part : mParts) {
             if (!part.isAttachment() && !TextUtils.isEmpty(part.getText())) {
@@ -688,7 +566,7 @@ public class MessageData implements Parcelable {
      * appends a text part
      */
     public final void consolidateText() {
-        final String separator = System.getProperty("line.separator");
+        final String separator = System.lineSeparator();
         final StringBuilder captionText = new StringBuilder();
         MessagePartData firstTextPart = null;
         int firstTextPartIndex = -1;
@@ -715,7 +593,7 @@ public class MessageData implements Parcelable {
             addPart(MessagePartData.createTextMessagePart(captionText.toString()));
         } else {
             final String partText = firstTextPart.getText();
-            if (partText.length() > 0) {
+            if (!partText.isEmpty()) {
                 captionText.append(separator);
                 captionText.append(partText);
             }
@@ -797,10 +675,6 @@ public class MessageData implements Parcelable {
         mStatus = BUGLE_STATUS_OUTGOING_AWAITING_RETRY;
     }
 
-    public final void setRetryStartTimestamp(final long timestamp) {
-        mRetryStartTimestamp = timestamp;
-    }
-
     public final void setRawTelephonyStatus(final int rawStatus) {
         mRawStatus = rawStatus;
     }
@@ -842,10 +716,10 @@ public class MessageData implements Parcelable {
         mRetryStartTimestamp = in.readLong();
 
         // Read parts
-        mParts = new ArrayList<MessagePartData>();
+        mParts = new ArrayList<>();
         final int partCount = in.readInt();
         for (int i = 0; i < partCount; i++) {
-            mParts.add((MessagePartData) in.readParcelable(MessagePartData.class.getClassLoader()));
+            mParts.add(in.readParcelable(MessagePartData.class.getClassLoader()));
         }
     }
 
@@ -885,7 +759,7 @@ public class MessageData implements Parcelable {
     }
 
     public static final Parcelable.Creator<MessageData> CREATOR
-            = new Parcelable.Creator<MessageData>() {
+            = new Parcelable.Creator<>() {
         @Override
         public MessageData createFromParcel(final Parcel in) {
             return new MessageData(in);
@@ -897,6 +771,7 @@ public class MessageData implements Parcelable {
         }
     };
 
+    @NonNull
     @Override
     public String toString() {
         return toString(mMessageId, mParts);

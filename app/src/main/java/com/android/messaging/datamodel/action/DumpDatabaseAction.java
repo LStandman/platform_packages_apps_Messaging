@@ -20,6 +20,8 @@ import android.content.Context;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.DatabaseHelper;
 import com.android.messaging.util.DebugUtils;
@@ -61,41 +63,39 @@ public class DumpDatabaseAction extends Action implements Parcelable {
             originalSize = inFile.length();
         }
         final File outFile = DebugUtils.getDebugFile(DUMP_NAME, true);
-        if (outFile != null) {
-            int totalBytes = 0;
-            try {
-                bos = new BufferedOutputStream(new FileOutputStream(outFile));
-                bis = new BufferedInputStream(new FileInputStream(inFile));
+        int totalBytes = 0;
+        try {
+            bos = new BufferedOutputStream(new FileOutputStream(outFile));
+            bis = new BufferedInputStream(new FileInputStream(inFile));
 
-                final byte[] buffer = new byte[BUFFER_SIZE];
-                int bytesRead;
-                while ((bytesRead = bis.read(buffer)) > 0) {
-                    bos.write(buffer, 0, bytesRead);
-                    totalBytes += bytesRead;
-                }
-            } catch (final IOException e) {
-                LogUtil.w(TAG, "Exception copying the database;"
-                        + " destination may not be complete.", e);
-            } finally {
-                if (bos != null) {
-                    try {
-                        bos.close();
-                    } catch (final IOException e) {
-                        // Nothing to do
-                    }
-                }
-
-                if (bis != null) {
-                    try {
-                        bis.close();
-                    } catch (final IOException e) {
-                        // Nothing to do
-                    }
-                }
-                DebugUtils.ensureReadable(outFile);
-                LogUtil.i(TAG, "Dump complete; orig size: " + originalSize +
-                        ", copy size: " + totalBytes);
+            final byte[] buffer = new byte[BUFFER_SIZE];
+            int bytesRead;
+            while ((bytesRead = bis.read(buffer)) > 0) {
+                bos.write(buffer, 0, bytesRead);
+                totalBytes += bytesRead;
             }
+        } catch (final IOException e) {
+            LogUtil.w(TAG, "Exception copying the database;"
+                    + " destination may not be complete.", e);
+        } finally {
+            if (bos != null) {
+                try {
+                    bos.close();
+                } catch (final IOException e) {
+                    // Nothing to do
+                }
+            }
+
+            if (bis != null) {
+                try {
+                    bis.close();
+                } catch (final IOException e) {
+                    // Nothing to do
+                }
+            }
+            DebugUtils.ensureReadable(outFile);
+            LogUtil.i(TAG, "Dump complete; orig size: " + originalSize +
+                    ", copy size: " + totalBytes);
         }
         return null;
     }
@@ -105,7 +105,7 @@ public class DumpDatabaseAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<DumpDatabaseAction> CREATOR
-            = new Parcelable.Creator<DumpDatabaseAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public DumpDatabaseAction createFromParcel(final Parcel in) {
             return new DumpDatabaseAction(in);
@@ -118,7 +118,7 @@ public class DumpDatabaseAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

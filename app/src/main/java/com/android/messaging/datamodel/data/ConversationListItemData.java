@@ -17,7 +17,6 @@
 package com.android.messaging.datamodel.data;
 
 import android.database.Cursor;
-import android.net.Uri;
 import android.provider.BaseColumns;
 import android.text.TextUtils;
 
@@ -45,7 +44,6 @@ public class ConversationListItemData {
     private boolean mIsRead;
     private long mTimestamp;
     private String mSnippetText;
-    private Uri mPreviewUri;
     private String mPreviewContentType;
     private long mParticipantContactId;
     private String mParticipantLookupKey;
@@ -59,7 +57,6 @@ public class ConversationListItemData {
     private int mMessageStatus;
     private int mMessageRawTelephonyStatus;
     private boolean mShowDraft;
-    private Uri mDraftPreviewUri;
     private String mDraftPreviewContentType;
     private String mDraftSnippetText;
     private boolean mIsArchived;
@@ -83,8 +80,6 @@ public class ConversationListItemData {
         mSnippetText = cursor.getString(INDEX_SNIPPET_TEXT);
         mTimestamp = cursor.getLong(INDEX_SORT_TIMESTAMP);
         mIsRead = cursor.getInt(INDEX_READ) == 1;
-        final String previewUriString = cursor.getString(INDEX_PREVIEW_URI);
-        mPreviewUri = TextUtils.isEmpty(previewUriString) ? null : Uri.parse(previewUriString);
         mPreviewContentType = cursor.getString(INDEX_PREVIEW_CONTENT_TYPE);
         mParticipantContactId = cursor.getLong(INDEX_PARTICIPANT_CONTACT_ID);
         mParticipantLookupKey = cursor.getString(INDEX_PARTICIPANT_LOOKUP_KEY);
@@ -100,15 +95,11 @@ public class ConversationListItemData {
         mMessageRawTelephonyStatus = cursor.getInt(INDEX_MESSAGE_RAW_TELEPHONY_STATUS);
         if (!ignoreDraft) {
             mShowDraft = cursor.getInt(INDEX_SHOW_DRAFT) == 1;
-            final String draftPreviewUriString = cursor.getString(INDEX_DRAFT_PREVIEW_URI);
-            mDraftPreviewUri = TextUtils.isEmpty(draftPreviewUriString) ?
-                    null : Uri.parse(draftPreviewUriString);
             mDraftPreviewContentType = cursor.getString(INDEX_DRAFT_PREVIEW_CONTENT_TYPE);
             mDraftSnippetText = cursor.getString(INDEX_DRAFT_SNIPPET_TEXT);
             mDraftSubject = cursor.getString(INDEX_DRAFT_SUBJECT_TEXT);
         } else {
             mShowDraft = false;
-            mDraftPreviewUri = null;
             mDraftPreviewContentType = null;
             mDraftSnippetText = null;
             mDraftSubject = null;
@@ -148,10 +139,6 @@ public class ConversationListItemData {
 
     public String getSnippetText() {
         return mSnippetText;
-    }
-
-    public Uri getPreviewUri() {
-        return mPreviewUri;
     }
 
     public String getPreviewContentType() {
@@ -245,10 +232,6 @@ public class ConversationListItemData {
         return mDraftSnippetText;
     }
 
-    public Uri getDraftPreviewUri() {
-        return mDraftPreviewUri;
-    }
-
     public String getDraftPreviewContentType() {
         return mDraftPreviewContentType;
     }
@@ -279,11 +262,11 @@ public class ConversationListItemData {
     /**
      * Get the name of the view for this data item
      */
-    public static final String getConversationListView() {
+    public static String getConversationListView() {
         return CONVERSATION_LIST_VIEW;
     }
 
-    public static final String getConversationListViewSql() {
+    public static String getConversationListViewSql() {
         return CONVERSATION_LIST_VIEW_SQL;
     }
 
@@ -449,7 +432,6 @@ public class ConversationListItemData {
     private static final int INDEX_SNIPPET_TEXT = 3;
     private static final int INDEX_SORT_TIMESTAMP = 4;
     private static final int INDEX_READ = 5;
-    private static final int INDEX_PREVIEW_URI = 6;
     private static final int INDEX_PREVIEW_CONTENT_TYPE = 7;
     private static final int INDEX_PARTICIPANT_CONTACT_ID = 8;
     private static final int INDEX_PARTICIPANT_LOOKUP_KEY = 9;
@@ -462,11 +444,9 @@ public class ConversationListItemData {
     private static final int INDEX_INCLUDE_EMAIL_ADDRESS = 16;
     private static final int INDEX_MESSAGE_STATUS = 17;
     private static final int INDEX_SHOW_DRAFT = 18;
-    private static final int INDEX_DRAFT_PREVIEW_URI = 19;
     private static final int INDEX_DRAFT_PREVIEW_CONTENT_TYPE = 20;
     private static final int INDEX_DRAFT_SNIPPET_TEXT = 21;
     private static final int INDEX_ARCHIVE_STATUS = 22;
-    private static final int INDEX_MESSAGE_ID = 23;
     private static final int INDEX_SUBJECT_TEXT = 24;
     private static final int INDEX_DRAFT_SUBJECT_TEXT = 25;
     private static final int INDEX_MESSAGE_RAW_TELEPHONY_STATUS = 26;
@@ -498,22 +478,16 @@ public class ConversationListItemData {
         ConversationListItemData conversation = null;
 
         // Look for an existing conversation in the db with this conversation id
-        Cursor cursor = null;
-        try {
+        try (Cursor cursor = dbWrapper.query(getConversationListView(),
+                PROJECTION,
+                ConversationColumns._ID + "=?",
+                new String[]{conversationId},
+                null, null, null)) {
             // TODO: Should we be able to read a row from just the conversation table?
-            cursor = dbWrapper.query(getConversationListView(),
-                    PROJECTION,
-                    ConversationColumns._ID + "=?",
-                    new String[] { conversationId },
-                    null, null, null);
             Assert.inRange(cursor.getCount(), 0, 1);
             if (cursor.moveToFirst()) {
                 conversation = new ConversationListItemData();
                 conversation.bind(cursor);
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
 
@@ -527,7 +501,7 @@ public class ConversationListItemData {
             return participants.get(0).getDisplayName(true);
         }
 
-        final ArrayList<String> participantNames = new ArrayList<String>();
+        final ArrayList<String> participantNames = new ArrayList<>();
         for (final ParticipantData participant : participants) {
             // Prefer first name over full name for group conversation
             participantNames.add(participant.getDisplayName(false));

@@ -22,6 +22,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemClock;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseWrapper;
 import com.android.messaging.datamodel.MessagingContentProvider;
@@ -53,7 +55,6 @@ public class SyncMessagesAction extends Action implements Parcelable {
     private static final String KEY_UPPER_BOUND = "upper_bound";
     private static final String BUNDLE_KEY_LAST_TIMESTAMP = "last_timestamp";
     private static final String BUNDLE_KEY_SMS_MESSAGES = "sms_to_add";
-    private static final String BUNDLE_KEY_MMS_MESSAGES = "mms_to_add";
     private static final String BUNDLE_KEY_MESSAGES_TO_DELETE = "messages_to_delete";
 
     /**
@@ -95,11 +96,8 @@ public class SyncMessagesAction extends Action implements Parcelable {
      *  sending/receiving).
      */
     public static void immediateSync() {
-        final long now = System.currentTimeMillis();
         // TODO: Could base this off most recent message in db but now should be okay...
-        final long startTimestamp = now;
-
-        sync(startTimestamp);
+        sync(System.currentTimeMillis());
     }
 
     private static void sync(final long startTimestamp) {
@@ -214,10 +212,10 @@ public class SyncMessagesAction extends Action implements Parcelable {
         cache.clear();
 
         // Sms messages to store
-        final ArrayList<SmsMessage> smsToAdd = new ArrayList<SmsMessage>();
+        final ArrayList<SmsMessage> smsToAdd = new ArrayList<>();
         // List of local SMS/MMS to remove
         final ArrayList<LocalDatabaseMessage> messagesToDelete =
-                new ArrayList<LocalDatabaseMessage>();
+                new ArrayList<>();
 
         long lastTimestampMillis = SYNC_FAILED;
         if (syncManager.isSyncing(upperBoundTimeMillis)) {
@@ -260,10 +258,10 @@ public class SyncMessagesAction extends Action implements Parcelable {
         final long startTimeMillis = SystemClock.elapsedRealtime();
 
         // Number of messages scanned local and remote
-        int localPos = 0;
-        int remotePos = 0;
-        int localTotal = 0;
-        int remoteTotal = 0;
+        int localPos;
+        int remotePos;
+        int localTotal;
+        int remoteTotal;
         // Scan through the messages on both sides and prepare messages for local message table
         // changes (including adding and deleting)
         try {
@@ -311,7 +309,7 @@ public class SyncMessagesAction extends Action implements Parcelable {
         if (LogUtil.isLoggable(TAG, LogUtil.DEBUG)) {
             LogUtil.d(TAG, "SyncMessagesAction: Scan complete (took "
                     + (endTimeMillis - startTimeMillis) + " ms). " + smsToAdd.size()
-                    + " remote SMS to add, " +
+                    + " remote SMS to add, "
                     + messagesToDelete.size() + " local messages to delete. "
                     + "Oldest timestamp seen = " + lastTimestampMillis);
         }
@@ -370,6 +368,8 @@ public class SyncMessagesAction extends Action implements Parcelable {
                 final ArrayList<LocalDatabaseMessage> messagesToDelete =
                         response.getParcelableArrayList(BUNDLE_KEY_MESSAGES_TO_DELETE);
 
+                assert smsToAdd != null;
+                assert messagesToDelete != null;
                 final int messagesUpdated = smsToAdd.size() + messagesToDelete.size();
 
                 // Perform local database changes in one transaction
@@ -498,7 +498,7 @@ public class SyncMessagesAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<SyncMessagesAction> CREATOR
-            = new Parcelable.Creator<SyncMessagesAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public SyncMessagesAction createFromParcel(final Parcel in) {
             return new SyncMessagesAction(in);
@@ -511,7 +511,7 @@ public class SyncMessagesAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

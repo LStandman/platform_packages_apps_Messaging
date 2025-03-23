@@ -17,7 +17,7 @@
 package com.android.messaging.ui.contact;
 
 import android.app.Activity;
-import android.app.Fragment;
+import androidx.fragment.app.Fragment;
 import android.database.Cursor;
 import android.graphics.Rect;
 import android.os.Bundle;

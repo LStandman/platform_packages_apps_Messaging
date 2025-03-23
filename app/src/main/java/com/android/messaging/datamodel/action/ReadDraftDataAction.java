@@ -19,6 +19,8 @@ package com.android.messaging.datamodel.action;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseWrapper;
@@ -37,11 +39,11 @@ public class ReadDraftDataAction extends Action implements Parcelable {
      */
     public interface ReadDraftDataActionListener {
         @RunsOnMainThread
-        abstract void onReadDraftDataSucceeded(final ReadDraftDataAction action,
-                final Object data, final MessageData message,
-                final ConversationListItemData conversation);
+        void onReadDraftDataSucceeded(final ReadDraftDataAction action,
+                                      final Object data, final MessageData message,
+                                      final ConversationListItemData conversation);
         @RunsOnMainThread
-        abstract void onReadDraftDataFailed(final ReadDraftDataAction action, final Object data);
+        void onReadDraftDataFailed(final ReadDraftDataAction action, final Object data);
     }
 
     /**
@@ -69,6 +71,7 @@ public class ReadDraftDataAction extends Action implements Parcelable {
     }
 
     @VisibleForTesting
+    static
     class DraftData {
         public final MessageData message;
         public final ConversationListItemData conversation;
@@ -147,7 +150,7 @@ public class ReadDraftDataAction extends Action implements Parcelable {
     }
 
     public static final Parcelable.Creator<ReadDraftDataAction> CREATOR
-            = new Parcelable.Creator<ReadDraftDataAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public ReadDraftDataAction createFromParcel(final Parcel in) {
             return new ReadDraftDataAction(in);
@@ -160,7 +163,7 @@ public class ReadDraftDataAction extends Action implements Parcelable {
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }

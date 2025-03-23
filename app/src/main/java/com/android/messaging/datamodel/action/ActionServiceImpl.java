@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.SystemClock;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.JobIntentService;
 
 import com.android.messaging.Factory;
@@ -37,7 +38,6 @@ import com.google.common.annotations.VisibleForTesting;
  */
 public class ActionServiceImpl extends JobIntentService {
     private static final String TAG = LogUtil.BUGLE_DATAMODEL_TAG;
-    private static final boolean VERBOSE = false;
 
     /**
      * Unique job ID for this service.
@@ -79,7 +79,7 @@ public class ActionServiceImpl extends JobIntentService {
 
     /**
      * Handle response returned by BackgroundWorker
-     * @param request - request generating response
+     * @param action - request generating response
      * @param response - response from service
      */
     protected static void handleResponseFromBackgroundWorker(final Action action,
@@ -96,7 +96,7 @@ public class ActionServiceImpl extends JobIntentService {
 
     /**
      * Handle response returned by BackgroundWorker
-     * @param request - request generating failure
+     * @param action - request generating failure
      */
     protected static void handleFailureFromBackgroundWorker(final Action action,
             final Exception exception) {
@@ -127,8 +127,6 @@ public class ActionServiceImpl extends JobIntentService {
     protected static final String EXTRA_WORKER_EXCEPTION = "worker_exception";
     @VisibleForTesting
     protected static final String EXTRA_WORKER_RESPONSE = "worker_response";
-    @VisibleForTesting
-    protected static final String EXTRA_WORKER_UPDATE = "worker_update";
     @VisibleForTesting
     protected static final String BUNDLE_ACTION = "bundle_action";
 
@@ -188,23 +186,6 @@ public class ActionServiceImpl extends JobIntentService {
     }
 
     /**
-     * Creates a pending intent that will trigger a data model action when the intent is
-     * triggered
-     */
-    public static PendingIntent makeStartActionPendingIntent(final Context context,
-            final Action action, final int requestCode, final boolean launchesAnActivity) {
-        final Intent intent = PendingActionReceiver.makeIntent(OP_START_ACTION);
-        final Bundle actionBundle = new Bundle();
-        actionBundle.putParcelable(BUNDLE_ACTION, action);
-        intent.putExtra(EXTRA_ACTION_BUNDLE, actionBundle);
-        if (launchesAnActivity) {
-            intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
-        }
-        return PendingIntent.getBroadcast(context, requestCode, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT);
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
@@ -235,33 +216,30 @@ public class ActionServiceImpl extends JobIntentService {
      * {@inheritDoc}
      */
     @Override
-    protected void onHandleWork(final Intent intent) {
-        if (intent == null) {
-            // Shouldn't happen but sometimes does following another crash.
-            LogUtil.w(TAG, "ActionService.onHandleIntent: Called with null intent");
-            return;
-        }
+    protected void onHandleWork(@NonNull final Intent intent) {
         final int opcode = intent.getIntExtra(EXTRA_OP_CODE, 0);
 
         Action action;
         final Bundle actionBundle = intent.getBundleExtra(EXTRA_ACTION_BUNDLE);
+        assert actionBundle != null;
         actionBundle.setClassLoader(getClassLoader());
         switch(opcode) {
             case OP_START_ACTION: {
-                action = (Action) actionBundle.getParcelable(BUNDLE_ACTION);
+                action = actionBundle.getParcelable(BUNDLE_ACTION);
+                assert action != null;
                 executeAction(action);
                 break;
             }
 
             case OP_RECEIVE_BACKGROUND_RESPONSE: {
-                action = (Action) actionBundle.getParcelable(BUNDLE_ACTION);
+                action = actionBundle.getParcelable(BUNDLE_ACTION);
                 final Bundle response = intent.getBundleExtra(EXTRA_WORKER_RESPONSE);
                 processBackgroundResponse(action, response);
                 break;
             }
 
             case OP_RECEIVE_BACKGROUND_FAILURE: {
-                action = (Action) actionBundle.getParcelable(BUNDLE_ACTION);
+                action = actionBundle.getParcelable(BUNDLE_ACTION);
                 processBackgroundFailure(action);
                 break;
             }
@@ -270,6 +248,7 @@ public class ActionServiceImpl extends JobIntentService {
                 throw new RuntimeException("Unrecognized opcode in ActionServiceImpl");
         }
 
+        assert action != null;
         action.sendBackgroundActions(mBackgroundWorker);
     }
 

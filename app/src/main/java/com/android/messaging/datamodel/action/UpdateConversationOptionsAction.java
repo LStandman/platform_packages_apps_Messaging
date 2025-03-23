@@ -20,6 +20,8 @@ import android.content.ContentValues;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.datamodel.BugleDatabaseOperations;
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.datamodel.DatabaseHelper.ConversationColumns;
@@ -137,7 +139,7 @@ public class UpdateConversationOptionsAction extends Action
     }
 
     public static final Parcelable.Creator<UpdateConversationOptionsAction> CREATOR
-            = new Parcelable.Creator<UpdateConversationOptionsAction>() {
+            = new Parcelable.Creator<>() {
         @Override
         public UpdateConversationOptionsAction createFromParcel(final Parcel in) {
             return new UpdateConversationOptionsAction(in);
@@ -150,7 +152,7 @@ public class UpdateConversationOptionsAction extends Action
     };
 
     @Override
-    public void writeToParcel(final Parcel parcel, final int flags) {
-        writeActionToParcel(parcel, flags);
+    public void writeToParcel(@NonNull final Parcel parcel, final int flags) {
+        writeActionToParcel(parcel);
     }
 }
