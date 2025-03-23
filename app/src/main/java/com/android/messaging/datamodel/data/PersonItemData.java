@@ -48,18 +48,6 @@ public abstract class PersonItemData extends BindableData {
         }
     }
 
-    protected void notifyDataUpdated() {
-        if (isBound() && mListener != null) {
-            mListener.onPersonDataUpdated(this);
-        }
-    }
-
-    protected void notifyDataFailed(final Exception exception) {
-        if (isBound() && mListener != null) {
-            mListener.onPersonDataFailed(this, exception);
-        }
-    }
-
     @Override
     protected void unregisterListeners() {
         mListener = null;

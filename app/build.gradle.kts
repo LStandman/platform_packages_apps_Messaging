@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.libphonenumber)
     implementation(libs.guava)
+    implementation(libs.exifinterface)
     testImplementation(libs.mockito.core)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

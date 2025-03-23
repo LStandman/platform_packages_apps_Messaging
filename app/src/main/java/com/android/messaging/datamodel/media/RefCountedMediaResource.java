@@ -28,12 +28,12 @@ import java.util.concurrent.locks.ReentrantLock;
  * A ref-counted class that holds loaded media resource, be it bitmaps or media bytes.
  * Subclasses must implement the close() method to release any resources (such as bitmaps)
  * when it's no longer used.
- *
+ * <p>
  * Instances of the subclasses are:
  * 1. Loaded by their corresponding MediaRequest classes.
  * 2. Maintained by MediaResourceManager in its MediaCache pool.
  * 3. Used by the UI (such as ContactIconViews) to present the content.
- *
+ * <p>
  * Note: all synchronized methods in this class (e.g. addRef()) should not attempt to make outgoing
  * calls that could potentially acquire media cache locks due to the potential deadlock this can
  * cause. To synchronize read/write access to shared resource, {@link #acquireLock()} and
@@ -48,7 +48,7 @@ public abstract class RefCountedMediaResource {
     // to find out where each ref change happens.
     private static final boolean DEBUG = false;
     private static final String TAG = "bugle_media_ref_history";
-    private final ArrayList<String> mRefHistory = new ArrayList<String>();
+    private final ArrayList<String> mRefHistory = new ArrayList<>();
 
     // A lock that guards access to shared members in this class (and all its subclasses).
     private final ReentrantLock mLock = new ReentrantLock();

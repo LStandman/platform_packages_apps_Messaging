@@ -178,8 +178,7 @@ public class DecodedImageResource extends ImageResource {
 
         @Override
         @DoesNotRunOnMainThread
-        public ImageResource loadMediaBlocking(List<MediaRequest<ImageResource>> chainedRequests)
-                throws Exception {
+        public ImageResource loadMediaBlocking(List<MediaRequest<ImageResource>> chainedRequests) {
             Assert.isNotMainThread();
             acquireLock();
             Bitmap scaledBitmap = null;
@@ -219,7 +218,6 @@ public class DecodedImageResource extends ImageResource {
             } finally {
                 if (scaledBitmap != null && scaledBitmap != getBitmap()) {
                     scaledBitmap.recycle();
-                    scaledBitmap = null;
                 }
                 releaseLock();
                 release();

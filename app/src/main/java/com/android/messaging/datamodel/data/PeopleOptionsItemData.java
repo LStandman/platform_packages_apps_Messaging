@@ -45,10 +45,6 @@ public class PeopleOptionsItemData {
     public static final int SETTING_BLOCKED = 3;
     public static final int SETTINGS_COUNT = 4;
 
-    // Type of UI switch to show for the toggle button.
-    public static final int TOGGLE_TYPE_CHECKBOX = 0;
-    public static final int TOGGLE_TYPE_SWITCH = 1;
-
     private String mTitle;
     private String mSubtitle;
     private Uri mRingtoneUri;

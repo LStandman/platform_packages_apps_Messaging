@@ -29,11 +29,11 @@ import java.util.List;
 /**
  * A cache-facing image resource that's much more compact than the raw Bitmap objects stored in
  * {@link com.android.messaging.datamodel.media.DecodedImageResource}.
- *
+ * <p>
  * This resource is created from a regular Bitmap-based ImageResource before being pushed to
  * {@link com.android.messaging.datamodel.media.MediaCache}, if the image request
  * allows for resource encoding/compression.
- *
+ * <p>
  * During resource retrieval on cache hit,
  * {@link #getMediaDecodingRequest(MediaRequest)} is invoked to create a async
  * decode task, which decodes the compressed byte array back to a regular image resource to
@@ -124,8 +124,7 @@ public class EncodedImageResource extends ImageResource {
 
         @Override
         @DoesNotRunOnMainThread
-        public ImageResource loadMediaBlocking(List<MediaRequest<ImageResource>> chainedTask)
-                throws Exception {
+        public ImageResource loadMediaBlocking(List<MediaRequest<ImageResource>> chainedTask) {
             Assert.isNotMainThread();
             acquireLock();
             try {

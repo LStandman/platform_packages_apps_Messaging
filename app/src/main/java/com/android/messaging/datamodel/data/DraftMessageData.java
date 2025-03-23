@@ -180,12 +180,12 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
                 mSubscriptionDataProvider.getConversationSelfSubId();
     }
 
-    private void setMessageText(final String messageText) {
+    public void setMessageText(final String messageText) {
         mMessageText = messageText;
         mMessageTextStats.updateMessageTextStats(getSelfSubId(), mMessageText);
     }
 
-    private void setMessageSubject(final String subject) {
+    public void setMessageSubject(final String subject) {
         mMessageSubject = subject;
     }
 

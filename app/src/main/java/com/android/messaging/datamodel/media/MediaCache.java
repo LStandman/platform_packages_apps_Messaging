@@ -23,7 +23,7 @@ import com.android.messaging.util.LogUtil;
  * A modified LruCache that is able to hold RefCountedMediaResource instances. It releases
  * ref on the entries as they are evicted from the cache, and it uses the media resource
  * size in kilobytes, instead of the entry count, as the size of the cache.
- *
+ * <p>
  * This class is used by the MediaResourceManager class to maintain a number of caches for
  * holding different types of {@link RefCountedMediaResource}
  */

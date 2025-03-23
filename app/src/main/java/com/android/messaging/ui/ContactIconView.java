@@ -22,14 +22,11 @@ import android.net.Uri;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
-import android.view.View;
 
 import com.android.messaging.R;
 import com.android.messaging.datamodel.data.ParticipantData;
-import com.android.messaging.datamodel.media.AvatarGroupRequestDescriptor;
 import com.android.messaging.datamodel.media.AvatarRequestDescriptor;
 import com.android.messaging.util.Assert;
-import com.android.messaging.util.AvatarUriUtil;
 import com.android.messaging.util.ContactUtil;
 
 /**
@@ -55,31 +52,31 @@ public class ContactIconView extends AsyncImageView {
         super(context, attrs);
 
         final Resources resources = context.getResources();
-        final TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.ContactIconView);
+        try (final TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.ContactIconView)) {
 
-        final int iconSizeId = a.getInt(R.styleable.ContactIconView_contactIconSize, 0);
-        switch (iconSizeId) {
-            case NORMAL_ICON_SIZE_ID:
-                mIconSize = (int) resources.getDimension(
-                        R.dimen.contact_icon_view_normal_size);
-                break;
-            case LARGE_ICON_SIZE_ID:
-                mIconSize = (int) resources.getDimension(
-                        R.dimen.contact_icon_view_large_size);
-                break;
-            case SMALL_ICON_SIZE_ID:
-                mIconSize = (int) resources.getDimension(
-                        R.dimen.contact_icon_view_small_size);
-                break;
-            default:
-                // For the compiler, something has to be set even with the assert.
-                mIconSize = 0;
-                Assert.fail("Unsupported ContactIconView icon size attribute");
+            final int iconSizeId = a.getInt(R.styleable.ContactIconView_contactIconSize, 0);
+            switch (iconSizeId) {
+                case NORMAL_ICON_SIZE_ID:
+                    mIconSize = (int) resources.getDimension(
+                            R.dimen.contact_icon_view_normal_size);
+                    break;
+                case LARGE_ICON_SIZE_ID:
+                    mIconSize = (int) resources.getDimension(
+                            R.dimen.contact_icon_view_large_size);
+                    break;
+                case SMALL_ICON_SIZE_ID:
+                    mIconSize = (int) resources.getDimension(
+                            R.dimen.contact_icon_view_small_size);
+                    break;
+                default:
+                    // For the compiler, something has to be set even with the assert.
+                    mIconSize = 0;
+                    Assert.fail("Unsupported ContactIconView icon size attribute");
+            }
+            mColorPressedId = resources.getColor(R.color.contact_avatar_pressed_color, null);
+
+            setImage(null);
         }
-        mColorPressedId = resources.getColor(R.color.contact_avatar_pressed_color);
-
-        setImage(null);
-        a.recycle();
     }
 
     @Override
@@ -91,6 +88,7 @@ public class ContactIconView extends AsyncImageView {
         }
         return super.onTouchEvent(event);
     }
+
 
     /**
      * Method which allows the automatic hookup of a click handler when the Uri is changed
@@ -113,12 +111,7 @@ public class ContactIconView extends AsyncImageView {
         if (uri == null) {
             setImageResourceId(null);
         } else {
-            final String avatarType = AvatarUriUtil.getAvatarType(uri);
-            if (AvatarUriUtil.TYPE_GROUP_URI.equals(avatarType)) {
-                setImageResourceId(new AvatarGroupRequestDescriptor(uri, mIconSize, mIconSize));
-            } else {
-                setImageResourceId(new AvatarRequestDescriptor(uri, mIconSize, mIconSize));
-            }
+            setImageResourceId(new AvatarRequestDescriptor(uri, mIconSize, mIconSize));
         }
 
         mContactId = contactId;
@@ -134,13 +127,8 @@ public class ContactIconView extends AsyncImageView {
                 && !TextUtils.isEmpty(mContactLookupKey)) ||
                 !TextUtils.isEmpty(mNormalizedDestination)) {
             if (!mDisableClickHandler) {
-                setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(final View view) {
-                        ContactUtil.showOrAddContact(view, mContactId, mContactLookupKey,
-                                mAvatarUri, mNormalizedDestination);
-                    }
-                });
+                setOnClickListener(view -> ContactUtil.showOrAddContact(view, mContactId, mContactLookupKey,
+                        mAvatarUri, mNormalizedDestination));
             }
         } else {
             // This should happen when the phone number is not in the user's contacts or it is a

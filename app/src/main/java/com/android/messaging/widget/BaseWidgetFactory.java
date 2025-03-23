@@ -31,13 +31,11 @@ import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 
 import com.android.messaging.R;
-import com.android.messaging.datamodel.media.AvatarGroupRequestDescriptor;
 import com.android.messaging.datamodel.media.AvatarRequestDescriptor;
 import com.android.messaging.datamodel.media.ImageRequestDescriptor;
 import com.android.messaging.datamodel.media.ImageResource;
 import com.android.messaging.datamodel.media.MediaRequest;
 import com.android.messaging.datamodel.media.MediaResourceManager;
-import com.android.messaging.util.AvatarUriUtil;
 import com.android.messaging.util.LogUtil;
 
 /**
@@ -143,7 +141,6 @@ abstract class BaseWidgetFactory implements RemoteViewsService.RemoteViewsFactor
      * Returns the number of messages that should be shown in the widget.  This method
      * doesn't update the boolean that indicates whether the "show more" item should be included
      * in the list.
-     * @return
      */
     protected int getItemCount() {
         if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
@@ -166,14 +163,8 @@ abstract class BaseWidgetFactory implements RemoteViewsService.RemoteViewsFactor
     }
 
     protected Bitmap getAvatarBitmap(final Uri avatarUri) {
-        final String avatarType = avatarUri == null ?
-                null : AvatarUriUtil.getAvatarType(avatarUri);
         ImageRequestDescriptor descriptor;
-        if (AvatarUriUtil.TYPE_GROUP_URI.equals(avatarType)) {
-            descriptor = new AvatarGroupRequestDescriptor(avatarUri, mIconSize, mIconSize);
-        } else {
-            descriptor = new AvatarRequestDescriptor(avatarUri, mIconSize, mIconSize);
-        }
+        descriptor = new AvatarRequestDescriptor(avatarUri, mIconSize, mIconSize);
 
         final MediaRequest<ImageResource> imageRequest =
                 descriptor.buildSyncMediaRequest(mContext);

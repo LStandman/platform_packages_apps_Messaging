@@ -20,8 +20,6 @@ import android.database.Cursor;
 import androidx.collection.ArrayMap;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -37,7 +35,7 @@ public class SelfParticipantsData {
     private final ArrayMap<String, ParticipantData> mSelfParticipantMap;
 
     public SelfParticipantsData() {
-        mSelfParticipantMap = new ArrayMap<String, ParticipantData>();
+        mSelfParticipantMap = new ArrayMap<>();
     }
 
     public void bind(final Cursor cursor) {
@@ -55,21 +53,17 @@ public class SelfParticipantsData {
      * @param activeOnly if set, returns active self entries only (i.e. those with SIMs plugged in).
      */
     public List<ParticipantData> getSelfParticipants(final boolean activeOnly) {
-         List<ParticipantData> list = new ArrayList<ParticipantData>();
+         List<ParticipantData> list = new ArrayList<>();
         for (final ParticipantData self : mSelfParticipantMap.values()) {
             if (!activeOnly || self.isActiveSubscription()) {
                 list.add(self);
             }
         }
-        Collections.sort(
-                list,
-                new Comparator() {
-                    public int compare(Object o1, Object o2) {
-                        int slotId1 = ((ParticipantData) o1).getSlotId();
-                        int slotId2 = ((ParticipantData) o2).getSlotId();
-                        return slotId1 > slotId2 ? 1 : -1;
-                    }
-                });
+        list.sort((o1, o2) -> {
+            int slotId1 = o1.getSlotId();
+            int slotId2 = o2.getSlotId();
+            return slotId1 - slotId2;
+        });
         return list;
     }
 
@@ -85,7 +79,7 @@ public class SelfParticipantsData {
      */
     boolean isDefaultSelf(final String selfId) {
         final ParticipantData self = getSelfParticipantById(selfId);
-        return self == null ? false : self.getSubId() == ParticipantData.DEFAULT_SELF_SUB_ID;
+        return self != null && self.getSubId() == ParticipantData.DEFAULT_SELF_SUB_ID;
     }
 
     public int getSelfParticipantsCountExcludingDefault(final boolean activeOnly) {
@@ -107,7 +101,4 @@ public class SelfParticipantsData {
         return null;
     }
 
-    boolean isLoaded() {
-        return !mSelfParticipantMap.isEmpty();
-    }
 }

@@ -21,12 +21,11 @@ import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.media.ExifInterface;
+import androidx.exifinterface.media.ExifInterface;
 
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.ImageUtils;
 
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.List;
 
@@ -103,7 +102,7 @@ public class CompositeImageRequest<D extends CompositeImageRequestDescriptor>
     }
 
     @Override
-    protected InputStream getInputStreamForResource() throws FileNotFoundException {
+    protected InputStream getInputStreamForResource() {
         throw new IllegalStateException("Composite image request doesn't support input stream!");
     }
 }

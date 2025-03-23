@@ -27,7 +27,7 @@ import com.android.messaging.datamodel.MemoryCacheManager.MemoryCache;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.LogUtil;
 
-import java.io.InputStream;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Class for creating / loading / reusing bitmaps. This class allow the user to create a new bitmap,
@@ -49,7 +49,7 @@ public class BitmapPool implements MemoryCache {
     /**
      * Count of reuse failures which have occurred.
      */
-    private static volatile int sFailedBitmapReuseCount = 0;
+    private static final AtomicInteger sFailedBitmapReuseCount = new AtomicInteger(0);
 
     /**
      * Overall pool data structure which currently only supports rectangular bitmaps. The size of
@@ -57,14 +57,13 @@ public class BitmapPool implements MemoryCache {
      */
     private final SparseArray<SingleSizePool> mPool;
     private final Object mPoolLock = new Object();
-    private final String mPoolName;
     private final int mMaxSize;
 
     /**
      * Inner structure which holds a pool of bitmaps all the same size (i.e. all have the same
      * width as each other and height as each other, but not necessarily the same).
      */
-    private class SingleSizePool {
+    private static class SingleSizePool {
         int mNumItems;
         final Bitmap[] mBitmaps;
 
@@ -85,9 +84,8 @@ public class BitmapPool implements MemoryCache {
     BitmapPool(final int maxSize, @NonNull final String name) {
         Assert.isTrue(maxSize > 0);
         Assert.isTrue(!TextUtils.isEmpty(name));
-        mPoolName = name;
         mMaxSize = maxSize;
-        mPool = new SparseArray<SingleSizePool>();
+        mPool = new SparseArray<>();
     }
 
     @Override
@@ -156,7 +154,7 @@ public class BitmapPool implements MemoryCache {
     /**
      * Internal function to try and find a bitmap in the pool which matches the desired width and
      * height and then set that in the bitmap options properly.
-     *
+     * <p>
      * TODO: Why do we take a width/height? Shouldn't this already be in the
      * BitmapFactory.Options instance? Can we assert that they match?
      * @param optionsTmp The BitmapFactory.Options to update with the bitmap for the system to try
@@ -199,8 +197,8 @@ public class BitmapPool implements MemoryCache {
             if (optionsTmp.inBitmap != null) {
                 optionsTmp.inBitmap = null;
                 b = BitmapFactory.decodeResource(resources, resourceId, optionsTmp);
-                sFailedBitmapReuseCount++;
-                if (sFailedBitmapReuseCount % FAILED_REPORTING_FREQUENCY == 0) {
+                sFailedBitmapReuseCount.addAndGet(1);
+                if (sFailedBitmapReuseCount.get() % FAILED_REPORTING_FREQUENCY == 0) {
                     LogUtil.w(LogUtil.BUGLE_TAG,
                             "Pooled bitmap consistently not being reused count = " +
                             sFailedBitmapReuseCount);
@@ -209,87 +207,6 @@ public class BitmapPool implements MemoryCache {
         } catch (final OutOfMemoryError e) {
             LogUtil.w(LogUtil.BUGLE_TAG, "Oom decoding resource " + resourceId);
             reclaim();
-        }
-        return b;
-    }
-
-    /**
-     * Load an input stream into a bitmap. Uses a bitmap from the pool if possible to reduce memory
-     * turnover.
-     * @param inputStream InputStream load. Cannot be null.
-     * @param optionsTmp Should be the same options returned from getBitmapOptionsForPool(). Cannot
-     * be null.
-     * @param width The width of the bitmap.
-     * @param height The height of the bitmap.
-     * @return The decoded Bitmap with the resource drawn in it.
-     */
-    public Bitmap decodeSampledBitmapFromInputStream(@NonNull final InputStream inputStream,
-            @NonNull final BitmapFactory.Options optionsTmp,
-            final int width, final int height) {
-        Assert.notNull(inputStream);
-        Assert.isTrue(width > 0);
-        Assert.isTrue(height > 0);
-        assignPoolBitmap(optionsTmp, width, height);
-        Bitmap b = null;
-        try {
-            b = BitmapFactory.decodeStream(inputStream, null, optionsTmp);
-        } catch (final IllegalArgumentException e) {
-            // BitmapFactory couldn't decode the file, try again without an inputBufferBitmap.
-            if (optionsTmp.inBitmap != null) {
-                optionsTmp.inBitmap = null;
-                b = BitmapFactory.decodeStream(inputStream, null, optionsTmp);
-                sFailedBitmapReuseCount++;
-                if (sFailedBitmapReuseCount % FAILED_REPORTING_FREQUENCY == 0) {
-                    LogUtil.w(LogUtil.BUGLE_TAG,
-                            "Pooled bitmap consistently not being reused count = " +
-                            sFailedBitmapReuseCount);
-                }
-            }
-        } catch (final OutOfMemoryError e) {
-            LogUtil.w(LogUtil.BUGLE_TAG, "Oom decoding inputStream");
-            reclaim();
-        }
-        return b;
-    }
-
-    /**
-     * Turn encoded bytes into a bitmap. Uses a bitmap from the pool if possible to reduce memory
-     * turnover.
-     * @param bytes Encoded bytes to draw on the bitmap. Cannot be null.
-     * @param optionsTmp The bitmap will set here and the input should be generated from
-     * getBitmapOptionsForPool(). Cannot be null.
-     * @param width The width of the bitmap.
-     * @param height The height of the bitmap.
-     * @return A Bitmap with the encoded bytes drawn in it.
-     */
-    public Bitmap decodeByteArray(@NonNull final byte[] bytes,
-            @NonNull final BitmapFactory.Options optionsTmp, final int width,
-            final int height) throws OutOfMemoryError {
-        Assert.notNull(bytes);
-        Assert.notNull(optionsTmp);
-        Assert.isTrue(width > 0);
-        Assert.isTrue(height > 0);
-        assignPoolBitmap(optionsTmp, width, height);
-        Bitmap b = null;
-        try {
-            b = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, optionsTmp);
-        } catch (final IllegalArgumentException e) {
-            if (VERBOSE) {
-                LogUtil.v(LogUtil.BUGLE_TAG, "BitmapPool(" + mPoolName +
-                        ") Unable to use pool bitmap");
-            }
-            // BitmapFactory couldn't decode the file, try again without an inputBufferBitmap.
-            // (i.e. without the bitmap from the pool)
-            if (optionsTmp.inBitmap != null) {
-                optionsTmp.inBitmap = null;
-                b = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, optionsTmp);
-                sFailedBitmapReuseCount++;
-                if (sFailedBitmapReuseCount % FAILED_REPORTING_FREQUENCY == 0) {
-                    LogUtil.w(LogUtil.BUGLE_TAG,
-                            "Pooled bitmap consistently not being reused count = " +
-                            sFailedBitmapReuseCount);
-                }
-            }
         }
         return b;
     }
@@ -354,11 +271,8 @@ public class BitmapPool implements MemoryCache {
         final int poolKey = getPoolKey(width, height);
         synchronized (mPoolLock) {
             final SingleSizePool singleSizePool = mPool.get(poolKey);
-            if (singleSizePool != null &&
-                    singleSizePool.mNumItems >= singleSizePool.mBitmaps.length) {
-                return true;
-            }
-            return false;
+            return singleSizePool != null &&
+                    singleSizePool.mNumItems >= singleSizePool.mBitmaps.length;
         }
     }
 }

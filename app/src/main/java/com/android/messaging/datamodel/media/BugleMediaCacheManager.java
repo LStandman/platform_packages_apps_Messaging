@@ -19,7 +19,7 @@ import com.android.messaging.util.Assert;
 
 /**
  * An implementation of {@link MediaCacheManager} that creates caches specific to Bugle's needs.
- *
+ * <p>
  * To create a new type of cache, add to the list of cache ids and create a new MediaCache<>
  * for your cache id / media resource type in createMediaCacheById().
  */
@@ -27,10 +27,8 @@ public class BugleMediaCacheManager extends MediaCacheManager {
     // List of available cache ids.
     public static final int DEFAULT_IMAGE_CACHE = 1;
     public static final int AVATAR_IMAGE_CACHE = 2;
-    public static final int VCARD_CACHE = 3;
 
     // VCard cache size - we compute the size by count, not by bytes.
-    private static final int VCARD_CACHE_SIZE = 5;
     private static final int SHARED_IMAGE_CACHE_SIZE = 1024 * 10;   // 10MB
 
     @Override

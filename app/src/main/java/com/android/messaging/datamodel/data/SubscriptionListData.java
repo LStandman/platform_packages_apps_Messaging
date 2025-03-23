@@ -30,12 +30,12 @@ import java.util.Locale;
 /**
  * This is a UI facing data model component that holds a list of
  * {@link SubscriptionListData.SubscriptionListEntry}'s, one for each *active* subscriptions.
- *
+ * <p>
  * This is used to:
  * 1) Show a list of SIMs in the SIM Selector
  * 2) Show the currently selected SIM in the compose message view
  * 3) Show SIM indicators on conversation message views
- *
+ * <p>
  * It builds on top of SelfParticipantsData and performs additional logic such as determining
  * the set of icons to use for the individual Subs.
  */
@@ -70,7 +70,7 @@ public class SubscriptionListData {
             final String iconIdentifier = String.format(Locale.getDefault(), "%d", slotId);
             final String subscriptionName = selfParticipantData.getSubscriptionName();
             final String displayName = TextUtils.isEmpty(subscriptionName) ?
-                    context.getString(R.string.sim_slot_identifier, slotId) : subscriptionName;
+                    context.getString(R.string.sim_slot_identifier, String.valueOf(slotId)) : subscriptionName;
             return new SubscriptionListEntry(selfParticipantData.getId(),
                     AvatarUriUtil.createAvatarUri(selfParticipantData, iconIdentifier,
                             false /* selected */, false /* incoming */),
@@ -86,7 +86,7 @@ public class SubscriptionListData {
     private final Context mContext;
 
     public SubscriptionListData(final Context context) {
-        mEntriesExcludingDefault = new ArrayList<SubscriptionListEntry>();
+        mEntriesExcludingDefault = new ArrayList<>();
         mContext = context;
     }
 

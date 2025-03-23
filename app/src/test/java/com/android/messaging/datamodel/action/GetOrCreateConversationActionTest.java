@@ -134,7 +134,7 @@ public class GetOrCreateConversationActionTest extends BugleTestCase {
         assertEquals("Expect one self participant in conversations", 1, countSelf);
         assertEquals("Cursor count mismatch", recipients.size(), cursor.getCount() - countSelf);
 
-        final String realId = BugleDatabaseOperations.getExistingConversation(db, threadId, false);
+        final String realId = BugleDatabaseOperations.getExistingConversation(db, threadId);
         assertEquals("Conversation already exists", realId, conversationId);
     }
 

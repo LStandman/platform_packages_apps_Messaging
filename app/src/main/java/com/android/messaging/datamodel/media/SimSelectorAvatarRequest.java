@@ -26,7 +26,9 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
-import android.media.ExifInterface;
+
+import androidx.core.content.res.ResourcesCompat;
+import androidx.exifinterface.media.ExifInterface;
 import android.text.TextUtils;
 
 import com.android.messaging.R;
@@ -66,8 +68,8 @@ public class SimSelectorAvatarRequest extends AvatarRequest {
     private ImageResource renderSimAvatarInternal(final String identifier, final int width,
             final int height, final int subColor, final boolean selected) {
         final Resources resources = mContext.getResources();
-        final float halfWidth = width / 2;
-        final float halfHeight = height / 2;
+        final float halfWidth = (float) width / 2;
+        final float halfHeight = (float) height / 2;
         final int minOfWidthAndHeight = Math.min(width, height);
         final int backgroundColor = selected ? subColor : Color.WHITE;
         final int textColor = selected ? subColor : Color.WHITE;
@@ -77,15 +79,16 @@ public class SimSelectorAvatarRequest extends AvatarRequest {
         final Canvas canvas = new Canvas(bitmap);
 
         if (sRegularSimIcon == null) {
-            final BitmapDrawable regularSim = (BitmapDrawable) mContext.getResources()
-                    .getDrawable(R.drawable.ic_sim_card_send);
+            final BitmapDrawable regularSim = (BitmapDrawable) ResourcesCompat
+                    .getDrawable(mContext.getResources(), R.drawable.ic_sim_card_send, null);
+            assert regularSim != null;
             sRegularSimIcon = regularSim.getBitmap();
         }
 
         paint.setColorFilter(new PorterDuffColorFilter(simColor, PorterDuff.Mode.SRC_ATOP));
         paint.setAlpha(0xff);
-        canvas.drawBitmap(sRegularSimIcon, halfWidth - sRegularSimIcon.getWidth() / 2,
-                halfHeight - sRegularSimIcon.getHeight() / 2, paint);
+        canvas.drawBitmap(sRegularSimIcon, halfWidth - (float) sRegularSimIcon.getWidth() / 2,
+                halfHeight - (float) sRegularSimIcon.getHeight() / 2, paint);
         paint.setColorFilter(null);
         paint.setAlpha(0xff);
 
@@ -93,7 +96,7 @@ public class SimSelectorAvatarRequest extends AvatarRequest {
             paint.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
             paint.setColor(textColor);
             final float letterToTileRatio =
-                    resources.getFraction(R.dimen.sim_identifier_to_tile_ratio, 1, 1);
+                    resources.getFraction(R.fraction.sim_identifier_to_tile_ratio, 1, 1);
             paint.setTextSize(letterToTileRatio * minOfWidthAndHeight);
 
             final String firstCharString = identifier.substring(0, 1).toUpperCase();
@@ -108,8 +111,4 @@ public class SimSelectorAvatarRequest extends AvatarRequest {
         return new DecodedImageResource(getKey(), bitmap, ExifInterface.ORIENTATION_NORMAL);
     }
 
-    @Override
-    public int getCacheId() {
-        return BugleMediaCacheManager.AVATAR_IMAGE_CACHE;
-    }
 }

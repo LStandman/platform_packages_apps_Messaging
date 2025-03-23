@@ -57,17 +57,6 @@ public abstract class ImageRequestDescriptor extends MediaRequestDescriptor<Imag
 
     protected static final char KEY_PART_DELIMITER = '|';
 
-    /**
-     * Creates a new image request with unspecified width and height. In this case, the full
-     * bitmap is loaded and decoded, so unless you are sure that the image will be of
-     * reasonable size, you should consider limiting at least one of the two dimensions
-     * (for example, limiting the image width to the width of the ImageView container).
-     */
-    public ImageRequestDescriptor() {
-        this(ImageRequest.UNSPECIFIED_SIZE, ImageRequest.UNSPECIFIED_SIZE,
-                ImageRequest.UNSPECIFIED_SIZE, ImageRequest.UNSPECIFIED_SIZE, false, false, 0, 0);
-    }
-
     public ImageRequestDescriptor(final int desiredWidth, final int desiredHeight) {
         this(desiredWidth, desiredHeight,
                 ImageRequest.UNSPECIFIED_SIZE, ImageRequest.UNSPECIFIED_SIZE, false, false, 0, 0);
@@ -92,12 +81,11 @@ public abstract class ImageRequestDescriptor extends MediaRequestDescriptor<Imag
     }
 
     public String getKey() {
-        return new StringBuilder()
-                .append(desiredWidth).append(KEY_PART_DELIMITER)
-                .append(desiredHeight).append(KEY_PART_DELIMITER)
-                .append(String.valueOf(cropToCircle)).append(KEY_PART_DELIMITER)
-                .append(String.valueOf(circleBackgroundColor)).append(KEY_PART_DELIMITER)
-                .append(String.valueOf(isStatic)).toString();
+        return String.valueOf(desiredWidth) + KEY_PART_DELIMITER +
+                desiredHeight + KEY_PART_DELIMITER +
+                cropToCircle + KEY_PART_DELIMITER +
+                circleBackgroundColor + KEY_PART_DELIMITER +
+                isStatic;
     }
 
     public boolean isStatic() {
@@ -106,8 +94,4 @@ public abstract class ImageRequestDescriptor extends MediaRequestDescriptor<Imag
 
     @Override
     public abstract MediaRequest<ImageResource> buildSyncMediaRequest(Context context);
-
-    // Called once source dimensions finally determined upon loading the image
-    public void updateSourceDimensions(final int sourceWidth, final int sourceHeight) {
-    }
 }

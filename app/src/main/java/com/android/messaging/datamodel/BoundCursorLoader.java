@@ -38,7 +38,6 @@ public class BoundCursorLoader extends CursorLoader {
 
     /**
      * Binding id associated with this loader - consume can check to verify data still valid
-     * @return
      */
     public String getBindingId() {
         return mBindingId;

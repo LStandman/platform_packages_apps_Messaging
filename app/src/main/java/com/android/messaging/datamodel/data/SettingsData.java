@@ -16,6 +16,7 @@
 
 package com.android.messaging.datamodel.data;
 
+import androidx.annotation.NonNull;
 import androidx.loader.app.LoaderManager;
 import android.content.Context;
 import androidx.loader.content.Loader;
@@ -126,13 +127,16 @@ public class SettingsData extends BindableData implements
 
     private static final int SELF_PARTICIPANT_LOADER = 1;
 
+    @NonNull
     @Override
     public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
         Assert.equals(SELF_PARTICIPANT_LOADER, id);
         Loader<Cursor> loader = null;
 
+        assert args != null;
         final String bindingId = args.getString(BINDING_ID);
         // Check if data still bound to the requesting ui element
+        assert bindingId != null;
         if (isBound(bindingId)) {
             loader = new BoundCursorLoader(bindingId, mContext,
                     MessagingContentProvider.PARTICIPANTS_URI,
@@ -143,11 +147,12 @@ public class SettingsData extends BindableData implements
         } else {
             LogUtil.w(LogUtil.BUGLE_TAG, "Creating self loader after unbinding");
         }
+        assert loader != null;
         return loader;
     }
 
     @Override
-    public void onLoadFinished(final Loader<Cursor> generic, final Cursor data) {
+    public void onLoadFinished(@NonNull final Loader<Cursor> generic, final Cursor data) {
         final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
         // Check if data still bound to the requesting ui element
@@ -160,7 +165,7 @@ public class SettingsData extends BindableData implements
     }
 
     @Override
-    public void onLoaderReset(final Loader<Cursor> generic) {
+    public void onLoaderReset(@NonNull final Loader<Cursor> generic) {
         final BoundCursorLoader loader = (BoundCursorLoader) generic;
 
         // Check if data still bound to the requesting ui element
@@ -192,7 +197,7 @@ public class SettingsData extends BindableData implements
 
     public List<SettingsItem> getSettingsItems() {
         final List<ParticipantData> selfs = mSelfParticipantsData.getSelfParticipants(true);
-        final List<SettingsItem> settingsItems = new ArrayList<SettingsItem>();
+        final List<SettingsItem> settingsItems = new ArrayList<>();
         // First goes the general settings, followed by per-subscription settings.
         settingsItems.add(SettingsItem.createGeneralSettingsItem(mContext));
         // For per-subscription settings, show the actual SIM name with phone number if the

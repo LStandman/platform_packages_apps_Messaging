@@ -44,7 +44,7 @@ import com.android.messaging.util.TextUtil;
 public class ParticipantData implements Parcelable {
 
     private static final ArrayMap<Integer, String> sSubIdtoParticipantIdCache =
-            new ArrayMap<Integer, String>();
+            new ArrayMap<>();
 
     // We always use -1 as default/invalid sub id although system may give us anything negative
     public static final int DEFAULT_SELF_SUB_ID = -1;
@@ -101,7 +101,7 @@ public class ParticipantData implements Parcelable {
     public static String getUnknownSenderDestination() {
         // This is a hard coded string rather than a localized one because we don't want it to
         // change when you change locale.
-        return "\u02BCUNKNOWN_SENDER!\u02BC";
+        return "ʼUNKNOWN_SENDER!ʼ";
     }
 
     private String mParticipantId;
@@ -150,21 +150,15 @@ public class ParticipantData implements Parcelable {
 
     public static ParticipantData getFromId(final DatabaseWrapper dbWrapper,
             final String participantId) {
-        Cursor cursor = null;
-        try {
-            cursor = dbWrapper.query(DatabaseHelper.PARTICIPANTS_TABLE,
-                    ParticipantsQuery.PROJECTION,
-                    ParticipantColumns._ID + " =?",
-                    new String[] { participantId }, null, null, null);
+        try (Cursor cursor = dbWrapper.query(DatabaseHelper.PARTICIPANTS_TABLE,
+                ParticipantsQuery.PROJECTION,
+                ParticipantColumns._ID + " =?",
+                new String[]{participantId}, null, null, null)) {
 
             if (cursor.moveToFirst()) {
                 return ParticipantData.getFromCursor(cursor);
             } else {
                 return null;
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
     }
@@ -208,6 +202,7 @@ public class ParticipantData implements Parcelable {
         pd.mParticipantId = null;
         pd.mSubId = OTHER_THAN_SELF_SUB_ID;
         pd.mSlotId = INVALID_SLOT_ID;
+        assert phoneNumber != null;
         pd.mSendDestination = TextUtil.replaceUnicodeDigits(phoneNumber);
         pd.mIsEmailAddress = MmsSmsUtils.isEmailAddress(pd.mSendDestination);
         pd.mFullName = null;
@@ -223,7 +218,7 @@ public class ParticipantData implements Parcelable {
 
     /**
      * Get an instance from a raw phone number and using system locale to normalize it.
-     *
+     * <p>
      * Use this when creating a participant that is for displaying UI and not associated
      * with a specific SIM. For example, when creating a conversation using user entered
      * phone number.
@@ -245,7 +240,7 @@ public class ParticipantData implements Parcelable {
 
     /**
      * Get an instance from a raw phone number and using SIM or system locale to normalize it.
-     *
+     * <p>
      * Use this when creating a participant that is associated with a specific SIM. For example,
      * the sender of a received message or the recipient of a sending message that is already
      * targeted at a specific SIM.
@@ -588,7 +583,7 @@ public class ParticipantData implements Parcelable {
     }
 
     public static final Parcelable.Creator<ParticipantData> CREATOR
-    = new Parcelable.Creator<ParticipantData>() {
+    = new Parcelable.Creator<>() {
         @Override
         public ParticipantData createFromParcel(final Parcel in) {
             return new ParticipantData(in);

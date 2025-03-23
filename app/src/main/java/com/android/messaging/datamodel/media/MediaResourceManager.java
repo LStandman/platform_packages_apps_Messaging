@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
 /**
  * <p>Loads and maintains a set of in-memory LRU caches for different types of media resources.
@@ -104,13 +103,10 @@ public class MediaResourceManager {
     // These tasks are run on a single worker thread with low priority so as not to contend with the
     // media loading tasks.
     private static final Executor MEDIA_BACKGROUND_EXECUTOR = Executors.newSingleThreadExecutor(
-            new ThreadFactory() {
-                @Override
-                public Thread newThread(final Runnable runnable) {
-                    final Thread encodingThread = new Thread(runnable);
-                    encodingThread.setPriority(Thread.MIN_PRIORITY);
-                    return encodingThread;
-                }
+            runnable -> {
+                final Thread encodingThread = new Thread(runnable);
+                encodingThread.setPriority(Thread.MIN_PRIORITY);
+                return encodingThread;
             });
 
     /**
@@ -160,7 +156,7 @@ public class MediaResourceManager {
             final MediaRequest<T> mediaRequest)
                     throws Exception {
         final List<MediaRequest<T>> chainedRequests = new ArrayList<>();
-        T loadedResource = null;
+        T loadedResource;
         // Try fetching from cache first.
         final T cachedResource = loadMediaFromCache(mediaRequest);
         if (cachedResource != null) {
@@ -191,10 +187,7 @@ public class MediaResourceManager {
         }
         final MediaCache<T> mediaCache = mediaRequest.getMediaCache();
         if (mediaCache != null) {
-            final T mediaResource = mediaCache.fetchResourceFromCache(mediaRequest.getKey());
-            if (mediaResource != null) {
-                return mediaResource;
-            }
+            return mediaCache.fetchResourceFromCache(mediaRequest.getKey());
         }
         return null;
     }
@@ -237,7 +230,7 @@ public class MediaResourceManager {
         // We don't use SafeAsyncTask here since it enforces the shared thread pool executor
         // whereas we want a dedicated thread pool executor.
         AsyncTask<Void, Void, MediaLoadingResult<T>> mediaLoadingTask =
-                new AsyncTask<Void, Void, MediaLoadingResult<T>>() {
+                new AsyncTask<>() {
             private Exception mException;
 
             @Override
@@ -293,6 +286,7 @@ public class MediaResourceManager {
         Assert.isTrue(mediaResource != null);
         final MediaCache<T> mediaCache = mediaRequest.getMediaCache();
         if (mediaCache != null) {
+            assert mediaResource != null;
             mediaCache.addResourceToCache(mediaRequest.getKey(), mediaResource);
             if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
                 LogUtil.v(TAG, "added media resource to " + mediaCache.getName() + ". key=" +

@@ -25,8 +25,10 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
-import android.media.ExifInterface;
+import androidx.exifinterface.media.ExifInterface;
 import android.net.Uri;
+
+import androidx.core.content.res.ResourcesCompat;
 
 import com.android.messaging.R;
 import com.android.messaging.util.Assert;
@@ -54,6 +56,7 @@ public class AvatarRequest extends UriImageRequest<AvatarRequestDescriptor> {
             return super.getInputStreamForResource();
         } else {
             final Uri primaryUri = AvatarUriUtil.getPrimaryUri(mDescriptor.uri);
+            assert primaryUri != null;
             Assert.isTrue(UriUtil.isLocalResourceUri(primaryUri));
             return mContext.getContentResolver().openInputStream(primaryUri);
         }
@@ -120,20 +123,23 @@ public class AvatarRequest extends UriImageRequest<AvatarRequestDescriptor> {
         final Canvas canvas = new Canvas(bitmap);
 
         if (sDefaultPersonBitmap == null) {
-            final BitmapDrawable defaultPerson = (BitmapDrawable) mContext.getResources()
-                    .getDrawable(R.drawable.ic_person_light);
+            final BitmapDrawable defaultPerson = (BitmapDrawable) ResourcesCompat
+                    .getDrawable(mContext.getResources(), R.drawable.ic_person_light, null);
+            assert defaultPerson != null;
             sDefaultPersonBitmap = defaultPerson.getBitmap();
         }
         if (sDefaultPersonBitmapLarge == null) {
-            final BitmapDrawable largeDefaultPerson = (BitmapDrawable) mContext.getResources()
-                    .getDrawable(R.drawable.ic_person_light_large);
+            final BitmapDrawable largeDefaultPerson = (BitmapDrawable) ResourcesCompat
+                    .getDrawable(mContext.getResources(), R.drawable.ic_person_light_large, null);
+            assert largeDefaultPerson != null;
             sDefaultPersonBitmapLarge = largeDefaultPerson.getBitmap();
         }
 
-        Bitmap defaultPerson = null;
+        Bitmap defaultPerson;
         if (mDescriptor.isWearBackground) {
-            final BitmapDrawable wearDefaultPerson = (BitmapDrawable) mContext.getResources()
-                    .getDrawable(R.drawable.ic_person_wear);
+            final BitmapDrawable wearDefaultPerson = (BitmapDrawable) ResourcesCompat
+                    .getDrawable(mContext.getResources(), R.drawable.ic_person_wear, null);
+            assert wearDefaultPerson != null;
             defaultPerson = wearDefaultPerson.getBitmap();
         } else {
             final boolean isLargeDefault = (width > sDefaultPersonBitmap.getWidth()) ||
@@ -154,16 +160,16 @@ public class AvatarRequest extends UriImageRequest<AvatarRequestDescriptor> {
     }
 
     private Bitmap renderLetterTile(final String name, final int width, final int height) {
-        final float halfWidth = width / 2;
-        final float halfHeight = height / 2;
+        final float halfWidth = (float) width / 2;
+        final float halfHeight = (float) height / 2;
         final int minOfWidthAndHeight = Math.min(width, height);
         final Bitmap bitmap = getBitmapPool().createOrReuseBitmap(width, height,
                 getBackgroundColor());
         final Resources resources = mContext.getResources();
         final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        paint.setColor(resources.getColor(R.color.letter_tile_font_color));
-        final float letterToTileRatio = resources.getFraction(R.dimen.letter_to_tile_ratio, 1, 1);
+        paint.setColor(resources.getColor(R.color.letter_tile_font_color, null));
+        final float letterToTileRatio = resources.getFraction(R.fraction.letter_to_tile_ratio, 1, 1);
         paint.setTextSize(letterToTileRatio * minOfWidthAndHeight);
 
         final String firstCharString = name.substring(0, 1).toUpperCase();
@@ -179,7 +185,7 @@ public class AvatarRequest extends UriImageRequest<AvatarRequestDescriptor> {
     }
 
     private int getBackgroundColor() {
-        return mContext.getResources().getColor(R.color.primary_color);
+        return mContext.getResources().getColor(R.color.primary_color, null);
     }
 
     @Override

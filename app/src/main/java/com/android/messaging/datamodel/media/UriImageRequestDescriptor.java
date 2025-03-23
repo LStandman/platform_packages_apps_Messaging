@@ -27,18 +27,6 @@ public class UriImageRequestDescriptor extends ImageRequestDescriptor {
                 false, 0, 0);
     }
 
-    public UriImageRequestDescriptor(final Uri uri, final int desiredWidth, final int desiredHeight)
-    {
-        this(uri, desiredWidth, desiredHeight, false, false, false, 0, 0);
-    }
-
-    public UriImageRequestDescriptor(final Uri uri, final int desiredWidth, final int desiredHeight,
-            final boolean cropToCircle, final int circleBackgroundColor, int circleStrokeColor)
-    {
-        this(uri, desiredWidth, desiredHeight, false,
-                false, cropToCircle, circleBackgroundColor, circleStrokeColor);
-    }
-
     public UriImageRequestDescriptor(final Uri uri, final int desiredWidth,
             final int desiredHeight, final boolean allowCompression, boolean isStatic,
             boolean cropToCircle, int circleBackgroundColor, int circleStrokeColor) {
@@ -51,7 +39,6 @@ public class UriImageRequestDescriptor extends ImageRequestDescriptor {
      * Creates a new Uri-based image request.
      * @param uri the content Uri. Currently Bugle only supports local resources Uri (i.e. it has
      * to begin with content: or android.resource:
-     * @param circleStrokeColor
      */
     public UriImageRequestDescriptor(final Uri uri, final int desiredWidth,
             final int desiredHeight, final int sourceWidth, final int sourceHeight,
@@ -68,10 +55,9 @@ public class UriImageRequestDescriptor extends ImageRequestDescriptor {
         if (uri != null) {
             final String key = super.getKey();
             if (key != null) {
-                return new StringBuilder()
-                    .append(uri).append(KEY_PART_DELIMITER)
-                    .append(String.valueOf(allowCompression)).append(KEY_PART_DELIMITER)
-                    .append(key).toString();
+                return String.valueOf(uri) + KEY_PART_DELIMITER +
+                        allowCompression + KEY_PART_DELIMITER +
+                        key;
             }
         }
         return null;
@@ -79,6 +65,6 @@ public class UriImageRequestDescriptor extends ImageRequestDescriptor {
 
     @Override
     public MediaRequest<ImageResource> buildSyncMediaRequest(final Context context) {
-        return new UriImageRequest<UriImageRequestDescriptor>(context, this);
+        return new UriImageRequest<>(context, this);
     }
 }

@@ -20,15 +20,15 @@ import java.util.List;
 /**
  * Keeps track of a media loading request. MediaResourceManager uses this interface to load, encode,
  * decode, and cache different types of media resource.
- *
+ * <p>
  * This interface defines a media request class that's threading-model-oblivious. Wrapper classes
  * (such as {@link AsyncMediaRequestWrapper} wraps around any base media request to offer async
  * extensions).
  */
 public interface MediaRequest<T extends RefCountedMediaResource> {
-    public static final int REQUEST_ENCODE_MEDIA = 1;
-    public static final int REQUEST_DECODE_MEDIA = 2;
-    public static final int REQUEST_LOAD_MEDIA = 3;
+    int REQUEST_ENCODE_MEDIA = 1;
+    int REQUEST_DECODE_MEDIA = 2;
+    int REQUEST_LOAD_MEDIA = 3;
 
     /**
      * Returns a unique key used for storing and looking up the MediaRequest.

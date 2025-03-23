@@ -178,7 +178,7 @@ public class ReadWriteDraftMessageActionTest extends BugleTestCase {
         String conversationId = null;
         do {
             conversationId = BugleDatabaseOperations.getExistingConversation(db,
-                    threadId, senderBlocked);
+                    threadId);
             threadId++;
             phoneNumber++;
         }

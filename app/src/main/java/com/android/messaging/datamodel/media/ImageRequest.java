@@ -25,7 +25,6 @@ import com.android.messaging.datamodel.data.MessagePartData;
 import com.android.messaging.datamodel.media.PoolableImageCache.ReusableImageResourcePool;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.ImageUtils;
-import com.android.messaging.util.exif.ExifInterface;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -34,7 +33,7 @@ import java.util.List;
 
 /**
  * Base class that serves an image request for resolving, retrieving and decoding bitmap resources.
- *
+ * <p>
  * Subclasses may choose to load images from different medium, such as from the file system or
  * from the local content resolver, by overriding the abstract getInputStreamForResource() method.
  */
@@ -84,13 +83,12 @@ public abstract class ImageRequest<D extends ImageRequestDescriptor>
         return false;
     }
 
-    protected Bitmap getBitmapForResource() throws IOException {
+    protected Bitmap getBitmapForResource() {
         return null;
     }
 
     /**
      * Retrieves an input stream from which image resource could be loaded.
-     * @throws FileNotFoundException
      */
     protected abstract InputStream getInputStreamForResource() throws FileNotFoundException;
 
@@ -115,10 +113,6 @@ public abstract class ImageRequest<D extends ImageRequestDescriptor>
         return new DecodedImageResource(getKey(), loadedBitmap, mOrientation);
     }
 
-    protected boolean isGif() throws FileNotFoundException {
-        return ImageUtils.isGif(getInputStreamForResource());
-    }
-
     /**
      * The internal routine for loading the image. The caller may optionally provide the width
      * and height of the source image if known so that we don't need to manually decode those.
@@ -130,11 +124,7 @@ public abstract class ImageRequest<D extends ImageRequestDescriptor>
 
         // If the ImageRequest has a Bitmap object rather than a stream, there's little to do here
         if (hasBitmapObject()) {
-            final Bitmap bitmap = getBitmapForResource();
-            if (bitmap != null && unknownSize) {
-                mDescriptor.updateSourceDimensions(bitmap.getWidth(), bitmap.getHeight());
-            }
-            return bitmap;
+            return getBitmapForResource();
         }
 
         mOrientation = ImageUtils.getOrientation(getInputStreamForResource());
@@ -145,17 +135,9 @@ public abstract class ImageRequest<D extends ImageRequestDescriptor>
         if (unknownSize) {
             final InputStream inputStream = getInputStreamForResource();
             if (inputStream != null) {
-                try {
+                try (inputStream) {
                     options.inJustDecodeBounds = true;
                     BitmapFactory.decodeStream(inputStream, null, options);
-                    // This is called when dimensions of image were unknown to allow db update
-                    if (ExifInterface.getOrientationParams(mOrientation).invertDimensions) {
-                        mDescriptor.updateSourceDimensions(options.outHeight, options.outWidth);
-                    } else {
-                        mDescriptor.updateSourceDimensions(options.outWidth, options.outHeight);
-                    }
-                } finally {
-                    inputStream.close();
                 }
             } else {
                 throw new FileNotFoundException();
@@ -216,7 +198,7 @@ public abstract class ImageRequest<D extends ImageRequestDescriptor>
             final int backgroundColor = mDescriptor.circleBackgroundColor;
             final int strokeColor = mDescriptor.circleStrokeColor;
             ImageUtils.drawBitmapWithCircleOnCanvas(sourceBitmap, new Canvas(targetBitmap), source,
-                    dest, null, backgroundColor == 0 ? false : true /* fillBackground */,
+                    dest, null, backgroundColor != 0 /* fillBackground */,
                             backgroundColor, strokeColor);
             return new DecodedImageResource(getKey(), targetBitmap,
                     loadedResource.getOrientation());

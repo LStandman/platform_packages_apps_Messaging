@@ -16,6 +16,7 @@
 
 package com.android.messaging.datamodel.data;
 
+import androidx.annotation.NonNull;
 import androidx.loader.app.LoaderManager;
 import android.content.Context;
 import androidx.loader.content.Loader;
@@ -64,25 +65,32 @@ public class PeopleAndOptionsData extends BindableData implements
     private static final int CONVERSATION_OPTIONS_LOADER = 1;
     private static final int PARTICIPANT_LOADER = 2;
 
+    @NonNull
     @Override
     public Loader<Cursor> onCreateLoader(final int id, final Bundle args) {
+        assert args != null;
         final String bindingId = args.getString(BINDING_ID);
         // Check if data still bound to the requesting ui element
+        assert bindingId != null;
+
+        Loader<Cursor> loader = null;
         if (isBound(bindingId)) {
             switch (id) {
                 case CONVERSATION_OPTIONS_LOADER: {
                     final Uri uri =
                             MessagingContentProvider.buildConversationMetadataUri(mConversationId);
-                    return new BoundCursorLoader(bindingId, mContext, uri,
+                    loader = new BoundCursorLoader(bindingId, mContext, uri,
                             PeopleOptionsItemData.PROJECTION, null, null, null);
+                    break;
                 }
 
                 case PARTICIPANT_LOADER: {
                     final Uri uri =
                             MessagingContentProvider
                                     .buildConversationParticipantsUri(mConversationId);
-                    return new BoundCursorLoader(bindingId, mContext, uri,
+                    loader = new BoundCursorLoader(bindingId, mContext, uri,
                             ParticipantData.ParticipantsQuery.PROJECTION, null, null, null);
+                    break;
                 }
 
                 default:
@@ -92,14 +100,15 @@ public class PeopleAndOptionsData extends BindableData implements
         } else {
             LogUtil.w(LogUtil.BUGLE_TAG, "Loader created after unbinding PeopleAndOptionsFragment");
         }
-        return null;
+        assert loader != null;
+        return loader;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onLoadFinished(final Loader<Cursor> loader, final Cursor data) {
+    public void onLoadFinished(@NonNull final Loader<Cursor> loader, final Cursor data) {
         final BoundCursorLoader cursorLoader = (BoundCursorLoader) loader;
         if (isBound(cursorLoader.getBindingId())) {
             switch (loader.getId()) {
@@ -127,7 +136,7 @@ public class PeopleAndOptionsData extends BindableData implements
      * {@inheritDoc}
      */
     @Override
-    public void onLoaderReset(final Loader<Cursor> loader) {
+    public void onLoaderReset(@NonNull final Loader<Cursor> loader) {
         final BoundCursorLoader cursorLoader = (BoundCursorLoader) loader;
         if (isBound(cursorLoader.getBindingId())) {
             switch (loader.getId()) {

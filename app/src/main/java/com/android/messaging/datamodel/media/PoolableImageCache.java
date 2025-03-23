@@ -29,6 +29,7 @@ import com.android.messaging.util.LogUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A media cache that holds image resources, which doubles as a bitmap pool that allows the
@@ -102,12 +103,12 @@ public class PoolableImageCache extends MediaCache<ImageResource> {
         /**
          * Count of reuse failures which have occurred.
          */
-        private volatile int mFailedBitmapReuseCount = 0;
+        private final AtomicInteger mFailedBitmapReuseCount = new AtomicInteger(0);
 
         /**
          * Count of reuse successes which have occurred.
          */
-        private volatile int mSucceededBitmapReuseCount = 0;
+        private final AtomicInteger mSucceededBitmapReuseCount = new AtomicInteger(0);
 
         /**
          * A sparse array from bitmap size to a list of image cache entries that match the
@@ -118,7 +119,7 @@ public class PoolableImageCache extends MediaCache<ImageResource> {
         private final SparseArray<LinkedList<ImageResource>> mImageListSparseArray;
 
         public ReusableImageResourcePool() {
-            mImageListSparseArray = new SparseArray<LinkedList<ImageResource>>();
+            mImageListSparseArray = new SparseArray<>();
         }
 
         /**
@@ -130,7 +131,6 @@ public class PoolableImageCache extends MediaCache<ImageResource> {
          * @param width The width of the bitmap.
          * @param height The height of the bitmap.
          * @return The decoded Bitmap with the resource drawn in it.
-         * @throws IOException
          */
         public Bitmap decodeSampledBitmapFromInputStream(@NonNull final InputStream inputStream,
                 @NonNull final BitmapFactory.Options optionsTmp,
@@ -146,56 +146,13 @@ public class PoolableImageCache extends MediaCache<ImageResource> {
             Bitmap b = null;
             try {
                 b = BitmapFactory.decodeStream(inputStream, null, optionsTmp);
-                mSucceededBitmapReuseCount++;
+                mSucceededBitmapReuseCount.addAndGet(1);
             } catch (final IllegalArgumentException e) {
                 // BitmapFactory couldn't decode the file, try again without an inputBufferBitmap.
                 if (optionsTmp.inBitmap != null) {
                     optionsTmp.inBitmap.recycle();
                     optionsTmp.inBitmap = null;
                     b = BitmapFactory.decodeStream(inputStream, null, optionsTmp);
-                    onFailedToReuse();
-                }
-            } catch (final OutOfMemoryError e) {
-                LogUtil.w(LogUtil.BUGLE_IMAGE_TAG, "Oom decoding inputStream");
-                Factory.get().reclaimMemory();
-            }
-            return b;
-        }
-
-        /**
-         * Turn encoded bytes into a bitmap. Uses a bitmap from the pool if possible to reduce
-         * memory turnover.
-         * @param bytes Encoded bytes to draw on the bitmap. Cannot be null.
-         * @param optionsTmp The bitmap will set here and the input should be generated from
-         * getBitmapOptionsForPool(). Cannot be null.
-         * @param width The width of the bitmap.
-         * @param height The height of the bitmap.
-         * @return A Bitmap with the encoded bytes drawn in it.
-         * @throws IOException
-         */
-        public Bitmap decodeByteArray(@NonNull final byte[] bytes,
-                @NonNull final BitmapFactory.Options optionsTmp, final int width,
-                final int height) throws OutOfMemoryError, IOException {
-            if (width <= 0 || height <= 0) {
-                // This is an invalid / corrupted image of zero size.
-                LogUtil.w(LogUtil.BUGLE_IMAGE_TAG, "PoolableImageCache: Decoding bitmap with " +
-                        "invalid size");
-                throw new IOException("Invalid size / corrupted image");
-            }
-            Assert.notNull(bytes);
-            Assert.notNull(optionsTmp);
-            assignPoolBitmap(optionsTmp, width, height);
-            Bitmap b = null;
-            try {
-                b = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, optionsTmp);
-                mSucceededBitmapReuseCount++;
-            } catch (final IllegalArgumentException e) {
-                // BitmapFactory couldn't decode the file, try again without an inputBufferBitmap.
-                // (i.e. without the bitmap from the pool)
-                if (optionsTmp.inBitmap != null) {
-                    optionsTmp.inBitmap.recycle();
-                    optionsTmp.inBitmap = null;
-                    b = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, optionsTmp);
                     onFailedToReuse();
                 }
             } catch (final OutOfMemoryError e) {
@@ -232,7 +189,7 @@ public class PoolableImageCache extends MediaCache<ImageResource> {
                 Assert.isTrue(poolKey != INVALID_POOL_KEY);
                 LinkedList<ImageResource> imageList = mImageListSparseArray.get(poolKey);
                 if (imageList == null) {
-                    imageList = new LinkedList<ImageResource>();
+                    imageList = new LinkedList<>();
                     mImageListSparseArray.put(poolKey, imageList);
                 }
                 imageList.addLast(imageResource);
@@ -259,7 +216,7 @@ public class PoolableImageCache extends MediaCache<ImageResource> {
                 final int poolKey = getPoolKey(width, height);
                 if (poolKey != INVALID_POOL_KEY) {
                     final LinkedList<ImageResource> images = mImageListSparseArray.get(poolKey);
-                    if (images != null && images.size() > 0) {
+                    if (images != null && !images.isEmpty()) {
                         // Try to reuse the first available bitmap from the pool list. We start from
                         // the least recently added cache entry of the given size.
                         ImageResource imageToUse = null;
@@ -407,8 +364,8 @@ public class PoolableImageCache extends MediaCache<ImageResource> {
          * Called when bitmap reuse fails. Conditionally report the failure with statistics.
          */
         private void onFailedToReuse() {
-            mFailedBitmapReuseCount++;
-            if (mFailedBitmapReuseCount % FAILED_REPORTING_FREQUENCY == 0) {
+            mFailedBitmapReuseCount.addAndGet(1);
+            if (mFailedBitmapReuseCount.get() % FAILED_REPORTING_FREQUENCY == 0) {
                 LogUtil.w(LogUtil.BUGLE_IMAGE_TAG,
                         "Pooled bitmap consistently not being reused. Failure count = " +
                                 mFailedBitmapReuseCount + ", success count = " +

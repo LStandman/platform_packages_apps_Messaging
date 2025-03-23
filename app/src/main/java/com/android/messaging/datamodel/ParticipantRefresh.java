@@ -61,7 +61,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *     2. Partial refresh, this is triggered when a participant is added to a conversation. This
  *        normally happens during SMS sync.
  */
-@VisibleForTesting
 public class ParticipantRefresh {
     private static final String TAG = LogUtil.BUGLE_DATAMODEL_TAG;
 

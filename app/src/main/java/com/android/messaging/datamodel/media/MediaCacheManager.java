@@ -33,7 +33,7 @@ public abstract class MediaCacheManager implements MemoryCache {
     protected final SparseArray<MediaCache<?>> mCaches;
 
     public MediaCacheManager() {
-        mCaches = new SparseArray<MediaCache<?>>();
+        mCaches = new SparseArray<>();
         MemoryCacheManager.get().registerMemoryCache(this);
     }
 
@@ -59,7 +59,7 @@ public abstract class MediaCacheManager implements MemoryCache {
 
     public ReusableImageResourcePool getOrCreateBitmapPoolForCache(final int cacheId) {
         final MediaCache<?> cache = getOrCreateMediaCacheById(cacheId);
-        if (cache != null && cache instanceof PoolableImageCache) {
+        if (cache instanceof PoolableImageCache) {
             return ((PoolableImageCache) cache).asReusableBitmapPool();
         }
         return null;
