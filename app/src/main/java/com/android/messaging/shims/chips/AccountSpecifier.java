@@ -24,5 +24,5 @@ import android.accounts.Account;
  * a specific account.
  */
 public interface AccountSpecifier {
-    public void setAccount(Account account);
+    void setAccount(Account account);
 }

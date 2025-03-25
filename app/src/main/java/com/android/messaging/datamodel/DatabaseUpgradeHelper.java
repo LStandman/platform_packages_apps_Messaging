@@ -53,7 +53,7 @@ public class DatabaseUpgradeHelper {
         DatabaseHelper.dropAllViews(db);
         DatabaseHelper.rebuildAllViews(new DatabaseWrapper(context, db));
         // Finally, check if we have arrived at the final version.
-        checkAndUpdateVersionAtReleaseEnd(currentVersion, Integer.MAX_VALUE, newVersion);
+        checkAndUpdateVersionAtReleaseEnd(currentVersion, newVersion);
     }
 
     private int upgradeToVersion2(final SQLiteDatabase db) {
@@ -70,13 +70,8 @@ public class DatabaseUpgradeHelper {
      * path. Otherwise, if target version is within reach of the current release, but we are not
      * at the target version, then throw an exception to force a table rebuild.
      */
-    private int checkAndUpdateVersionAtReleaseEnd(final int currentVersion,
-            final int maxVersionForRelease, final int targetVersion) throws Exception {
-        if (maxVersionForRelease < targetVersion) {
-            // Target version is beyond the current release. Snap to max version for the
-            // current release so we can go on to the upgrade path for the next release.
-            return maxVersionForRelease;
-        }
+    private void checkAndUpdateVersionAtReleaseEnd(final int currentVersion,
+                                                   final int targetVersion) throws Exception {
 
         // If we are here, this means the current release' upgrade handler should upgrade to
         // target version...
@@ -86,7 +81,6 @@ public class DatabaseUpgradeHelper {
                     currentVersion + " to version " + targetVersion);
         }
         // Upgrade succeeded.
-        return targetVersion;
     }
 
     public void onDowngrade(final SQLiteDatabase db, final int oldVersion, final int newVersion) {

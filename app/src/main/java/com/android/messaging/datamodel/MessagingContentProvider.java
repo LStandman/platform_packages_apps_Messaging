@@ -26,6 +26,8 @@ import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.BugleApplication;
 import com.android.messaging.Factory;
 import com.android.messaging.datamodel.DatabaseHelper.ConversationColumns;
@@ -42,14 +44,13 @@ import com.android.messaging.widget.WidgetConversationProvider;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.io.FileDescriptor;
-import java.io.FileNotFoundException;
 import java.io.PrintWriter;
+import java.util.Objects;
 
 /**
  * A centralized provider for Uris exposed by Bugle.
  *  */
 public class MessagingContentProvider extends ContentProvider {
-    private static final String TAG = LogUtil.BUGLE_TAG;
 
     @VisibleForTesting
     public static final String AUTHORITY =
@@ -65,17 +66,11 @@ public class MessagingContentProvider extends ContentProvider {
     // Messages query
     private static final String MESSAGES_QUERY = "messages";
 
-    static final Uri MESSAGES_URI = Uri.parse(CONTENT_AUTHORITY + MESSAGES_QUERY);
-
     public static final Uri CONVERSATION_MESSAGES_URI = Uri.parse(CONTENT_AUTHORITY +
             MESSAGES_QUERY + "/conversation");
 
     // Conversation participants query
     private static final String PARTICIPANTS_QUERY = "participants";
-
-    static class ConversationParticipantsQueryColumns extends ParticipantColumns {
-        static final String CONVERSATION_ID = ConversationParticipantsColumns.CONVERSATION_ID;
-    }
 
     static final Uri CONVERSATION_PARTICIPANTS_URI = Uri.parse(CONTENT_AUTHORITY +
             PARTICIPANTS_QUERY + "/conversation");
@@ -85,13 +80,7 @@ public class MessagingContentProvider extends ContentProvider {
     // Conversation images query
     private static final String CONVERSATION_IMAGES_QUERY = "conversation_images";
 
-    public static final Uri CONVERSATION_IMAGES_URI = Uri.parse(CONTENT_AUTHORITY +
-            CONVERSATION_IMAGES_QUERY);
-
     private static final String DRAFT_IMAGES_QUERY = "draft_images";
-
-    public static final Uri DRAFT_IMAGES_URI = Uri.parse(CONTENT_AUTHORITY +
-            DRAFT_IMAGES_QUERY);
 
     /**
      * Notifies that <i>all</i> data exposed by the provider needs to be refreshed.
@@ -217,24 +206,6 @@ public class MessagingContentProvider extends ContentProvider {
         BugleWidgetProvider.notifyConversationListChanged(context);
     }
 
-    /**
-     * Build a conversation images uri from a conversation id.
-     */
-    public static Uri buildConversationImagesUri(final String conversationId) {
-        final Uri.Builder builder = CONVERSATION_IMAGES_URI.buildUpon();
-        builder.appendPath(conversationId);
-        return builder.build();
-    }
-
-    /**
-     * Build a draft images uri from a conversation id.
-     */
-    public static Uri buildDraftImagesUri(final String conversationId) {
-        final Uri.Builder builder = DRAFT_IMAGES_URI.buildUpon();
-        builder.appendPath(conversationId);
-        return builder.build();
-    }
-
     private DatabaseHelper mDatabaseHelper;
     private DatabaseWrapper mDatabaseWrapper;
 
@@ -256,8 +227,8 @@ public class MessagingContentProvider extends ContentProvider {
     }
 
     @Override
-    public Cursor query(final Uri uri, final String[] projection, String selection,
-            final String[] selectionArgs, String sortOrder) {
+    public Cursor query(@NonNull final Uri uri, final String[] projection, String selection,
+                        final String[] selectionArgs, String sortOrder) {
 
         // Processes other than self are allowed to temporarily access the media
         // scratch space; we grant uri read access on a case-by-case basis. Dialer app and
@@ -271,8 +242,6 @@ public class MessagingContentProvider extends ContentProvider {
 
         String[] queryArgs = selectionArgs;
         final int match = sURIMatcher.match(uri);
-        String groupBy = null;
-        String limit = null;
         switch (match) {
             case CONVERSATIONS_QUERY_CODE:
                 queryBuilder.setTables(ConversationListItemData.getConversationListView());
@@ -340,8 +309,8 @@ public class MessagingContentProvider extends ContentProvider {
         }
 
         final Cursor cursor = getDatabaseWrapper().query(queryBuilder, projection, selection,
-                queryArgs, groupBy, null, sortOrder, limit);
-        cursor.setNotificationUri(getContext().getContentResolver(), uri);
+                queryArgs, null, null, sortOrder, null);
+        cursor.setNotificationUri(Objects.requireNonNull(getContext()).getContentResolver(), uri);
         return cursor;
     }
 
@@ -349,23 +318,19 @@ public class MessagingContentProvider extends ContentProvider {
         final String[] queryArgs = { conversationId };
         final Cursor cursor = getDatabaseWrapper().rawQuery(
                 ConversationMessageData.getConversationMessagesQuerySql(), queryArgs);
-        cursor.setNotificationUri(getContext().getContentResolver(), notifyUri);
+        cursor.setNotificationUri(Objects.requireNonNull(getContext()).getContentResolver(), notifyUri);
         return cursor;
     }
 
     @Override
-    public String getType(final Uri uri) {
+    public String getType(@NonNull final Uri uri) {
         final StringBuilder sb = new
                 StringBuilder("vnd.android.cursor.dir/vnd.android.messaging.");
 
-        switch (sURIMatcher.match(uri)) {
-            case CONVERSATIONS_QUERY_CODE: {
-                sb.append(CONVERSATIONS_QUERY);
-                break;
-            }
-            default: {
-                throw new IllegalArgumentException("Unknown URI: " + uri);
-            }
+        if (sURIMatcher.match(uri) == CONVERSATIONS_QUERY_CODE) {
+            sb.append(CONVERSATIONS_QUERY);
+        } else {
+            throw new IllegalArgumentException("Unknown URI: " + uri);
         }
         return sb.toString();
     }
@@ -375,24 +340,23 @@ public class MessagingContentProvider extends ContentProvider {
     }
 
     @Override
-    public ParcelFileDescriptor openFile(final Uri uri, final String fileMode)
-            throws FileNotFoundException {
+    public ParcelFileDescriptor openFile(@NonNull final Uri uri, @NonNull final String fileMode) {
         throw new IllegalArgumentException("openFile not supported: " + uri);
     }
 
     @Override
-    public Uri insert(final Uri uri, final ContentValues values) {
+    public Uri insert(@NonNull final Uri uri, final ContentValues values) {
         throw new IllegalStateException("Insert not supported " + uri);
     }
 
     @Override
-    public int delete(final Uri uri, final String selection, final String[] selectionArgs) {
+    public int delete(@NonNull final Uri uri, final String selection, final String[] selectionArgs) {
         throw new IllegalArgumentException("Delete not supported: " + uri);
     }
 
     @Override
-    public int update(final Uri uri, final ContentValues values, final String selection,
-            final String[] selectionArgs) {
+    public int update(@NonNull final Uri uri, final ContentValues values, final String selection,
+                      final String[] selectionArgs) {
         throw new IllegalArgumentException("Update not supported: " + uri);
     }
 
@@ -435,7 +399,7 @@ public class MessagingContentProvider extends ContentProvider {
     @Override
     public boolean onCreate() {
         // This is going to wind up calling into createDatabase() below.
-        mDatabaseHelper = (DatabaseHelper) getDatabase();
+        mDatabaseHelper = getDatabase();
         // We cannot initialize mDatabaseWrapper yet as the Factory may not be initialized
         return true;
     }

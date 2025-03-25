@@ -19,7 +19,6 @@ package com.android.messaging.mmslib;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
@@ -34,53 +33,41 @@ public final class SqliteWrapper {
         // Forbidden being instantiated.
     }
 
-    public static Cursor query(Context context, ContentResolver resolver, Uri uri,
+    public static Cursor query(ContentResolver resolver, Uri uri,
             String[] projection, String selection, String[] selectionArgs, String sortOrder) {
         try {
             return resolver.query(uri, projection, selection, selectionArgs, sortOrder);
-        } catch (SQLiteException e) {
-            LogUtil.e(TAG, "SqliteWrapper: catch an exception when query", e);
-            return null;
-        } catch (IllegalArgumentException e) {
+        } catch (SQLiteException | IllegalArgumentException e) {
             LogUtil.e(TAG, "SqliteWrapper: catch an exception when query", e);
             return null;
         }
     }
 
-    public static int update(Context context, ContentResolver resolver, Uri uri,
+    public static int update(ContentResolver resolver, Uri uri,
             ContentValues values, String where, String[] selectionArgs) {
         try {
             return resolver.update(uri, values, where, selectionArgs);
-        } catch (SQLiteException e) {
-            LogUtil.e(TAG, "SqliteWrapper: catch an exception when update", e);
-            return -1;
-        } catch (IllegalArgumentException e) {
+        } catch (SQLiteException | IllegalArgumentException e) {
             LogUtil.e(TAG, "SqliteWrapper: catch an exception when update", e);
             return -1;
         }
     }
 
-    public static int delete(Context context, ContentResolver resolver, Uri uri,
+    public static int delete(ContentResolver resolver, Uri uri,
             String where, String[] selectionArgs) {
         try {
             return resolver.delete(uri, where, selectionArgs);
-        } catch (SQLiteException e) {
-            LogUtil.e(TAG, "SqliteWrapper: catch an exception when delete", e);
-            return -1;
-        } catch (IllegalArgumentException e) {
+        } catch (SQLiteException | IllegalArgumentException e) {
             LogUtil.e(TAG, "SqliteWrapper: catch an exception when delete", e);
             return -1;
         }
     }
 
-    public static Uri insert(Context context, ContentResolver resolver,
+    public static Uri insert(ContentResolver resolver,
             Uri uri, ContentValues values) {
         try {
             return resolver.insert(uri, values);
-        } catch (SQLiteException e) {
-            LogUtil.e(TAG, "SqliteWrapper: catch an exception when insert", e);
-            return null;
-        } catch (IllegalArgumentException e) {
+        } catch (SQLiteException | IllegalArgumentException e) {
             LogUtil.e(TAG, "SqliteWrapper: catch an exception when insert", e);
             return null;
         }

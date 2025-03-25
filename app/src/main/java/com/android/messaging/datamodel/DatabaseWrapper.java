@@ -35,6 +35,7 @@ import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.UiUtils;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Stack;
 import java.util.regex.Pattern;
 
@@ -65,15 +66,10 @@ public class DatabaseWrapper {
     }
 
     // track transaction on a per thread basis
-    private static ThreadLocal<Stack<TransactionData>> sTransactionDepth =
-            new ThreadLocal<Stack<TransactionData>>() {
-        @Override
-        public Stack<TransactionData> initialValue() {
-            return new Stack<TransactionData>();
-        }
-    };
+    private static final ThreadLocal<Stack<TransactionData>> sTransactionDepth =
+            ThreadLocal.withInitial(Stack::new);
 
-    private static String[] sFormatStrings = new String[] {
+    private static final String[] sFormatStrings = new String[] {
         "took %d ms to %s",
         "   took %d ms to %s",
         "      took %d ms to %s",
@@ -85,7 +81,7 @@ public class DatabaseWrapper {
                 BugleGservicesKeys.EXPLAIN_QUERY_PLAN_REGEXP, null);
         mDatabase = db;
         mContext = context;
-        mCompiledStatements = new SparseArray<SQLiteStatement>();
+        mCompiledStatements = new SparseArray<>();
     }
 
     public SQLiteStatement getStatementInTransaction(final int index, final String statement) {
@@ -105,7 +101,7 @@ public class DatabaseWrapper {
     }
 
     private static void printTiming(final long t1, final String msg) {
-        final int transactionDepth = sTransactionDepth.get().size();
+        final int transactionDepth = Objects.requireNonNull(sTransactionDepth.get()).size();
         final long t2 = System.currentTimeMillis();
         final long delta = t2 - t1;
         if (delta > sTimingThreshold) {
@@ -126,13 +122,13 @@ public class DatabaseWrapper {
         // push the current time onto the transaction stack
         final TransactionData f = new TransactionData();
         f.time = t1;
-        sTransactionDepth.get().push(f);
+        Objects.requireNonNull(sTransactionDepth.get()).push(f);
 
         mDatabase.beginTransaction();
     }
 
     public void setTransactionSuccessful() {
-        final TransactionData f = sTransactionDepth.get().peek();
+        final TransactionData f = Objects.requireNonNull(sTransactionDepth.get()).peek();
         f.transactionSuccessful = true;
         mDatabase.setTransactionSuccessful();
     }
@@ -140,8 +136,8 @@ public class DatabaseWrapper {
     public void endTransaction() {
         long t1 = 0;
         long transactionStartTime = 0;
-        final TransactionData f = sTransactionDepth.get().pop();
-        if (f.transactionSuccessful == false) {
+        final TransactionData f = Objects.requireNonNull(sTransactionDepth.get()).pop();
+        if (!f.transactionSuccessful) {
             LogUtil.w(TAG, "endTransaction without setting successful");
             for (final StackTraceElement st : (new Exception()).getStackTrace()) {
                 LogUtil.w(TAG, "    " + st.toString());
@@ -161,36 +157,6 @@ public class DatabaseWrapper {
             printTiming(t1, String.format(Locale.US,
                     ">>> endTransaction (total for this transaction: %d)",
                     (System.currentTimeMillis() - transactionStartTime)));
-        }
-    }
-
-    public void yieldTransaction() {
-        long yieldStartTime = 0;
-        if (mLog) {
-            yieldStartTime = System.currentTimeMillis();
-        }
-        final boolean wasYielded = mDatabase.yieldIfContendedSafely();
-        if (wasYielded && mLog) {
-            printTiming(yieldStartTime, "yieldTransaction");
-        }
-    }
-
-    public void insertWithOnConflict(final String searchTable, final String nullColumnHack,
-            final ContentValues initialValues, final int conflictAlgorithm) {
-        long t1 = 0;
-        if (mLog) {
-            t1 = System.currentTimeMillis();
-        }
-        try {
-            mDatabase.insertWithOnConflict(searchTable, nullColumnHack, initialValues,
-                    conflictAlgorithm);
-        } catch (SQLiteFullException ex) {
-            LogUtil.e(TAG, "Database full, unable to insertWithOnConflict", ex);
-            UiUtils.showToastAtBottom(R.string.db_full);
-        }
-        if (mLog) {
-            printTiming(t1, String.format(Locale.US,
-                    "insertWithOnConflict with %s", searchTable));
         }
     }
 
@@ -217,8 +183,7 @@ public class DatabaseWrapper {
         if (!Pattern.matches(mExplainQueryPlanRegexp, sql)) {
             return;
         }
-        final Cursor planCursor = db.rawQuery("explain query plan " + sql, queryArgs);
-        try {
+        try (Cursor planCursor = db.rawQuery("explain query plan " + sql, queryArgs)) {
             if (planCursor != null && planCursor.moveToFirst()) {
                 final int detailColumn = planCursor.getColumnIndex("detail");
                 final StringBuilder sb = new StringBuilder();
@@ -230,14 +195,10 @@ public class DatabaseWrapper {
                     sb.setLength(sb.length() - 1);
                 }
                 LogUtil.v(TAG, "for query " + sql + "\nplan is: "
-                        + sb.toString());
+                        + sb);
             }
         } catch (final Exception e) {
             LogUtil.w(TAG, "Query plan failed ", e);
-        } finally {
-            if (planCursor != null) {
-                planCursor.close();
-            }
         }
     }
 
@@ -420,24 +381,6 @@ public class DatabaseWrapper {
         mDatabase.setLocale(locale);
     }
 
-    public void execSQL(final String sql, final String[] bindArgs) {
-        long t1 = 0;
-        if (mLog) {
-            t1 = System.currentTimeMillis();
-        }
-        maybePlayDebugNoise();
-        try {
-            mDatabase.execSQL(sql, bindArgs);
-        } catch (SQLiteFullException ex) {
-            LogUtil.e(TAG, "Database full, unable to execSQL", ex);
-            UiUtils.showToastAtBottom(R.string.db_full);
-        }
-
-        if (mLog) {
-            printTiming(t1, String.format(Locale.US, "execSQL %s", sql));
-        }
-    }
-
     public void execSQL(final String sql) {
         long t1 = 0;
         if (mLog) {
@@ -454,26 +397,6 @@ public class DatabaseWrapper {
         if (mLog) {
             printTiming(t1, String.format(Locale.US, "execSQL %s", sql));
         }
-    }
-
-    public int execSQLUpdateDelete(final String sql) {
-        long t1 = 0;
-        if (mLog) {
-            t1 = System.currentTimeMillis();
-        }
-        maybePlayDebugNoise();
-        final SQLiteStatement statement = mDatabase.compileStatement(sql);
-        int rowsUpdated = 0;
-        try {
-            rowsUpdated = statement.executeUpdateDelete();
-        } catch (SQLiteFullException ex) {
-            LogUtil.e(TAG, "Database full, unable to execSQLUpdateDelete", ex);
-            UiUtils.showToastAtBottom(R.string.db_full);
-        }
-        if (mLog) {
-            printTiming(t1, String.format(Locale.US, "execSQLUpdateDelete %s", sql));
-        }
-        return rowsUpdated;
     }
 
     public SQLiteDatabase getDatabase() {

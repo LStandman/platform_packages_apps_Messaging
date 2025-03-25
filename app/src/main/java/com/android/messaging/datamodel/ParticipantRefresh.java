@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Utility class for refreshing participant information based on matching contact. This updates
  *     1. name, photo_uri, matching contact_id of participants.
  *     2. generated_name of conversations.
- *
+ * <p>
  * There are two kinds of participant refreshes,
  *     1. Full refresh, this is triggered at application start or activity resumes after contact
  *        change is detected.
@@ -86,29 +86,19 @@ public class ParticipantRefresh {
             ConversationParticipantsColumns.PARTICIPANT_ID
         };
 
-        public static final int INDEX_ID                        = 0;
         public static final int INDEX_CONVERSATION_ID           = 1;
-        public static final int INDEX_PARTICIPANT_ID            = 2;
     }
 
     // Track whether observer is initialized or not.
     private static volatile boolean sObserverInitialized = false;
     private static final Object sLock = new Object();
     private static final AtomicBoolean sFullRefreshScheduled = new AtomicBoolean(false);
-    private static final Runnable sFullRefreshRunnable = new Runnable() {
-        @Override
-        public void run() {
-            final boolean oldScheduled = sFullRefreshScheduled.getAndSet(false);
-            Assert.isTrue(oldScheduled);
-            refreshParticipants(REFRESH_MODE_FULL);
-        }
+    private static final Runnable sFullRefreshRunnable = () -> {
+        final boolean oldScheduled = sFullRefreshScheduled.getAndSet(false);
+        Assert.isTrue(oldScheduled);
+        refreshParticipants(REFRESH_MODE_FULL);
     };
-    private static final Runnable sSelfOnlyRefreshRunnable = new Runnable() {
-        @Override
-        public void run() {
-            refreshParticipants(REFRESH_MODE_SELF_ONLY);
-        }
-    };
+    private static final Runnable sSelfOnlyRefreshRunnable = () -> refreshParticipants(REFRESH_MODE_SELF_ONLY);
 
     /**
      * A customized content resolver to track contact changes.
@@ -240,7 +230,7 @@ public class ParticipantRefresh {
             refreshSelfParticipantList();
         }
 
-        final ArrayList<String> changedParticipants = new ArrayList<String>();
+        final ArrayList<String> changedParticipants = new ArrayList<>();
 
         String selection = null;
         String[] selectionArgs = null;
@@ -253,7 +243,6 @@ public class ParticipantRefresh {
         } else if (refreshMode == REFRESH_MODE_SELF_ONLY) {
             // In case of self-only refresh, filter out non-self participants.
             selection = SELF_PARTICIPANTS_CLAUSE;
-            selectionArgs = null;
         }
 
         final DatabaseWrapper db = DataModel.get().getDatabase();
@@ -295,7 +284,7 @@ public class ParticipantRefresh {
         }
 
         // Refresh conversations for participants that are changed.
-        if (changedParticipants.size() > 0) {
+        if (!changedParticipants.isEmpty()) {
             BugleDatabaseOperations.refreshConversationsForParticipants(changedParticipants);
         }
         if (selfUpdated) {
@@ -310,25 +299,19 @@ public class ParticipantRefresh {
             + ParticipantData.OTHER_THAN_SELF_SUB_ID
             + " )";
 
-    private static final Set<Integer> getExistingSubIds() {
+    private static Set<Integer> getExistingSubIds() {
         final DatabaseWrapper db = DataModel.get().getDatabase();
-        final HashSet<Integer> existingSubIds = new HashSet<Integer>();
+        final HashSet<Integer> existingSubIds = new HashSet<>();
 
-        Cursor cursor = null;
-        try {
-            cursor = db.query(DatabaseHelper.PARTICIPANTS_TABLE,
-                    ParticipantsQuery.PROJECTION,
-                    SELF_PARTICIPANTS_CLAUSE, null, null, null, null);
+        try (Cursor cursor = db.query(DatabaseHelper.PARTICIPANTS_TABLE,
+                ParticipantsQuery.PROJECTION,
+                SELF_PARTICIPANTS_CLAUSE, null, null, null, null)) {
 
             if (cursor != null) {
                 while (cursor.moveToNext()) {
                     final int subId = cursor.getInt(ParticipantsQuery.INDEX_SUB_ID);
                     existingSubIds.add(subId);
                 }
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
         return existingSubIds;
@@ -343,6 +326,7 @@ public class ParticipantRefresh {
 
     static String getUpdateSelfParticipantSubscriptionInfoSql(final int slotId,
             final int subscriptionColor, final String subscriptionName, final String where) {
+        //noinspection DataFlowIssue
         return String.format((Locale) null /* construct SQL string without localization */,
                 UPDATE_SELF_PARTICIPANT_SUBSCRIPTION_SQL,
                 slotId, subscriptionColor, subscriptionName, where);
@@ -358,7 +342,7 @@ public class ParticipantRefresh {
         final List<SubscriptionInfo> subInfoRecords =
                 PhoneUtils.getDefault().toLMr1().getActiveSubscriptionInfoList();
         final ArrayMap<Integer, SubscriptionInfo> activeSubscriptionIdToRecordMap =
-                new ArrayMap<Integer, SubscriptionInfo>();
+                new ArrayMap<>();
         db.beginTransaction();
         final Set<Integer> existingSubIds = getExistingSubIds();
 
@@ -386,6 +370,7 @@ public class ParticipantRefresh {
             // For subscriptions already in the database, refresh ParticipantColumns.SIM_SLOT_ID.
             for (final Integer subId : activeSubscriptionIdToRecordMap.keySet()) {
                 final SubscriptionInfo record = activeSubscriptionIdToRecordMap.get(subId);
+                assert record != null;
                 final String displayName =
                         DatabaseUtils.sqlEscapeString(Objects.toString(record.getDisplayName(), ""));
                 db.execSQL(getUpdateSelfParticipantSubscriptionInfoSql(record.getSimSlotIndex(),
@@ -451,9 +436,7 @@ public class ParticipantRefresh {
         // For self participant, try getting name/avatar from self profile in CP2 first.
         // TODO: in case of multi-sim, profile would not be able to be used for
         // different numbers. Need to figure out that.
-        Cursor selfCursor = null;
-        try {
-            selfCursor = ContactUtil.getSelf(db.getContext()).performSynchronousQuery();
+        try (Cursor selfCursor = ContactUtil.getSelf(db.getContext()).performSynchronousQuery()) {
             if (selfCursor != null && selfCursor.getCount() > 0) {
                 selfCursor.moveToNext();
                 final long selfContactId = selfCursor.getLong(ContactUtil.INDEX_CONTACT_ID);
@@ -473,10 +456,6 @@ public class ParticipantRefresh {
             // However, we need to at least log the exception so we know something was wrong.
             LogUtil.e(LogUtil.BUGLE_DATAMODEL_TAG, "Participant refresh: failed to refresh " +
                     "participant. exception=" + exception);
-        } finally {
-            if (selfCursor != null) {
-                selfCursor.close();
-            }
         }
         return changed;
     }
@@ -621,26 +600,20 @@ public class ParticipantRefresh {
      */
     private static List<String> getInactiveSelfParticipantIds() {
         final DatabaseWrapper db = DataModel.get().getDatabase();
-        final List<String> inactiveSelf = new ArrayList<String>();
+        final List<String> inactiveSelf = new ArrayList<>();
 
         final String selection = ParticipantColumns.SIM_SLOT_ID + "=? AND " +
                 SELF_PARTICIPANTS_CLAUSE;
-        Cursor cursor = null;
-        try {
-            cursor = db.query(DatabaseHelper.PARTICIPANTS_TABLE,
-                    new String[] { ParticipantColumns._ID },
-                    selection, new String[] { String.valueOf(ParticipantData.INVALID_SLOT_ID) },
-                    null, null, null);
+        try (Cursor cursor = db.query(DatabaseHelper.PARTICIPANTS_TABLE,
+                new String[]{ParticipantColumns._ID},
+                selection, new String[]{String.valueOf(ParticipantData.INVALID_SLOT_ID)},
+                null, null, null)) {
 
             if (cursor != null) {
                 while (cursor.moveToNext()) {
                     final String participantId = cursor.getString(0);
                     inactiveSelf.add(participantId);
                 }
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
 
@@ -652,7 +625,7 @@ public class ParticipantRefresh {
      */
     private static List<String> getConversationsWithSelfParticipantIds(final List<String> selfIds) {
         final DatabaseWrapper db = DataModel.get().getDatabase();
-        final List<String> conversationIds = new ArrayList<String>();
+        final List<String> conversationIds = new ArrayList<>();
 
         Cursor cursor = null;
         try {
@@ -711,12 +684,12 @@ public class ParticipantRefresh {
      */
     private static void refreshConversationSelfIds() {
         final List<String> inactiveSelfs = getInactiveSelfParticipantIds();
-        if (inactiveSelfs.size() == 0) {
+        if (inactiveSelfs.isEmpty()) {
             return;
         }
         final List<String> conversationsToRefresh =
                 getConversationsWithSelfParticipantIds(inactiveSelfs);
-        if (conversationsToRefresh.size() == 0) {
+        if (conversationsToRefresh.isEmpty()) {
             return;
         }
         final DatabaseWrapper db = DataModel.get().getDatabase();

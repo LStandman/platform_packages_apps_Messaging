@@ -68,7 +68,7 @@ import android.provider.ContactsContract.Contacts;
 
     };
 
-    static abstract class Query {
+    public static abstract class Query {
         private final String[] mProjection;
         private final Uri mContentFilterUri;
         private final Uri mContentUri;

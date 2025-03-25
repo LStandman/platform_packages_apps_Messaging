@@ -15,11 +15,15 @@
  */
 package com.android.messaging.receiver;
 
+import static android.telephony.SubscriptionManager.ACTION_DEFAULT_SMS_SUBSCRIPTION_CHANGED;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
 import com.android.messaging.datamodel.ParticipantRefresh;
+
+import java.util.Objects;
 
 /**
  * Responds to default SMS subscription selection changes from system Settings.
@@ -27,6 +31,7 @@ import com.android.messaging.datamodel.ParticipantRefresh;
 public class DefaultSmsSubscriptionChangeReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-         ParticipantRefresh.refreshSelfParticipants();
+        assert Objects.equals(intent.getAction(), ACTION_DEFAULT_SMS_SUBSCRIPTION_CHANGED);
+        ParticipantRefresh.refreshSelfParticipants();
     }
 }

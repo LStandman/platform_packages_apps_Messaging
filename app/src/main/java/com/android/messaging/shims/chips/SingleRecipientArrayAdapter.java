@@ -22,16 +22,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.shims.chips.DropdownChipLayouter.AdapterType;
 
 class SingleRecipientArrayAdapter extends ArrayAdapter<RecipientEntry> {
     private final DropdownChipLayouter mDropdownChipLayouter;
     private final StateListDrawable mDeleteDrawable;
-
-    public SingleRecipientArrayAdapter(Context context, RecipientEntry entry,
-        DropdownChipLayouter dropdownChipLayouter) {
-        this(context, entry, dropdownChipLayouter, null);
-    }
 
     public SingleRecipientArrayAdapter(Context context, RecipientEntry entry,
             DropdownChipLayouter dropdownChipLayouter, StateListDrawable deleteDrawable) {
@@ -43,8 +40,9 @@ class SingleRecipientArrayAdapter extends ArrayAdapter<RecipientEntry> {
         mDeleteDrawable = deleteDrawable;
     }
 
+    @NonNull
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
+    public View getView(int position, View convertView, @NonNull ViewGroup parent) {
         return mDropdownChipLayouter.bindView(convertView, parent, getItem(position), position,
                 AdapterType.SINGLE_RECIPIENT, null, mDeleteDrawable);
     }

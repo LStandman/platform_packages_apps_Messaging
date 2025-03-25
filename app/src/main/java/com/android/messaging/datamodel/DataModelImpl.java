@@ -43,7 +43,6 @@ import com.android.messaging.datamodel.data.PeopleAndOptionsData.PeopleAndOption
 import com.android.messaging.datamodel.data.PeopleOptionsItemData;
 import com.android.messaging.datamodel.data.SettingsData;
 import com.android.messaging.datamodel.data.SettingsData.SettingsDataListener;
-import com.android.messaging.datamodel.data.SubscriptionListData;
 import com.android.messaging.util.Assert;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 import com.android.messaging.util.ConnectivityUtil;
@@ -122,11 +121,6 @@ public class DataModelImpl extends DataModel {
     public ParticipantListItemData createParticipantListItemData(
             final ParticipantData participant) {
         return new ParticipantListItemData(participant);
-    }
-
-    @Override
-    public SubscriptionListData createSubscriptonListData(Context context) {
-        return new SubscriptionListData(context);
     }
 
     @Override

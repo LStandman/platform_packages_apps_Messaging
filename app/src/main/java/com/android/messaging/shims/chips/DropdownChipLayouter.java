@@ -13,14 +13,14 @@ import androidx.annotation.DrawableRes;
 import androidx.annotation.IdRes;
 import androidx.annotation.LayoutRes;
 import androidx.annotation.Nullable;
-import androidx.core.view.MarginLayoutParamsCompat;
+import androidx.appcompat.content.res.AppCompatResources;
+
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.ImageView;
@@ -28,6 +28,8 @@ import android.widget.TextView;
 
 import com.android.messaging.R;
 import com.android.messaging.shims.chips.Queries.Query;
+
+import java.util.Objects;
 
 /**
  * A class that inflates and binds the views in the dropdown list from
@@ -65,7 +67,7 @@ public class DropdownChipLayouter {
     private ChipDeleteListener mDeleteListener;
     private PermissionRequestDismissedListener mPermissionRequestDismissedListener;
     private Query mQuery;
-    private int mAutocompleteDividerMarginStart;
+    private final int mAutocompleteDividerMarginStart;
 
     public DropdownChipLayouter(LayoutInflater inflater, Context context) {
         mInflater = inflater;
@@ -84,10 +86,6 @@ public class DropdownChipLayouter {
 
     public void setPermissionRequestDismissedListener(PermissionRequestDismissedListener listener) {
         mPermissionRequestDismissedListener = listener;
-    }
-
-    public void setAutocompleteDividerMarginStart(int autocompleteDividerMarginStart) {
-        mAutocompleteDividerMarginStart = autocompleteDividerMarginStart;
     }
 
     /**
@@ -148,14 +146,10 @@ public class DropdownChipLayouter {
                 // For BASE_RECIPIENT set all top dividers except for the first one to be GONE.
                 if (viewHolder.topDivider != null) {
                     viewHolder.topDivider.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
-                    MarginLayoutParamsCompat.setMarginStart(
-                            (MarginLayoutParams) viewHolder.topDivider.getLayoutParams(),
-                            mAutocompleteDividerMarginStart);
+                    ((MarginLayoutParams) viewHolder.topDivider.getLayoutParams()).setMarginStart(mAutocompleteDividerMarginStart);
                 }
                 if (viewHolder.bottomDivider != null) {
-                    MarginLayoutParamsCompat.setMarginStart(
-                            (MarginLayoutParams) viewHolder.bottomDivider.getLayoutParams(),
-                            mAutocompleteDividerMarginStart);
+                    ((MarginLayoutParams) viewHolder.bottomDivider.getLayoutParams()).setMarginStart(mAutocompleteDividerMarginStart);
                 }
                 break;
             case RECIPIENT_ALTERNATES:
@@ -184,10 +178,6 @@ public class DropdownChipLayouter {
             setViewVisibility(viewHolder.personViewGroup, View.VISIBLE);
             setViewVisibility(viewHolder.permissionViewGroup, View.GONE);
             setViewVisibility(viewHolder.permissionBottomDivider, View.GONE);
-        } else if (entryType == RecipientEntry.ENTRY_TYPE_PERMISSION_REQUEST) {
-            setViewVisibility(viewHolder.personViewGroup, View.GONE);
-            setViewVisibility(viewHolder.permissionViewGroup, View.VISIBLE);
-            setViewVisibility(viewHolder.permissionBottomDivider, View.VISIBLE);
         }
 
         return itemView;
@@ -287,14 +277,7 @@ public class DropdownChipLayouter {
             view.setContentDescription(
                     res.getString(R.string.dropdown_delete_button_desc, recipient));
             if (mDeleteListener != null) {
-                view.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        if (drawable.getCurrent() != null) {
-                            mDeleteListener.onChipDelete();
-                        }
-                    }
-                });
+                view.setOnClickListener(view1 -> mDeleteListener.onChipDelete());
             }
         }
     }
@@ -307,7 +290,7 @@ public class DropdownChipLayouter {
                 view.setVisibility(View.VISIBLE);
                 final Drawable indicatorIcon;
                 if (indicatorIconId != 0) {
-                    indicatorIcon = mContext.getDrawable(indicatorIconId).mutate();
+                    indicatorIcon = Objects.requireNonNull(AppCompatResources.getDrawable(mContext, indicatorIconId)).mutate();
                     indicatorIcon.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
                 } else {
                     indicatorIcon = null;
@@ -324,12 +307,9 @@ public class DropdownChipLayouter {
         if (view == null) {
             return;
         }
-        view.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mPermissionRequestDismissedListener != null) {
-                    mPermissionRequestDismissedListener.onPermissionRequestDismissed();
-                }
+        view.setOnClickListener(v -> {
+            if (mPermissionRequestDismissedListener != null) {
+                mPermissionRequestDismissedListener.onPermissionRequestDismissed();
             }
         });
     }
@@ -347,38 +327,30 @@ public class DropdownChipLayouter {
 
     /**
      * Returns a layout id for each item inside auto-complete list.
-     *
+     * <p>
      * Each View must contain two TextViews (for display name and destination) and one ImageView
      * (for photo). Ids for those should be available via {@link #getDisplayNameResId()},
      * {@link #getDestinationResId()}, and {@link #getPhotoResId()}.
      */
     protected @LayoutRes int getItemLayoutResId(AdapterType type) {
-        switch (type) {
-            case BASE_RECIPIENT:
-                return R.layout.chips_autocomplete_recipient_dropdown_item;
-            case RECIPIENT_ALTERNATES:
-                return R.layout.chips_recipient_dropdown_item;
-            default:
-                return R.layout.chips_recipient_dropdown_item;
+        if (Objects.requireNonNull(type) == AdapterType.BASE_RECIPIENT) {
+            return R.layout.chips_autocomplete_recipient_dropdown_item;
         }
+        return R.layout.chips_recipient_dropdown_item;
     }
 
     /**
      * Returns a layout id for each item inside alternate auto-complete list.
-     *
+     * <p>
      * Each View must contain two TextViews (for display name and destination) and one ImageView
      * (for photo). Ids for those should be available via {@link #getDisplayNameResId()},
      * {@link #getDestinationResId()}, and {@link #getPhotoResId()}.
      */
     protected @LayoutRes int getAlternateItemLayoutResId(AdapterType type) {
-        switch (type) {
-            case BASE_RECIPIENT:
-                return R.layout.chips_autocomplete_recipient_dropdown_item;
-            case RECIPIENT_ALTERNATES:
-                return R.layout.chips_recipient_dropdown_item;
-            default:
-                return R.layout.chips_recipient_dropdown_item;
+        if (Objects.requireNonNull(type) == AdapterType.BASE_RECIPIENT) {
+            return R.layout.chips_autocomplete_recipient_dropdown_item;
         }
+        return R.layout.chips_recipient_dropdown_item;
     }
 
     /**
@@ -493,12 +465,13 @@ public class DropdownChipLayouter {
             }
 
             if (!foundMatch) {
+                assert constraint != null;
                 int index = result.toLowerCase().indexOf(constraint.toLowerCase());
                 if (index != -1) {
                     SpannableStringBuilder styled = SpannableStringBuilder.valueOf(result);
                     ForegroundColorSpan highlightSpan =
                             new ForegroundColorSpan(mContext.getResources().getColor(
-                                    R.color.chips_dropdown_text_highlighted));
+                                    R.color.chips_dropdown_text_highlighted, null));
                     styled.setSpan(highlightSpan,
                             index, index + constraint.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     styledResults[i] = styled;
@@ -545,22 +518,22 @@ public class DropdownChipLayouter {
         public final ImageView permissionRequestDismissView;
 
         public ViewHolder(View view) {
-            personViewGroup = (ViewGroup) view.findViewById(getPersonGroupResId());
-            displayNameView = (TextView) view.findViewById(getDisplayNameResId());
-            destinationView = (TextView) view.findViewById(getDestinationResId());
-            destinationTypeView = (TextView) view.findViewById(getDestinationTypeResId());
-            imageView = (ImageView) view.findViewById(getPhotoResId());
-            deleteView = (ImageView) view.findViewById(getDeleteResId());
+            personViewGroup = view.findViewById(getPersonGroupResId());
+            displayNameView = view.findViewById(getDisplayNameResId());
+            destinationView = view.findViewById(getDestinationResId());
+            destinationTypeView = view.findViewById(getDestinationTypeResId());
+            imageView = view.findViewById(getPhotoResId());
+            deleteView = view.findViewById(getDeleteResId());
             topDivider = view.findViewById(R.id.chip_autocomplete_top_divider);
 
             bottomDivider = view.findViewById(R.id.chip_autocomplete_bottom_divider);
             permissionBottomDivider = view.findViewById(R.id.chip_permission_bottom_divider);
 
-            indicatorView = (TextView) view.findViewById(R.id.chip_indicator_text);
+            indicatorView = view.findViewById(R.id.chip_indicator_text);
 
-            permissionViewGroup = (ViewGroup) view.findViewById(getPermissionGroupResId());
+            permissionViewGroup = view.findViewById(getPermissionGroupResId());
             permissionRequestDismissView =
-                    (ImageView) view.findViewById(getPermissionRequestDismissResId());
+                    view.findViewById(getPermissionRequestDismissResId());
         }
     }
 }

@@ -16,6 +16,8 @@
 
 package com.android.messaging.receiver;
 
+import static android.app.NotificationChannel.DEFAULT_CHANNEL_ID;
+
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -54,7 +56,7 @@ import com.android.messaging.util.PhoneUtils;
 
 /**
  * Class that receives incoming SMS messages through android.provider.Telephony.SMS_RECEIVED
- *
+ * <p>
  * This class serves two purposes:
  * - Process phone verification SMS messages
  * - Handle SMS messages when the user has enabled us to be the default SMS app (Pre-KLP)
@@ -188,13 +190,13 @@ public final class SmsReceiver extends BroadcastReceiver {
         }
     }
 
-    public static void postNewMessageSecondaryUserNotification() {
+    public static void postNewMessageSecondaryUserNotification() throws SecurityException {
         final Context context = Factory.get().getApplicationContext();
         final Resources resources = context.getResources();
         final PendingIntent pendingIntent = UIIntents.get()
                 .getPendingIntentForSecondaryUserNewMessageNotification(context);
 
-        final NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
+        final NotificationCompat.Builder builder = new NotificationCompat.Builder(context, DEFAULT_CHANNEL_ID);
         builder.setContentTitle(resources.getString(R.string.secondary_user_new_message_title))
                 .setTicker(resources.getString(R.string.secondary_user_new_message_ticker))
                 .setSmallIcon(R.drawable.ic_sms_light)
@@ -215,6 +217,7 @@ public final class SmsReceiver extends BroadcastReceiver {
         if (BugleNotifications.shouldVibrate(new SecondaryUserNotificationState())) {
             defaults |= Notification.DEFAULT_VIBRATE;
         }
+        assert notification != null;
         notification.defaults = defaults;
 
         notificationManager.notify(getNotificationTag(),
@@ -246,13 +249,13 @@ public final class SmsReceiver extends BroadcastReceiver {
         if (smsIgnoreRegex != null) {
             final String[] ignoreSmsExpressions = smsIgnoreRegex.split("\n");
             if (ignoreSmsExpressions.length != 0) {
-                sIgnoreSmsPatterns = new ArrayList<Pattern>();
-                for (int i = 0; i < ignoreSmsExpressions.length; i++) {
+                sIgnoreSmsPatterns = new ArrayList<>();
+                for (String ignoreSmsExpression : ignoreSmsExpressions) {
                     try {
-                        sIgnoreSmsPatterns.add(Pattern.compile(ignoreSmsExpressions[i]));
+                        sIgnoreSmsPatterns.add(Pattern.compile(ignoreSmsExpression));
                     } catch (PatternSyntaxException e) {
                         LogUtil.e(TAG, "compileIgnoreSmsPatterns: Skipping bad expression: " +
-                                ignoreSmsExpressions[i]);
+                                ignoreSmsExpression);
                     }
                 }
             }
@@ -294,12 +297,4 @@ public final class SmsReceiver extends BroadcastReceiver {
         return messages;
     }
 
-
-    /**
-     * Check the specified SMS intent to see if the message should be ignored
-     * @return true if the message should be ignored
-     */
-    public static boolean shouldIgnoreMessage(Intent intent) {
-        return getMessagesFromIntent(intent) == null;
-    }
 }

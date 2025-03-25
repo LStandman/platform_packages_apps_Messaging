@@ -34,7 +34,7 @@ public class MessageTextStats {
         return mCodePointsRemainingInCurrentMessage;
     }
 
-    public void updateMessageTextStats(final int selfSubId, final String messageText) {
+    public void updateMessageTextStats(final String messageText) {
         final int[] params = SmsMessage.calculateLength(messageText, false);
         /* SmsMessage.calculateLength returns an int[4] with:
          *   int[0] being the number of SMS's required,

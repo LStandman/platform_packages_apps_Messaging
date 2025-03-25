@@ -32,6 +32,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CursorAdapter;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.shims.chips.BaseRecipientAdapter.DirectoryListQuery;
 import com.android.messaging.shims.chips.BaseRecipientAdapter.DirectorySearchParams;
 import com.android.messaging.shims.chips.DropdownChipLayouter.AdapterType;
@@ -53,26 +55,23 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
 
     private final long mCurrentId;
 
-    private int mCheckedItemPosition = -1;
-
-    private OnCheckedItemChangedListener mCheckedItemChangedListener;
+    private final OnCheckedItemChangedListener mCheckedItemChangedListener;
 
     private static final String TAG = "RecipAlternates";
 
     public static final int QUERY_TYPE_EMAIL = 0;
-    public static final int QUERY_TYPE_PHONE = 1;
     private final Long mDirectoryId;
-    private DropdownChipLayouter mDropdownChipLayouter;
+    private final DropdownChipLayouter mDropdownChipLayouter;
     private final StateListDrawable mDeleteDrawable;
 
-    private static final Map<String, String> sCorrectedPhotoUris = new HashMap<String, String>();
+    private static final Map<String, String> sCorrectedPhotoUris = new HashMap<>();
 
     public interface RecipientMatchCallback {
-        public void matchesFound(Map<String, RecipientEntry> results);
+        void matchesFound(Map<String, RecipientEntry> results);
         /**
          * Called with all addresses that could not be resolved to valid recipients.
          */
-        public void matchesNotFound(Set<String> unfoundAddresses);
+        void matchesNotFound(Set<String> unfoundAddresses);
     }
 
     public static void getMatchingRecipients(Context context, BaseRecipientAdapter adapter,
@@ -99,7 +98,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
             query = Queries.PHONE;
         }
         int addressesSize = Math.min(MAX_LOOKUPS, inAddresses.size());
-        HashSet<String> addresses = new HashSet<String>();
+        HashSet<String> addresses = new HashSet<>();
         StringBuilder bindString = new StringBuilder();
         // Create the "?" string and set up arguments.
         for (int i = 0; i < addressesSize; i++) {
@@ -112,29 +111,23 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
         }
 
         if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "Doing reverse lookup for " + addresses.toString());
+            Log.d(TAG, "Doing reverse lookup for " + addresses);
         }
 
         String[] addressArray = new String[addresses.size()];
         addresses.toArray(addressArray);
-        HashMap<String, RecipientEntry> recipientEntries = null;
-        Cursor c = null;
+        HashMap<String, RecipientEntry> recipientEntries;
 
-        try {
-            c = context.getContentResolver().query(
-                    query.getContentUri(),
-                    query.getProjection(),
-                    query.getProjection()[Queries.Query.DESTINATION] + " IN ("
-                            + bindString.toString() + ")", addressArray, null);
+        try (Cursor c = context.getContentResolver().query(
+                query.getContentUri(),
+                query.getProjection(),
+                query.getProjection()[Query.DESTINATION] + " IN ("
+                        + bindString + ")", addressArray, null)) {
             recipientEntries = processContactEntries(c, null /* directoryId */);
             callback.matchesFound(recipientEntries);
-        } finally {
-            if (c != null) {
-                c.close();
-            }
         }
 
-        final Set<String> matchesNotFound = new HashSet<String>();
+        final Set<String> matchesNotFound = new HashSet<>();
 
         getMatchingRecipientsFromDirectoryQueries(context, recipientEntries,
                 addresses, account, matchesNotFound, query, callback);
@@ -151,7 +144,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
 
         if (recipientEntries.size() < addresses.size()) {
             // Run a directory query for each unmatched recipient.
-            HashSet<String> unresolvedAddresses = new HashSet<String>();
+            HashSet<String> unresolvedAddresses = new HashSet<>();
             for (String address : addresses) {
                 if (!recipientEntries.containsKey(address)) {
                     unresolvedAddresses.add(address);
@@ -160,48 +153,40 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
             matchesNotFound.addAll(unresolvedAddresses);
 
             final List<DirectorySearchParams> paramsList;
-            Cursor directoryCursor = null;
-            try {
-                directoryCursor = context.getContentResolver().query(
-                        DirectoryListQuery.URI, DirectoryListQuery.PROJECTION,
-                        null, null, null);
+            try (Cursor directoryCursor = context.getContentResolver().query(
+                    DirectoryListQuery.URI, DirectoryListQuery.PROJECTION,
+                    null, null, null)) {
                 if (directoryCursor == null) {
                     return;
                 }
                 paramsList = BaseRecipientAdapter.setupOtherDirectories(
                         context, directoryCursor, account);
-            } finally {
-                if (directoryCursor != null) {
-                    directoryCursor.close();
-                }
             }
 
-            if (paramsList != null) {
-                Cursor directoryContactsCursor = null;
-                for (String unresolvedAddress : unresolvedAddresses) {
-                    for (int i = 0; i < paramsList.size(); i++) {
-                        final long directoryId = paramsList.get(i).directoryId;
-                        try {
-                            directoryContactsCursor = doQuery(unresolvedAddress, 1 /* limit */,
-                                    directoryId, account, context, query);
-                            if (directoryContactsCursor != null
-                                    && directoryContactsCursor.getCount() != 0) {
-                                // We found the directory with at least one contact
-                                final Map<String, RecipientEntry> entries =
-                                        processContactEntries(directoryContactsCursor, directoryId);
+            Cursor directoryContactsCursor = null;
+            for (String unresolvedAddress : unresolvedAddresses) {
+                for (int i = 0; i < paramsList.size(); i++) {
+                    final long directoryId = paramsList.get(i).directoryId;
+                    try {
+                        directoryContactsCursor = doQuery(unresolvedAddress,  /* limit */
+                                directoryId, account, context, query);
+                        if (directoryContactsCursor != null
+                                && directoryContactsCursor.getCount() != 0) {
+                            // We found the directory with at least one contact
+                            final Map<String, RecipientEntry> entries =
+                                    processContactEntries(directoryContactsCursor, directoryId);
 
-                                for (final String address : entries.keySet()) {
-                                    matchesNotFound.remove(address);
-                                }
+                            for (final String address : entries.keySet()) {
+                                matchesNotFound.remove(address);
+                            }
 
-                                callback.matchesFound(entries);
-                                break;
-                            }
-                        } finally {
-                            if (directoryContactsCursor != null) {
-                                directoryContactsCursor.close();
-                                directoryContactsCursor = null;
-                            }
+                            callback.matchesFound(entries);
+                            break;
+                        }
+                    } finally {
+                        if (directoryContactsCursor != null) {
+                            directoryContactsCursor.close();
+                            directoryContactsCursor = null;
                         }
                     }
                 }
@@ -216,8 +201,8 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
         // todo (aalbert): This whole method needs to be in the adapter?
         if (adapter != null) {
             final Map<String, RecipientEntry> entries =
-                    adapter.getMatchingRecipients(matchesNotFound);
-            if (entries != null && entries.size() > 0) {
+                    adapter.getMatchingRecipients();
+            if (entries != null && !entries.isEmpty()) {
                 callback.matchesFound(entries);
                 for (final String address : entries.keySet()) {
                     matchesNotFound.remove(address);
@@ -229,7 +214,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
 
     private static HashMap<String, RecipientEntry> processContactEntries(Cursor c,
             Long directoryId) {
-        HashMap<String, RecipientEntry> recipientEntries = new HashMap<String, RecipientEntry>();
+        HashMap<String, RecipientEntry> recipientEntries = new HashMap<>();
         if (c != null && c.moveToFirst()) {
             do {
                 String address = c.getString(Queries.Query.DESTINATION);
@@ -312,23 +297,24 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
             return entry1;
         }
 
-        if ((entry2.getPhotoThumbnailUri() != null || entry2.getPhotoBytes() != null)
-                && (entry1.getPhotoThumbnailUri() == null && entry1.getPhotoBytes() == null)) {
-            return entry2;
+        if ((entry2.getPhotoThumbnailUri() != null || entry2.getPhotoBytes() != null)) {
+            if (entry1.getPhotoThumbnailUri() == null) {
+                entry1.getPhotoBytes();
+            }
         }
 
         // Go with the second option as a default
         return entry2;
     }
 
-    private static Cursor doQuery(CharSequence constraint, int limit, Long directoryId,
-            Account account, Context context, Query query) {
+    private static Cursor doQuery(CharSequence constraint, Long directoryId,
+                                  Account account, Context context, Query query) {
         final Uri.Builder builder = query
                 .getContentFilterUri()
                 .buildUpon()
                 .appendPath(constraint.toString())
                 .appendQueryParameter(ContactsContract.LIMIT_PARAM_KEY,
-                        String.valueOf(limit + BaseRecipientAdapter.ALLOWANCE_FOR_DUPLICATES));
+                        String.valueOf(1 + BaseRecipientAdapter.ALLOWANCE_FOR_DUPLICATES));
         if (directoryId != null) {
             builder.appendQueryParameter(ContactsContract.DIRECTORY_PARAM_KEY,
                     String.valueOf(directoryId));
@@ -393,14 +379,13 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
             }
         }
 
-        final String selection = new StringBuilder()
-                .append(projection[Queries.Query.CONTACT_ID])
-                .append(" = ?")
-                .toString();
+        final String selection = projection[Query.CONTACT_ID] +
+                " = ?";
         final Cursor cursor;
         cursor = context.getContentResolver().query(
                 uri, projection, selection, new String[] {String.valueOf(contactId)}, null);
 
+        assert cursor != null;
         final Cursor resultCursor = removeUndesiredDestinations(cursor, desiredMimeType, lookupKey);
         cursor.close();
 
@@ -409,7 +394,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
 
     /**
      * @return a new cursor based on the given cursor with all duplicate destinations removed.
-     *
+     * <p>
      * It's only intended to use for the alternate list, so...
      * - This method ignores all other fields and dedupe solely on the destination.  Normally,
      * if a cursor contains multiple contacts and they have the same destination, we'd still want
@@ -428,7 +413,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
             final String lookupKey) {
         final MatrixCursor result = new MatrixCursor(
                 original.getColumnNames(), original.getCount());
-        final HashSet<String> destinationsSeen = new HashSet<String>();
+        final HashSet<String> destinationsSeen = new HashSet<>();
 
         String defaultDisplayName = null;
         String defaultPhotoThumbnailUri = null;
@@ -495,18 +480,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
                 if (sCorrectedPhotoUris.containsKey(photoThumbnailUri)) {
                     row[Query.PHOTO_THUMBNAIL_URI] = sCorrectedPhotoUris.get(photoThumbnailUri);
                 } else if (photoThumbnailUri.indexOf('?') != photoThumbnailUri.lastIndexOf('?')) {
-                    final String[] parts = photoThumbnailUri.split("\\?");
-                    final StringBuilder correctedUriBuilder = new StringBuilder();
-                    for (int i = 0; i < parts.length; i++) {
-                        if (i == 1) {
-                            correctedUriBuilder.append("?"); // We only want one of these
-                        } else if (i > 1) {
-                            correctedUriBuilder.append("&"); // And we want these elsewhere
-                        }
-                        correctedUriBuilder.append(parts[i]);
-                    }
-
-                    final String correctedUri = correctedUriBuilder.toString();
+                    final String correctedUri = getCorrectedUri(photoThumbnailUri);
                     sCorrectedPhotoUris.put(photoThumbnailUri, correctedUri);
                     row[Query.PHOTO_THUMBNAIL_URI] = correctedUri;
                 }
@@ -516,6 +490,22 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
         }
 
         return result;
+    }
+
+    @NonNull
+    private static String getCorrectedUri(String photoThumbnailUri) {
+        final String[] parts = photoThumbnailUri.split("\\?");
+        final StringBuilder correctedUriBuilder = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (i == 1) {
+                correctedUriBuilder.append("?"); // We only want one of these
+            } else if (i > 1) {
+                correctedUriBuilder.append("&"); // And we want these elsewhere
+            }
+            correctedUriBuilder.append(parts[i]);
+        }
+
+        return correctedUriBuilder.toString();
     }
 
     @Override
@@ -552,9 +542,8 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
             convertView = mDropdownChipLayouter.newView(AdapterType.RECIPIENT_ALTERNATES);
         }
         if (cursor.getLong(Queries.Query.DATA_ID) == mCurrentId) {
-            mCheckedItemPosition = position;
             if (mCheckedItemChangedListener != null) {
-                mCheckedItemChangedListener.onCheckedItemChanged(mCheckedItemPosition);
+                mCheckedItemChangedListener.onCheckedItemChanged(position);
             }
         }
         bindView(convertView, convertView.getContext(), cursor);
@@ -575,7 +564,7 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
         return mDropdownChipLayouter.newView(AdapterType.RECIPIENT_ALTERNATES);
     }
 
-    /*package*/ static interface OnCheckedItemChangedListener {
-        public void onCheckedItemChanged(int position);
+    /*package*/ public interface OnCheckedItemChangedListener {
+        void onCheckedItemChanged(int position);
     }
 }

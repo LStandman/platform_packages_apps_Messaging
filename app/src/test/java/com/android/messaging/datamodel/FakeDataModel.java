@@ -45,7 +45,6 @@ import com.android.messaging.datamodel.data.PeopleAndOptionsData.PeopleAndOption
 import com.android.messaging.datamodel.data.PeopleOptionsItemData;
 import com.android.messaging.datamodel.data.SettingsData;
 import com.android.messaging.datamodel.data.SettingsData.SettingsDataListener;
-import com.android.messaging.datamodel.data.SubscriptionListData;
 import com.android.messaging.datamodel.data.TestDataFactory;
 import com.android.messaging.datamodel.data.VCardContactItemData;
 
@@ -190,11 +189,6 @@ public class FakeDataModel extends DataModel {
     public ParticipantListItemData createParticipantListItemData(
             final ParticipantData participant) {
         return new ParticipantListItemData(participant);
-    }
-
-    @Override
-    public SubscriptionListData createSubscriptonListData(Context context) {
-        return new SubscriptionListData(context);
     }
 
     @Override

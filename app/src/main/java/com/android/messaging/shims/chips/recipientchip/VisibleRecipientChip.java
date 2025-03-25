@@ -20,6 +20,8 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.shims.chips.RecipientEntry;
 
 /**
@@ -100,6 +102,7 @@ public class VisibleRecipientChip extends ReplacementDrawableSpan implements Dra
         mDrawable.draw(canvas);
     }
 
+    @NonNull
     @Override
     public String toString() {
         return mDelegate.toString();

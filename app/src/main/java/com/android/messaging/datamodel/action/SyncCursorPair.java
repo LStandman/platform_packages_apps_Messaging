@@ -371,7 +371,6 @@ class SyncCursorPair {
                             + smsSelection);
                 }
                 mSmsCursor = SqliteWrapper.query(
-                        context,
                         context.getContentResolver(),
                         Sms.CONTENT_URI,
                         SmsMessage.getProjection(),
@@ -518,7 +517,6 @@ class SyncCursorPair {
                     null/*orderBy*/);
             final int localCount = getCountFromCursor(localCursor);
             remoteSmsCursor = SqliteWrapper.query(
-                    context,
                     context.getContentResolver(),
                     Sms.CONTENT_URI,
                     COUNT_PROJECTION,

@@ -25,6 +25,8 @@ import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.ConversationIdSet;
 import com.android.messaging.util.LogUtil;
 
+import java.util.Objects;
+
 // NotificationReceiver is used to handle delete intents from notifications. When a user
 // clears all notifications or swipes a bugle notification away, the intent we pass in as
 // the delete intent will get handled here.
@@ -38,7 +40,7 @@ public class NotificationReceiver extends BroadcastReceiver {
         if (VERBOSE) {
             LogUtil.v(TAG, "NotificationReceiver.onReceive: intent " + intent);
         }
-        if (intent.getAction().equals(UIIntents.ACTION_RESET_NOTIFICATIONS)) {
+        if (Objects.equals(intent.getAction(), UIIntents.ACTION_RESET_NOTIFICATIONS)) {
             final String conversationIdSetString =
                     intent.getStringExtra(UIIntents.UI_INTENT_EXTRA_CONVERSATION_ID_SET);
             if (conversationIdSetString == null) {

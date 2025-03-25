@@ -40,14 +40,6 @@ public class RecipientEntry {
 
     public static final int ENTRY_TYPE_PERSON = 0;
 
-    /**
-     * Entry of this type represents the item in auto-complete that asks user to grant permissions
-     * to the app. This permission model is introduced in M platform.
-     *
-     * <p>Entries of this type should have {@link #mPermissions} set as well.
-     */
-    public static final int ENTRY_TYPE_PERMISSION_REQUEST = 1;
-
     public static final int ENTRY_TYPE_SIZE = 2;
 
     private final int mEntryType;
@@ -89,10 +81,10 @@ public class RecipientEntry {
     @DrawableRes private int mIndicatorIconId;
     private String mIndicatorText;
 
-    /** See {@link android.provider.ContactsContract.ContactsColumns#LOOKUP_KEY} */
+    /** See {android.provider.ContactsContract.ContactsColumns#LOOKUP_KEY} */
     private final String mLookupKey;
 
-    /** Should be used when type is {@link #ENTRY_TYPE_PERMISSION_REQUEST}. */
+    /** Should be used when type is {ENTRY_TYPE_PERMISSION_REQUEST}. */
     private final String[] mPermissions;
 
     /** Whether RecipientEntry is in a replaced chip or not. */
@@ -286,7 +278,7 @@ public class RecipientEntry {
     }
 
     /**
-     * Used together with {@link #ENTRY_TYPE_PERMISSION_REQUEST} and indicates what permissions we
+     * Used together with {#ENTRY_TYPE_PERMISSION_REQUEST} and indicates what permissions we
      * need to ask user to grant.
      */
     public String[] getPermissions() {
@@ -298,7 +290,7 @@ public class RecipientEntry {
     }
 
     public boolean isSelectable() {
-        return mEntryType == ENTRY_TYPE_PERSON || mEntryType == ENTRY_TYPE_PERMISSION_REQUEST;
+        return mEntryType == ENTRY_TYPE_PERSON;
     }
 
     @Override

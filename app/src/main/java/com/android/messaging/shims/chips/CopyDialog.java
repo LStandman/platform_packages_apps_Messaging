@@ -2,7 +2,9 @@ package com.android.messaging.shims.chips;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.DialogFragment;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.DialogFragment;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -30,9 +32,11 @@ public class CopyDialog extends DialogFragment implements DialogInterface.OnClic
         return fragment;
     }
 
+    @NonNull
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         final Bundle args = getArguments();
+        assert args != null;
         mText = args.getString(ARG_TEXT);
 
         return new AlertDialog.Builder(getActivity())
@@ -46,7 +50,7 @@ public class CopyDialog extends DialogFragment implements DialogInterface.OnClic
     public void onClick(DialogInterface dialog, int which) {
         if (which == DialogInterface.BUTTON_POSITIVE) {
             final ClipboardManager clipboard = (ClipboardManager)
-                    getActivity().getSystemService(Context.CLIPBOARD_SERVICE);
+                    requireActivity().getSystemService(Context.CLIPBOARD_SERVICE);
             clipboard.setPrimaryClip(ClipData.newPlainText(null, mText));
         }
     }

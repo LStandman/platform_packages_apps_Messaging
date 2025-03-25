@@ -168,7 +168,7 @@ public class SyncManager {
     public synchronized void onNewMessageInserted(final long timestamp) {
         if (mCurrentUpperBoundTimestamp >= 0 && timestamp <= mCurrentUpperBoundTimestamp) {
             // Message insert in current sync window
-            mMaxRecentChangeTimestamp = Math.max(mCurrentUpperBoundTimestamp, timestamp);
+            mMaxRecentChangeTimestamp = mCurrentUpperBoundTimestamp;
             if (LogUtil.isLoggable(TAG, LogUtil.DEBUG)) {
                 LogUtil.d(TAG, "SyncManager: New message @ " + timestamp + " before upper bound of "
                         + "current sync batch " + mCurrentUpperBoundTimestamp);
@@ -326,11 +326,6 @@ public class SyncManager {
         }
     }
 
-    public synchronized void setCustomization(
-            final LongSparseArray<ConversationCustomization> customization) {
-        this.mCustomization = customization;
-    }
-
     public synchronized ConversationCustomization getCustomizationForThread(final long threadId) {
         if (mCustomization != null) {
             return mCustomization.get(threadId);
@@ -374,9 +369,7 @@ public class SyncManager {
                 // action there is a check for recent messages that should catch new changes.
                 SyncManager.immediateSync();
             }
-            if (mNotifyOnChanges) {
-                // TODO: Secondary users are not going to get notifications
-            }
+            // TODO: Secondary users are not going to get notifications
         }
     }
 
@@ -387,11 +380,11 @@ public class SyncManager {
     public static class ThreadInfoCache {
         // Cache of thread->conversationId map
         private final LongSparseArray<String> mThreadToConversationId =
-                new LongSparseArray<String>();
+                new LongSparseArray<>();
 
         // Cache of thread->recipients map
         private final LongSparseArray<List<String>> mThreadToRecipients =
-                new LongSparseArray<List<String>>();
+                new LongSparseArray<>();
 
         // Remember the conversation ids that need to be archived
         private final HashSet<String> mArchivedConversations = new HashSet<>();
@@ -460,13 +453,12 @@ public class SyncManager {
          * Load the recipients of a thread from telephony provider. If we fail, use
          * a predefined unknown recipient. This should not return null.
          *
-         * @param threadId
          */
         public synchronized List<String> getThreadRecipients(final long threadId) {
             List<String> recipients = mThreadToRecipients.get(threadId);
             if (recipients == null) {
                 recipients = MmsUtils.getRecipientsByThread(threadId);
-                if (recipients != null && recipients.size() > 0) {
+                if (recipients != null && !recipients.isEmpty()) {
                     mThreadToRecipients.put(threadId, recipients);
                 }
             }

@@ -548,7 +548,6 @@ public class MmsUtils {
                 final Context context = Factory.get().getApplicationContext();
                 final ContentResolver resolver = context.getContentResolver();
                 cursor = SqliteWrapper.query(
-                        context,
                         resolver,
                         Sms.CONTENT_URI,
                         TEST_DATE_SENT_PROJECTION,

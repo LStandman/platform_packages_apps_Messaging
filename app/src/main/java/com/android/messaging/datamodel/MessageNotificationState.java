@@ -16,6 +16,7 @@
 package com.android.messaging.datamodel;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.res.Resources;
@@ -24,18 +25,13 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationCompat.Builder;
-import androidx.core.app.NotificationCompat.WearableExtender;
 import androidx.core.app.NotificationManagerCompat;
-import android.text.Html;
 import android.text.Spannable;
-import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
-import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.text.style.TextAppearanceSpan;
-import android.text.style.URLSpan;
 
 import com.android.messaging.Factory;
 import com.android.messaging.R;
@@ -65,10 +61,11 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Notification building class for conversation messages.
- *
+ * <p>
  * Message Notifications are built in several stages with several utility classes.
  * 1) Perform a database query and fill a data structure with information on messages and
  *    conversations which need to be notified.
@@ -76,22 +73,20 @@ import java.util.Map;
  *    represent all the notifications.
  *    -- For one or more messages in one conversation: MultiMessageNotificationState.
  *    -- For multiple messages in multiple conversations: MultiConversationNotificationState
- *
+ * <p>
  *  A three level structure is used to coalesce the data from the database. From bottom to top:
  *  1) NotificationLineInfo - A single message that needs to be notified.
  *  2) ConversationLineInfo - A list of NotificationLineInfo in a single conversation.
  *  3) ConversationInfoList - A list of ConversationLineInfo and the total number of messages.
- *
+ * <p>
  *  The createConversationInfoList function performs the query and creates the data structure.
  */
 public abstract class MessageNotificationState extends NotificationState {
     // Logging
     static final String TAG = LogUtil.BUGLE_NOTIFICATIONS_TAG;
-    private static final int MAX_MESSAGES_IN_WEARABLE_PAGE = 20;
 
     private static final int MAX_CHARACTERS_IN_GROUP_NAME = 30;
 
-    private static final int REPLY_INTENT_REQUEST_CODE_OFFSET = 0;
     private static final int NUM_EXTRA_REQUEST_CODES_NEEDED = 1;
     protected String mTickerSender = null;
     protected CharSequence mTickerText = null;
@@ -99,16 +94,6 @@ public abstract class MessageNotificationState extends NotificationState {
     protected CharSequence mContent = null;
     protected Uri mAttachmentUri = null;
     protected String mAttachmentType = null;
-
-    @Override
-    protected Uri getAttachmentUri() {
-        return mAttachmentUri;
-    }
-
-    @Override
-    protected String getAttachmentType() {
-        return mAttachmentType;
-    }
 
     @Override
     public int getIcon() {
@@ -129,10 +114,6 @@ public abstract class MessageNotificationState extends NotificationState {
     static class NotificationLineInfo {
 
         final int mNotificationType;
-
-        NotificationLineInfo() {
-            mNotificationType = BugleNotifications.LOCAL_SMS_NOTIFICATION;
-        }
 
         NotificationLineInfo(final int notificationType) {
             mNotificationType = notificationType;
@@ -169,7 +150,7 @@ public abstract class MessageNotificationState extends NotificationState {
     /**
      * Information on all the notification messages within a single conversation.
      */
-    static class ConversationLineInfo {
+    public static class ConversationLineInfo {
         // Conversation id of the latest message in the notification for this merged conversation.
         final String mConversationId;
 
@@ -236,7 +217,7 @@ public abstract class MessageNotificationState extends NotificationState {
             mIncludeEmailAddress = includeEmailAddress;
             mReceivedTimestamp = receivedTimestamp;
             mSelfParticipantId = selfParticipantId;
-            mLineInfos = new ArrayList<NotificationLineInfo>();
+            mLineInfos = new ArrayList<>();
             mTotalMessageCount = 0;
             mRingtoneUri = ringtoneUri;
             mAvatarUri = avatarUri;
@@ -255,25 +236,9 @@ public abstract class MessageNotificationState extends NotificationState {
             return messageLineInfo.mNotificationType;
         }
 
-        public String getLatestMessageId() {
-            final MessageLineInfo messageLineInfo = getLatestMessageLineInfo();
-            if (messageLineInfo == null) {
-                return null;
-            }
-            return messageLineInfo.mMessageId;
-        }
-
-        public boolean getDoesLatestMessageNeedDownload() {
-            final MessageLineInfo messageLineInfo = getLatestMessageLineInfo();
-            if (messageLineInfo == null) {
-                return false;
-            }
-            return messageLineInfo.mIsManualDownloadNeeded;
-        }
-
         private MessageLineInfo getLatestMessageLineInfo() {
             // The latest message is stored at index zero of the message line infos.
-            if (mLineInfos.size() > 0 && mLineInfos.get(0) instanceof MessageLineInfo) {
+            if (!mLineInfos.isEmpty() && mLineInfos.get(0) instanceof MessageLineInfo) {
                 return (MessageLineInfo) mLineInfos.get(0);
             }
             return null;
@@ -297,7 +262,7 @@ public abstract class MessageNotificationState extends NotificationState {
 
     private static ConversationIdSet makeConversationIdSet(final ConversationInfoList convList) {
         ConversationIdSet set = null;
-        if (convList != null && convList.mConvInfos != null && convList.mConvInfos.size() > 0) {
+        if (convList != null && convList.mConvInfos != null && !convList.mConvInfos.isEmpty()) {
             set = new ConversationIdSet();
             for (final ConversationLineInfo info : convList.mConvInfos) {
                     set.add(info.mConversationId);
@@ -331,14 +296,6 @@ public abstract class MessageNotificationState extends NotificationState {
         return super.getNumRequestCodesNeeded() + NUM_EXTRA_REQUEST_CODES_NEEDED;
     }
 
-    private int getBaseExtraRequestCode() {
-        return mBaseRequestCode + super.getNumRequestCodesNeeded();
-    }
-
-    public int getReplyIntentRequestCode() {
-        return getBaseExtraRequestCode() + REPLY_INTENT_REQUEST_CODE_OFFSET;
-    }
-
     @Override
     public PendingIntent getClearIntent() {
         return UIIntents.get().getPendingIntentForClearingNotifications(
@@ -354,7 +311,7 @@ public abstract class MessageNotificationState extends NotificationState {
     public static class MultiConversationNotificationState extends MessageNotificationState {
 
         public final List<MessageNotificationState>
-                mChildren = new ArrayList<MessageNotificationState>();
+                mChildren = new ArrayList<>();
 
         public MultiConversationNotificationState(
                 final ConversationInfoList convList, final MessageNotificationState state) {
@@ -376,7 +333,7 @@ public abstract class MessageNotificationState extends NotificationState {
                 if (!(convInfo.mLineInfos.get(0) instanceof MessageLineInfo)) {
                     continue;
                 }
-                setPeopleForConversation(convInfo.mConversationId);
+                setPeopleForConversation();
                 final ConversationInfoList list = new ConversationInfoList(
                         convInfo.mTotalMessageCount, Lists.newArrayList(convInfo));
                 mChildren.add(new BundledMessageNotificationState(list, i));
@@ -391,7 +348,7 @@ public abstract class MessageNotificationState extends NotificationState {
         @Override
         protected NotificationCompat.Style build(final Builder builder) {
             builder.setContentTitle(mTitle);
-            NotificationCompat.InboxStyle inboxStyle = null;
+            NotificationCompat.InboxStyle inboxStyle;
             inboxStyle = new NotificationCompat.InboxStyle(builder);
 
             final Context context = Factory.get().getApplicationContext();
@@ -453,7 +410,7 @@ public abstract class MessageNotificationState extends NotificationState {
                 break;
             }
         }
-        return conversationName.substring(0, endIndex) + '\u2026';
+        return conversationName.substring(0, endIndex) + '…';
     }
 
     /**
@@ -466,8 +423,8 @@ public abstract class MessageNotificationState extends NotificationState {
             super(convList);
             // This conversation has been accepted.
             final ConversationLineInfo convInfo = convList.mConvInfos.get(0);
-            setAvatarUrlsForConversation(convInfo.mConversationId);
-            setPeopleForConversation(convInfo.mConversationId);
+            setAvatarUrlsForConversation();
+            setPeopleForConversation();
 
             final Context context = Factory.get().getApplicationContext();
             MessageLineInfo messageInfo = (MessageLineInfo) convInfo.mLineInfos.get(0);
@@ -490,7 +447,7 @@ public abstract class MessageNotificationState extends NotificationState {
                 final String attachment = context.getString(message);
                 final SpannableStringBuilder spanBuilder = new SpannableStringBuilder();
                 if (!TextUtils.isEmpty(mContent)) {
-                    spanBuilder.append(mContent).append(System.getProperty("line.separator"));
+                    spanBuilder.append(mContent).append(System.lineSeparator());
                 }
                 final int start = spanBuilder.length();
                 spanBuilder.append(attachment);
@@ -521,7 +478,7 @@ public abstract class MessageNotificationState extends NotificationState {
             builder.setContentTitle(mTitle)
                 .setTicker(getTicker());
 
-            NotificationCompat.Style notifStyle = null;
+            NotificationCompat.Style notifStyle;
             final ConversationLineInfo convInfo = mConvList.mConvInfos.get(0);
             final List<NotificationLineInfo> lineInfos = convInfo.mLineInfos;
             final int messageCount = lineInfos.size();
@@ -571,22 +528,6 @@ public abstract class MessageNotificationState extends NotificationState {
 
     }
 
-    private static boolean firstNameUsedMoreThanOnce(
-            final HashMap<String, Integer> map, final String firstName) {
-        if (map == null) {
-            return false;
-        }
-        if (firstName == null) {
-            return false;
-        }
-        final Integer count = map.get(firstName);
-        if (count != null) {
-            return count > 1;
-        } else {
-            return false;
-        }
-    }
-
     private static HashMap<String, Integer> scanFirstNames(final String conversationId) {
         final Context context = Factory.get().getApplicationContext();
         final Uri uri =
@@ -600,7 +541,7 @@ public abstract class MessageNotificationState extends NotificationState {
 
         final Iterator<ParticipantData> iter = participantsData.iterator();
 
-        final HashMap<String, Integer> firstNames = new HashMap<String, Integer>();
+        final HashMap<String, Integer> firstNames = new HashMap<>();
         boolean seenSelf = false;
         while (iter.hasNext()) {
             final ParticipantData participant = iter.next();
@@ -613,159 +554,15 @@ public abstract class MessageNotificationState extends NotificationState {
                 }
             }
 
-            final String firstName = participant.getFirstName();
+            final  String firstName = participant.getFirstName();
             if (firstName == null) {
                 continue;
             }
 
-            final int currentCount = firstNames.containsKey(firstName)
-                    ? firstNames.get(firstName)
-                    : 0;
+            final int currentCount = Objects.requireNonNull(firstNames.getOrDefault(firstName, 0));
             firstNames.put(firstName, currentCount + 1);
         }
         return firstNames;
-    }
-
-    // Essentially, we're building a list of the past 20 messages for this conversation to display
-    // on the wearable.
-    public static Notification buildConversationPageForWearable(final String conversationId,
-            int participantCount) {
-        final Context context = Factory.get().getApplicationContext();
-
-        // Limit the number of messages to show. We just want enough to provide context for the
-        // notification. Fetch one more than we need, so we can tell if there are more messages
-        // before the one we're showing.
-        // TODO: in the query, a multipart message will contain a row for each part.
-        // We might need a smarter GROUP_BY. On the other hand, we might want to show each of the
-        // parts as separate messages on the wearable.
-        final int limit = MAX_MESSAGES_IN_WEARABLE_PAGE + 1;
-
-        final List<CharSequence> messages = Lists.newArrayList();
-        boolean hasSeenMessagesBeforeNotification = false;
-        Cursor convMessageCursor = null;
-        try {
-            final DatabaseWrapper db = DataModel.get().getDatabase();
-
-            final String[] queryArgs = { conversationId };
-            final String convPageSql = ConversationMessageData.getWearableQuerySql() + " LIMIT " +
-                    limit;
-            convMessageCursor = db.rawQuery(
-                    convPageSql,
-                    queryArgs);
-
-            if (convMessageCursor == null || !convMessageCursor.moveToFirst()) {
-                return null;
-            }
-            final ConversationMessageData convMessageData =
-                    new ConversationMessageData();
-
-            final HashMap<String, Integer> firstNames = scanFirstNames(conversationId);
-            do {
-                convMessageData.bind(convMessageCursor);
-
-                final String authorFullName = convMessageData.getSenderFullName();
-                final String authorFirstName = convMessageData.getSenderFirstName();
-                String text = convMessageData.getText();
-
-                final boolean isSmsPushNotification = convMessageData.getIsMmsNotification();
-
-                // if auto-download was off to show a message to tap to download the message. We
-                // might need to get that working again.
-                if (isSmsPushNotification && text != null) {
-                    text = convertHtmlAndStripUrls(text).toString();
-                }
-                // Skip messages without any content
-                if (TextUtils.isEmpty(text) && !convMessageData.hasAttachments()) {
-                    continue;
-                }
-                // Track whether there are messages prior to the one(s) shown in the notification.
-                if (convMessageData.getIsSeen()) {
-                    hasSeenMessagesBeforeNotification = true;
-                }
-
-                final boolean usedMoreThanOnce = firstNameUsedMoreThanOnce(
-                        firstNames, authorFirstName);
-                String displayName = usedMoreThanOnce ? authorFullName : authorFirstName;
-                if (TextUtils.isEmpty(displayName)) {
-                    if (convMessageData.getIsIncoming()) {
-                        displayName = convMessageData.getSenderDisplayDestination();
-                        if (TextUtils.isEmpty(displayName)) {
-                            displayName = context.getString(R.string.unknown_sender);
-                        }
-                    } else {
-                        displayName = context.getString(R.string.unknown_self_participant);
-                    }
-                }
-
-                Uri attachmentUri = null;
-                String attachmentType = null;
-                final List<MessagePartData> attachments = convMessageData.getAttachments();
-                for (final MessagePartData messagePartData : attachments) {
-                    // Look for the first attachment that's not the text piece.
-                    if (!messagePartData.isText()) {
-                        attachmentUri = messagePartData.getContentUri();
-                        attachmentType = messagePartData.getContentType();
-                        break;
-                    }
-                }
-
-                final CharSequence message = BugleNotifications.buildSpaceSeparatedMessage(
-                        displayName, text, attachmentUri, attachmentType);
-                messages.add(message);
-
-            } while (convMessageCursor.moveToNext());
-        } finally {
-            if (convMessageCursor != null) {
-                convMessageCursor.close();
-            }
-        }
-
-        // If there is no conversation history prior to what is already visible in the main
-        // notification, there's no need to include the conversation log, too.
-        final int maxMessagesInNotification = getMaxMessagesInConversationNotification();
-        if (!hasSeenMessagesBeforeNotification && messages.size() <= maxMessagesInNotification) {
-            return null;
-        }
-
-        final SpannableStringBuilder bigText = new SpannableStringBuilder();
-        // There is at least 1 message prior to the first one that we're going to show.
-        // Indicate this by inserting an ellipsis at the beginning of the conversation log.
-        if (convMessageCursor.getCount() == limit) {
-            bigText.append(context.getString(R.string.ellipsis) + "\n\n");
-            if (messages.size() > MAX_MESSAGES_IN_WEARABLE_PAGE) {
-                messages.remove(messages.size() - 1);
-            }
-        }
-        // Messages are sorted in descending timestamp order, so iterate backwards
-        // to get them back in ascending order for display purposes.
-        for (int i = messages.size() - 1; i >= 0; --i) {
-            bigText.append(messages.get(i));
-            if (i > 0) {
-                bigText.append("\n\n");
-            }
-        }
-        ++participantCount;     // Add in myself
-
-        if (participantCount > 2) {
-            final SpannableString statusText = new SpannableString(
-                    context.getResources().getQuantityString(R.plurals.wearable_participant_count,
-                            participantCount, participantCount));
-            statusText.setSpan(new ForegroundColorSpan(context.getResources().getColor(
-                    R.color.wearable_notification_participants_count)), 0, statusText.length(),
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            bigText.append("\n\n").append(statusText);
-        }
-
-        final NotificationCompat.Builder notifBuilder = new NotificationCompat.Builder(context);
-        final NotificationCompat.Style notifStyle =
-                new NotificationCompat.BigTextStyle(notifBuilder).bigText(bigText);
-        notifBuilder.setStyle(notifStyle);
-
-        final WearableExtender wearableExtender = new WearableExtender();
-        wearableExtender.setStartScrollBottom(true);
-        notifBuilder.extend(wearableExtender);
-
-        return notifBuilder.build();
     }
 
     /**
@@ -910,7 +707,7 @@ public abstract class MessageNotificationState extends NotificationState {
                                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                             if (!TextUtils.isEmpty(text)) {
                                 // Now add the actual message text below the subject header.
-                                spanBuilder.append(System.getProperty("line.separator") + text);
+                                spanBuilder.append(System.lineSeparator()).append(String.valueOf(text));
                             }
                             text = spanBuilder;
                         }
@@ -988,10 +785,7 @@ public abstract class MessageNotificationState extends NotificationState {
             return videoPart;
         } else if (audioPart != null) {
             return audioPart;
-        } else if (vcardPart != null) {
-            return vcardPart;
-        }
-        return null;
+        } else return vcardPart;
     }
 
     private static int getMaxMessagesInConversationNotification() {
@@ -1015,7 +809,7 @@ public abstract class MessageNotificationState extends NotificationState {
         MessageNotificationState state = null;
         final ConversationInfoList convList = createConversationInfoList();
 
-        if (convList == null || convList.mConvInfos.size() == 0) {
+        if (convList == null || convList.mConvInfos.isEmpty()) {
             if (LogUtil.isLoggable(TAG, LogUtil.VERBOSE)) {
                 LogUtil.v(TAG, "MessageNotificationState: No unseen notifications");
             }
@@ -1032,13 +826,13 @@ public abstract class MessageNotificationState extends NotificationState {
                 // For now, only show avatars for notifications for a single conversation.
                 if (convInfo.mAvatarUri != null) {
                     if (state.mParticipantAvatarsUris == null) {
-                        state.mParticipantAvatarsUris = new ArrayList<Uri>(1);
+                        state.mParticipantAvatarsUris = new ArrayList<>(1);
                     }
                     state.mParticipantAvatarsUris.add(convInfo.mAvatarUri);
                 }
                 if (convInfo.mContactUri != null) {
                     if (state.mParticipantContactUris == null) {
-                        state.mParticipantContactUris = new ArrayList<Uri>(1);
+                        state.mParticipantContactUris = new ArrayList<>(1);
                     }
                     state.mParticipantContactUris.add(convInfo.mContactUri);
                 }
@@ -1059,20 +853,8 @@ public abstract class MessageNotificationState extends NotificationState {
     }
 
     @Override
-    public int getLatestMessageNotificationType() {
-        // This function is called to determine whether the most recent notification applies
-        // to an sms conversation or a hangout conversation. We have different ringtone/vibrate
-        // settings for both types of conversations.
-        if (mConvList.mConvInfos.size() > 0) {
-            final ConversationLineInfo convInfo = mConvList.mConvInfos.get(0);
-            return convInfo.getLatestMessageNotificationType();
-        }
-        return BugleNotifications.LOCAL_SMS_NOTIFICATION;
-    }
-
-    @Override
     public String getRingtoneUri() {
-        if (mConvList.mConvInfos.size() > 0) {
+        if (!mConvList.mConvInfos.isEmpty()) {
             return mConvList.mConvInfos.get(0).mRingtoneUri;
         }
         return null;
@@ -1080,7 +862,7 @@ public abstract class MessageNotificationState extends NotificationState {
 
     @Override
     public boolean getNotificationVibrate() {
-        if (mConvList.mConvInfos.size() > 0) {
+        if (!mConvList.mConvInfos.isEmpty()) {
             return mConvList.mConvInfos.get(0).mNotificationVibrate;
         }
         return false;
@@ -1089,26 +871,8 @@ public abstract class MessageNotificationState extends NotificationState {
     protected CharSequence getTicker() {
         return BugleNotifications.buildColonSeparatedMessage(
                 mTickerSender != null ? mTickerSender : mTitle,
-                mTickerText != null ? mTickerText : mContent,
-                null,
-                null);
-    }
-
-    private static CharSequence convertHtmlAndStripUrls(final String s) {
-        final Spanned text = Html.fromHtml(s);
-        if (text instanceof Spannable) {
-            stripUrls((Spannable) text);
-        }
-        return text;
-    }
-
-    // Since we don't want to show URLs in notifications, a function
-    // to remove them in place.
-    private static void stripUrls(final Spannable text) {
-        final URLSpan[] spans = text.getSpans(0, text.length(), URLSpan.class);
-        for (final URLSpan span : spans) {
-            text.removeSpan(span);
-        }
+                mTickerText != null ? mTickerText : mContent
+        );
     }
 
     /*
@@ -1142,7 +906,7 @@ public abstract class MessageNotificationState extends NotificationState {
         final SpannableStringBuilder spanBuilder = new SpannableStringBuilder();
         spanBuilder.append(text);
         spanBuilder.setSpan(new ForegroundColorSpan(context.getResources().getColor(
-                R.color.notification_warning_color)), 0, text.length(),
+                R.color.notification_warning_color, null)), 0, text.length(),
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         return spanBuilder;
     }
@@ -1151,18 +915,20 @@ public abstract class MessageNotificationState extends NotificationState {
      * Check for failed messages and post notifications as needed.
      * TODO: Rewrite this as a NotificationState.
      */
-    public static void checkFailedMessages() {
+    public static void checkFailedMessages() throws SecurityException {
         final DatabaseWrapper db = DataModel.get().getDatabase();
 
-        final Cursor messageDataCursor = db.query(DatabaseHelper.MESSAGES_TABLE,
-            MessageData.getProjection(),
-            FailedMessageQuery.FAILED_MESSAGES_WHERE_CLAUSE,
-            null /*selectionArgs*/,
-            null /*groupBy*/,
-            null /*having*/,
-            FailedMessageQuery.FAILED_ORDER_BY);
+        /*selectionArgs*/
+        /*groupBy*/
+        /*having*/
 
-        try {
+        try (Cursor messageDataCursor = db.query(DatabaseHelper.MESSAGES_TABLE,
+                MessageData.getProjection(),
+                FailedMessageQuery.FAILED_MESSAGES_WHERE_CLAUSE,
+                null /*selectionArgs*/,
+                null /*groupBy*/,
+                null /*having*/,
+                FailedMessageQuery.FAILED_ORDER_BY)) {
             final Context context = Factory.get().getApplicationContext();
             final Resources resources = context.getResources();
             final NotificationManagerCompat notificationManager =
@@ -1170,14 +936,13 @@ public abstract class MessageNotificationState extends NotificationState {
             if (messageDataCursor != null) {
                 final MessageData messageData = new MessageData();
 
-                final HashSet<String> conversationsWithFailedMessages = new HashSet<String>();
+                final HashSet<String> conversationsWithFailedMessages = new HashSet<>();
 
                 // track row ids in case we want to display something that requires this
                 // information
-                final ArrayList<Integer> failedMessages = new ArrayList<Integer>();
+                final ArrayList<Integer> failedMessages = new ArrayList<>();
 
                 int cursorPosition = -1;
-                final long when = 0;
 
                 messageDataCursor.moveToPosition(-1);
                 while (messageDataCursor.moveToNext()) {
@@ -1199,19 +964,18 @@ public abstract class MessageNotificationState extends NotificationState {
                 if (LogUtil.isLoggable(TAG, LogUtil.DEBUG)) {
                     LogUtil.d(TAG, "Found " + failedMessages.size() + " failed messages");
                 }
-                if (failedMessages.size() > 0) {
-                    final NotificationCompat.Builder builder =
-                            new NotificationCompat.Builder(context);
+                if (!failedMessages.isEmpty()) {
+                    final Builder builder =
+                            new Builder(context, NotificationChannel.DEFAULT_CHANNEL_ID);
 
                     CharSequence line1;
                     CharSequence line2;
-                    final boolean isRichContent = false;
                     ConversationIdSet conversationIds = null;
                     PendingIntent destinationIntent;
                     if (failedMessages.size() == 1) {
                         messageDataCursor.moveToPosition(cursorPosition);
                         messageData.bind(messageDataCursor);
-                        final String conversationId =  messageData.getConversationId();
+                        final String conversationId = messageData.getConversationId();
 
                         // We have a single conversation, go directly to that conversation.
                         destinationIntent = UIIntents.get()
@@ -1242,7 +1006,7 @@ public abstract class MessageNotificationState extends NotificationState {
                         // We have notifications for multiple conversation, go to the conversation
                         // list.
                         destinationIntent = UIIntents.get()
-                            .getPendingIntentForConversationListActivity(context);
+                                .getPendingIntentForConversationListActivity(context);
 
                         int line1StringId;
                         int line2PluralsId;
@@ -1273,41 +1037,26 @@ public abstract class MessageNotificationState extends NotificationState {
                                     0);
 
                     builder
-                        .setContentTitle(line1)
-                        .setTicker(line1)
-                        .setWhen(when > 0 ? when : System.currentTimeMillis())
-                        .setSmallIcon(R.drawable.ic_failed_light)
-                        .setDeleteIntent(pendingIntentForDelete)
-                        .setContentIntent(destinationIntent)
-                        .setSound(UriUtil.getUriForResourceId(context, R.raw.message_failure));
-                    if (isRichContent && !TextUtils.isEmpty(line2)) {
-                        final NotificationCompat.InboxStyle inboxStyle =
-                                new NotificationCompat.InboxStyle(builder);
-                        if (line2 != null) {
-                            inboxStyle.addLine(Html.fromHtml(line2.toString()));
-                        }
-                        builder.setStyle(inboxStyle);
-                    } else {
-                        builder.setContentText(line2);
-                    }
+                            .setContentTitle(line1)
+                            .setTicker(line1)
+                            .setWhen(System.currentTimeMillis())
+                            .setSmallIcon(R.drawable.ic_failed_light)
+                            .setDeleteIntent(pendingIntentForDelete)
+                            .setContentIntent(destinationIntent)
+                            .setSound(UriUtil.getUriForResourceId(context, R.raw.message_failure));
+                    builder.setContentText(line2);
 
-                    if (builder != null) {
-                        notificationManager.notify(
-                                BugleNotifications.buildNotificationTag(
-                                        PendingIntentConstants.MSG_SEND_ERROR, null),
-                                PendingIntentConstants.MSG_SEND_ERROR,
-                                builder.build());
-                    }
+                    notificationManager.notify(
+                            BugleNotifications.buildNotificationTag(
+                            ),
+                            PendingIntentConstants.MSG_SEND_ERROR,
+                            builder.build());
                 } else {
                     notificationManager.cancel(
                             BugleNotifications.buildNotificationTag(
-                                    PendingIntentConstants.MSG_SEND_ERROR, null),
+                            ),
                             PendingIntentConstants.MSG_SEND_ERROR);
                 }
-            }
-        } finally {
-            if (messageDataCursor != null) {
-                messageDataCursor.close();
             }
         }
     }

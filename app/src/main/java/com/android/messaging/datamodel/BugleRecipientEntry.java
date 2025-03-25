@@ -36,26 +36,6 @@ public class BugleRecipientEntry extends RecipientEntry {
                 directoryId, dataId, photoThumbnailUri, isFirstLevel, isValid, lookupKey);
     }
 
-    public static BugleRecipientEntry constructTopLevelEntry(final String displayName,
-            final int displayNameSource, final String destination, final int destinationType,
-            final String destinationLabel, final long contactId, final Long directoryId,
-            final long dataId, final String thumbnailUriAsString, final boolean isValid,
-            final String lookupKey) {
-        return new BugleRecipientEntry(ENTRY_TYPE_PERSON, displayName, destination, destinationType,
-                destinationLabel, contactId, directoryId, dataId, (thumbnailUriAsString != null
-                ? Uri.parse(thumbnailUriAsString) : null), true, isValid, lookupKey);
-    }
-
-    public static BugleRecipientEntry constructSecondLevelEntry(final String displayName,
-            final int displayNameSource, final String destination, final int destinationType,
-            final String destinationLabel, final long contactId, final Long directoryId,
-            final long dataId, final String thumbnailUriAsString, final boolean isValid,
-            final String lookupKey) {
-        return new BugleRecipientEntry(ENTRY_TYPE_PERSON, displayName, destination, destinationType,
-                destinationLabel, contactId, directoryId, dataId, (thumbnailUriAsString != null
-                ? Uri.parse(thumbnailUriAsString) : null), false, isValid, lookupKey);
-    }
-
     @Override
     public boolean isSamePerson(final RecipientEntry entry) {
         return getDestination() != null && entry.getDestination() != null &&

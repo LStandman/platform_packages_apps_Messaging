@@ -16,7 +16,6 @@
 
 package com.android.messaging.datamodel.data;
 
-import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteStatement;
 import android.net.Uri;
@@ -166,15 +165,6 @@ public class MessagePartData implements Parcelable {
         mContentType = cursor.getString(INDEX_CONTENT_TYPE);
     }
 
-    public final void populate(final ContentValues values) {
-        // Must have a valid messageId on a part
-        Assert.isTrue(!TextUtils.isEmpty(mMessageId));
-        values.put(PartColumns.MESSAGE_ID, mMessageId);
-        values.put(PartColumns.TEXT, mText);
-        values.put(PartColumns.CONTENT_URI, UriUtil.stringFromUri(mContentUri));
-        values.put(PartColumns.CONTENT_TYPE, mContentType);
-    }
-
     /**
      * Note this is not thread safe so callers need to make sure they own the wrapper + statements
      * while they call this and use the returned value.
@@ -267,8 +257,6 @@ public class MessagePartData implements Parcelable {
         dest.writeString(mText);
         dest.writeString(UriUtil.stringFromUri(mContentUri));
         dest.writeString(mContentType);
-        dest.writeInt(UNSPECIFIED_SIZE);
-        dest.writeInt(UNSPECIFIED_SIZE);
     }
 
     @Override

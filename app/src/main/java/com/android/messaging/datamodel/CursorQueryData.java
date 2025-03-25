@@ -26,7 +26,7 @@ import com.google.common.annotations.VisibleForTesting;
  * Holds parameters and data (such as content URI) for performing queries on the content provider.
  * This class could then be used to perform a query using either a BoundCursorLoader or querying
  * on the content resolver directly.
- *
+ * <p>
  * This class is used for cases where the way to load a cursor is not fixed. For example,
  * when using ContactUtil to query for phone numbers, the ContactPickerFragment wants to use
  * a CursorLoader to asynchronously load the data and tie in nicely with its data binding

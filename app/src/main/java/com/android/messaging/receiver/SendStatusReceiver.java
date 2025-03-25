@@ -31,7 +31,7 @@ import com.android.messaging.util.LogUtil;
 
 /**
  * The SMS sent and delivery intent receiver.
- *
+ * <p>
  * This class just simply forwards the intents to proper recipients for actual handling.
  */
 public class SendStatusReceiver extends BroadcastReceiver {
@@ -39,10 +39,6 @@ public class SendStatusReceiver extends BroadcastReceiver {
             "com.android.messaging.receiver.SendStatusReceiver.MESSAGE_SENT";
     public static final String MESSAGE_DELIVERED_ACTION =
             "com.android.messaging.receiver.SendStatusReceiver.MESSAGE_DELIVERED";
-    public static final String MMS_SENT_ACTION =
-            "com.android.messaging.receiver.SendStatusReceiver.MMS_SENT";
-    public static final String MMS_DOWNLOADED_ACTION =
-            "com.android.messaging.receiver.SendStatusReceiver.MMS_DOWNLOADED";
 
     // Defined by platform, but no constant provided. See docs for SmsManager.sendTextMessage.
     public static final String EXTRA_ERROR_CODE = "errorCode";
@@ -73,7 +69,7 @@ public class SendStatusReceiver extends BroadcastReceiver {
                 LogUtil.e(LogUtil.BUGLE_TAG, "SendStatusReceiver: empty report message");
                 return;
             }
-            int status = Sms.STATUS_COMPLETE;
+            int status;
             try {
                 final String format = intent.getStringExtra("format");
                 status = smsMessage.getStatus();

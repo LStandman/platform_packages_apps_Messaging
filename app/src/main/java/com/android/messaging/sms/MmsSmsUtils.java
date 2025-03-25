@@ -150,7 +150,7 @@ public class MmsSmsUtils {
             final Uri uri = uriBuilder.build();
             //if (DEBUG) Rlog.v(TAG, "getOrCreateThreadId uri: " + uri);
 
-            final Cursor cursor = SqliteWrapper.query(context, context.getContentResolver(),
+            final Cursor cursor = SqliteWrapper.query(context.getContentResolver(),
                     uri, ID_PROJECTION, null, null, null);
             if (cursor != null) {
                 try {

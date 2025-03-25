@@ -43,7 +43,6 @@ import com.android.messaging.datamodel.data.PeopleAndOptionsData.PeopleAndOption
 import com.android.messaging.datamodel.data.PeopleOptionsItemData;
 import com.android.messaging.datamodel.data.SettingsData;
 import com.android.messaging.datamodel.data.SettingsData.SettingsDataListener;
-import com.android.messaging.datamodel.data.SubscriptionListData;
 import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 
 public abstract class DataModel {
@@ -54,12 +53,12 @@ public abstract class DataModel {
         return Factory.get().getDataModel();
     }
 
-    public static final void startActionService(final Action action) {
+    public static void startActionService(final Action action) {
         get().getActionService().startAction(action);
     }
 
-    public static final void scheduleAction(final Action action,
-            final int code, final long delayMs) {
+    public static void scheduleAction(final Action action,
+                                      final int code, final long delayMs) {
         get().getActionService().scheduleAction(action, code, delayMs);
     }
 
@@ -87,8 +86,6 @@ public abstract class DataModel {
 
     public abstract BlockedParticipantsData createBlockedParticipantsData(Context context,
             BlockedParticipantsDataListener listener);
-
-    public abstract SubscriptionListData createSubscriptonListData(Context context);
 
     public abstract SettingsData createSettingsData(Context context, SettingsDataListener listener);
 

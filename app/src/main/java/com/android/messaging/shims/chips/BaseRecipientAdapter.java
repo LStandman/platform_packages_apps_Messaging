@@ -38,6 +38,8 @@ import android.widget.BaseAdapter;
 import android.widget.Filter;
 import android.widget.Filterable;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.shims.chips.DropdownChipLayouter.AdapterType;
 
 import java.util.ArrayList;
@@ -53,7 +55,7 @@ import java.util.Set;
  *
  * <p>It checks whether all permissions are granted before doing
  * query. If not all permissions in ChipsUtil#REQUIRED_PERMISSIONS are granted and
- * {@link #mShowRequestPermissionsItem} is true it will return single entry that asks user to grant
+ * {#mShowRequestPermissionsItem} is true it will return single entry that asks user to grant
  * permissions to the app. Any app that uses this library should set this when it wants us to
  * display that entry but then it should set
  * {@link RecipientEditTextView.PermissionsRequestItemClickedListener} on
@@ -63,13 +65,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
     private static final String TAG = "BaseRecipientAdapter";
 
     private static final boolean DEBUG = false;
-
-    /**
-     * The preferred number of results to be retrieved. This number may be
-     * exceeded if there are several directories configured, because we will use
-     * the same limit for all directories.
-     */
-    private static final int DEFAULT_PREFERRED_MAX_RESULT_COUNT = 10;
 
     /**
      * The number of extra entries requested to allow for duplicates. Duplicates
@@ -143,29 +138,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
         public final int displayNameSource;
         public final String lookupKey;
 
-        public TemporaryEntry(
-                String displayName,
-                String destination,
-                int destinationType,
-                String destinationLabel,
-                long contactId,
-                Long directoryId,
-                long dataId,
-                String thumbnailUriString,
-                int displayNameSource,
-                String lookupKey) {
-            this.displayName = displayName;
-            this.destination = destination;
-            this.destinationType = destinationType;
-            this.destinationLabel = destinationLabel;
-            this.contactId = contactId;
-            this.directoryId = directoryId;
-            this.dataId = dataId;
-            this.thumbnailUriString = thumbnailUriString;
-            this.displayNameSource = displayNameSource;
-            this.lookupKey = lookupKey;
-        }
-
         public TemporaryEntry(Cursor cursor, Long directoryId) {
             this.displayName = cursor.getString(Queries.Query.NAME);
             this.destination = cursor.getString(Queries.Query.DESTINATION);
@@ -182,7 +154,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
 
     /**
      * Used to pass results from {@link DefaultFilter#performFiltering(CharSequence)} to
-     * {@link DefaultFilter#publishResults(CharSequence, android.widget.Filter.FilterResults)}
+     * {DefaultFilter#publishResults(CharSequence, android.widget.Filter.FilterResults)}
      */
     private static class DefaultFilterResult {
         public final List<RecipientEntry> entries;
@@ -225,11 +197,9 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
                 return results;
             }
 
-            Cursor defaultDirectoryCursor = null;
-
-            try {
-                defaultDirectoryCursor = doQuery(constraint, mPreferredMaxResultCount,
-                        null /* directoryId */);
+            try (Cursor defaultDirectoryCursor = doQuery(constraint, mPreferredMaxResultCount,
+                    null /* directoryId */)) {
+                /* directoryId */
 
                 if (defaultDirectoryCursor == null) {
                     if (DEBUG) {
@@ -240,16 +210,16 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
                     // mExistingDestinations. Here we shouldn't use those member variables directly
                     // since this method is run outside the UI thread.
                     final LinkedHashMap<Long, List<RecipientEntry>> entryMap =
-                            new LinkedHashMap<Long, List<RecipientEntry>>();
+                            new LinkedHashMap<>();
                     final List<RecipientEntry> nonAggregatedEntries =
-                            new ArrayList<RecipientEntry>();
-                    final Set<String> existingDestinations = new HashSet<String>();
+                            new ArrayList<>();
+                    final Set<String> existingDestinations = new HashSet<>();
 
                     while (defaultDirectoryCursor.moveToNext()) {
                         // Note: At this point each entry doesn't contain any photo
                         // (thus getPhotoBytes() returns null).
                         putOneEntry(new TemporaryEntry(defaultDirectoryCursor,
-                                null /* directoryId */),
+                                        null /* directoryId */),
                                 true, entryMap, nonAggregatedEntries, existingDestinations);
                     }
 
@@ -264,10 +234,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
                             entries, entryMap, nonAggregatedEntries,
                             existingDestinations, paramsList);
                     results.count = entries.size();
-                }
-            } finally {
-                if (defaultDirectoryCursor != null) {
-                    defaultDirectoryCursor.close();
                 }
             }
             return results;
@@ -298,7 +264,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
                     startSearchOtherDirectories(constraint, defaultFilterResult.paramsList, limit);
                 }
             } else {
-                updateEntries(Collections.<RecipientEntry>emptyList());
+                updateEntries(Collections.emptyList());
             }
         }
 
@@ -329,16 +295,11 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
                         + existingDestinations.size()
                         + ", remaining limit: " + limit + ") ");
             }
-            Cursor directoryCursor = null;
-            try {
-                directoryCursor = mContentResolver.query(
-                        DirectoryListQuery.URI, DirectoryListQuery.PROJECTION,
-                        null, null, null);
+            try (Cursor directoryCursor = mContentResolver.query(
+                    DirectoryListQuery.URI, DirectoryListQuery.PROJECTION,
+                    null, null, null)) {
+                assert directoryCursor != null;
                 return setupOtherDirectories(mContext, directoryCursor, mAccount);
-            } finally {
-                if (directoryCursor != null) {
-                    directoryCursor.close();
-                }
             }
         } else {
             // We don't need to search other directories.
@@ -349,7 +310,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
     /**
      * An asynchronous filter that performs search in a particular directory.
      */
-    protected class DirectoryFilter extends Filter {
+    public class DirectoryFilter extends Filter {
         private final DirectorySearchParams mParams;
         private int mLimit;
 
@@ -376,23 +337,17 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
             results.count = 0;
 
             if (!TextUtils.isEmpty(constraint)) {
-                final ArrayList<TemporaryEntry> tempEntries = new ArrayList<TemporaryEntry>();
+                final ArrayList<TemporaryEntry> tempEntries = new ArrayList<>();
 
-                Cursor cursor = null;
-                try {
+                try (Cursor cursor = doQuery(constraint, getLimit(), mParams.directoryId)) {
                     // We don't want to pass this Cursor object to UI thread (b/5017608).
                     // Assuming the result should contain fairly small results (at most ~10),
                     // We just copy everything to local structure.
-                    cursor = doQuery(constraint, getLimit(), mParams.directoryId);
 
                     if (cursor != null) {
                         while (cursor.moveToNext()) {
                             tempEntries.add(new TemporaryEntry(cursor, mParams.directoryId));
                         }
-                    }
-                } finally {
-                    if (cursor != null) {
-                        cursor.close();
                     }
                 }
                 if (!tempEntries.isEmpty()) {
@@ -462,19 +417,19 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
 
     /**
      * {@link #mEntries} is responsible for showing every result for this Adapter. To
-     * construct it, we use {@link #mEntryMap}, {@link #mNonAggregatedEntries}, and
+     * construct it, we use {#mEntryMap}, {@link #mNonAggregatedEntries}, and
      * {@link #mExistingDestinations}.
-     *
+     * <p>
      * First, each destination (an email address or a phone number) with a valid contactId is
-     * inserted into {@link #mEntryMap} and grouped by the contactId. Destinations without valid
+     * inserted into {#mEntryMap} and grouped by the contactId. Destinations without valid
      * contactId (possible if they aren't in local storage) are stored in
      * {@link #mNonAggregatedEntries}.
      * Duplicates are removed using {@link #mExistingDestinations}.
-     *
+     * <p>
      * After having all results from Cursor objects, all destinations in mEntryMap are copied to
      * {@link #mEntries}. If the number of destinations is not enough (i.e. less than
      * {@link #mPreferredMaxResultCount}), destinations in mNonAggregatedEntries are also used.
-     *
+     * <p>
      * These variables are only used in UI thread, thus should not be touched in
      * performFiltering() methods.
      */
@@ -494,8 +449,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
      */
     protected CharSequence mCurrentConstraint;
 
-    protected boolean mShowRequestPermissionsItem;
-
     /**
      * Handler specific for maintaining "Waiting for more contacts" message, which will be shown
      * when:
@@ -504,7 +457,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
      */
     private final class DelayedMessageHandler extends Handler {
         @Override
-        public void handleMessage(Message msg) {
+        public void handleMessage(@NonNull Message msg) {
             if (mRemainingDirectoryCount > 0) {
                 updateEntries(constructEntryList());
             }
@@ -523,25 +476,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
     private final DelayedMessageHandler mDelayedMessageHandler = new DelayedMessageHandler();
 
     private EntriesUpdatedObserver mEntriesUpdatedObserver;
-
-    /**
-     * Constructor for email queries.
-     */
-    public BaseRecipientAdapter(Context context) {
-        this(context, DEFAULT_PREFERRED_MAX_RESULT_COUNT, QUERY_TYPE_EMAIL);
-    }
-
-    public BaseRecipientAdapter(Context context, int preferredMaxResultCount) {
-        this(context, preferredMaxResultCount, QUERY_TYPE_EMAIL);
-    }
-
-    public BaseRecipientAdapter(int queryMode, Context context) {
-        this(context, DEFAULT_PREFERRED_MAX_RESULT_COUNT, queryMode);
-    }
-
-    public BaseRecipientAdapter(int queryMode, Context context, int preferredMaxResultCount) {
-        this(context, preferredMaxResultCount, queryMode);
-    }
 
     public BaseRecipientAdapter(Context context, int preferredMaxResultCount, int queryMode) {
         mContext = context;
@@ -570,10 +504,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
     public void setDropdownChipLayouter(DropdownChipLayouter dropdownChipLayouter) {
         mDropdownChipLayouter = dropdownChipLayouter;
         mDropdownChipLayouter.setQuery(mQueryMode);
-    }
-
-    public DropdownChipLayouter getDropdownChipLayouter() {
-        return mDropdownChipLayouter;
     }
 
     /**
@@ -607,13 +537,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
         mAccount = account;
     }
 
-    /**
-     * Sets whether to ask user to grant permission if they are missing.
-     */
-    public void setShowRequestPermissionsItem(boolean show) {
-        mShowRequestPermissionsItem = show;
-    }
-
     /** Will be called from {@link AutoCompleteTextView} to prepare auto-complete list. */
     @Override
     public Filter getFilter() {
@@ -623,17 +546,16 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
     /**
      * An extension to {@link RecipientAlternatesAdapter#getMatchingRecipients} that allows
      * additional sources of contacts to be considered as matching recipients.
-     * @param addresses A set of addresses to be matched
      * @return A list of matches or null if none found
      */
-    public Map<String, RecipientEntry> getMatchingRecipients(Set<String> addresses) {
+    public Map<String, RecipientEntry> getMatchingRecipients() {
         return null;
     }
 
     public static List<DirectorySearchParams> setupOtherDirectories(Context context,
             Cursor directoryCursor, Account account) {
         final PackageManager packageManager = context.getPackageManager();
-        final List<DirectorySearchParams> paramsList = new ArrayList<DirectorySearchParams>();
+        final List<DirectorySearchParams> paramsList = new ArrayList<>();
         DirectorySearchParams preferredDirectory = null;
         while (directoryCursor.moveToNext()) {
             final long id = directoryCursor.getLong(DirectoryListQuery.ID);
@@ -656,10 +578,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
                     final Resources resources =
                             packageManager.getResourcesForApplication(packageName);
                     params.directoryType = resources.getString(resourceId);
-                    if (params.directoryType == null) {
-                        Log.e(TAG, "Cannot resolve directory name: "
-                                + resourceId + "@" + packageName);
-                    }
                 } catch (NameNotFoundException e) {
                     Log.e(TAG, "Cannot resolve directory name: "
                             + resourceId + "@" + packageName, e);
@@ -716,7 +634,6 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
      * {@link com.android.messaging.shims.chips.BaseRecipientAdapter} and are instead using their
      * own data structures to store and collate data.
      * @param entry the entry being added
-     * @param isAggregatedEntry
      */
     protected void putOneEntry(TemporaryEntry entry, boolean isAggregatedEntry) {
         putOneEntry(entry, isAggregatedEntry,
@@ -743,6 +660,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
         } else if (entryMap.containsKey(entry.contactId)) {
             // We already have a section for the person.
             final List<RecipientEntry> entryList = entryMap.get(entry.contactId);
+            assert entryList != null;
             entryList.add(RecipientEntry.constructSecondLevelEntry(
                     entry.displayName,
                     entry.displayNameSource,
@@ -750,7 +668,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
                     entry.contactId, entry.directoryId, entry.dataId, entry.thumbnailUriString,
                     true, entry.lookupKey));
         } else {
-            final List<RecipientEntry> entryList = new ArrayList<RecipientEntry>();
+            final List<RecipientEntry> entryList = new ArrayList<>();
             entryList.add(RecipientEntry.constructTopLevelEntry(
                     entry.displayName,
                     entry.displayNameSource,
@@ -778,7 +696,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
     private List<RecipientEntry> constructEntryList(
             LinkedHashMap<Long, List<RecipientEntry>> entryMap,
             List<RecipientEntry> nonAggregatedEntries) {
-        final List<RecipientEntry> entries = new ArrayList<RecipientEntry>();
+        final List<RecipientEntry> entries = new ArrayList<>();
         int validEntryCount = 0;
         for (Map.Entry<Long, List<RecipientEntry>> mapEntry : entryMap.entrySet()) {
             final List<RecipientEntry> entryList = mapEntry.getValue();
@@ -807,7 +725,7 @@ public class BaseRecipientAdapter extends BaseAdapter implements Filterable, Acc
 
 
     public interface EntriesUpdatedObserver {
-        public void onChanged(List<RecipientEntry> entries);
+        void onChanged(List<RecipientEntry> entries);
     }
 
     public void registerUpdateObserver(EntriesUpdatedObserver observer) {

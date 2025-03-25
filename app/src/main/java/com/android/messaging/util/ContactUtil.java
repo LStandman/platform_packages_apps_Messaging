@@ -206,7 +206,6 @@ public class ContactUtil {
         }
     }
 
-    @VisibleForTesting
     public static CursorQueryData getSelf(final Context context) {
         if (!ContactUtil.hasReadContactsPermission()) {
             return CursorQueryData.getEmptyQueryData();

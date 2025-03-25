@@ -16,9 +16,13 @@
 
 package com.android.messaging.receiver;
 
+import static android.provider.Telephony.Sms.Intents.SMS_DELIVER_ACTION;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+
+import java.util.Objects;
 
 /**
  * Class that receives incoming SMS messages on KLP+ Devices.
@@ -26,6 +30,7 @@ import android.content.Intent;
 public final class SmsDeliverReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(final Context context, final Intent intent) {
+        assert Objects.equals(intent.getAction(), SMS_DELIVER_ACTION);
         SmsReceiver.deliverSmsIntent(context, intent);
     }
 }

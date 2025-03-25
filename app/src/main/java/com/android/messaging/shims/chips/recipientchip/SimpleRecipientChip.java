@@ -20,6 +20,8 @@ import com.android.messaging.shims.chips.RecipientEntry;
 
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 class SimpleRecipientChip implements BaseRecipientChip {
     private final CharSequence mDisplay;
 
@@ -108,6 +110,7 @@ class SimpleRecipientChip implements BaseRecipientChip {
         return !TextUtils.isEmpty(mOriginalText) ? mOriginalText : mEntry.getDestination();
     }
 
+    @NonNull
     @Override
     public String toString() {
         return mDisplay + " <" + mValue + ">";

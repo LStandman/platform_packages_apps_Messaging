@@ -6,6 +6,8 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.text.style.ReplacementSpan;
 
+import androidx.annotation.NonNull;
+
 /**
  * ReplacementSpan that properly draws the drawable that is centered around the text
  * without changing the default text size or layout.
@@ -42,14 +44,14 @@ public class ReplacementDrawableSpan extends ReplacementSpan {
     }
 
     @Override
-    public int getSize(Paint paint, CharSequence text, int i, int i2, Paint.FontMetricsInt fm) {
+    public int getSize(@NonNull Paint paint, CharSequence text, int i, int i2, Paint.FontMetricsInt fm) {
         setupFontMetrics(fm, paint);
         return getBounds().right;
     }
 
     @Override
     public void draw(Canvas canvas, CharSequence charSequence, int start, int end, float x, int top,
-                     int y, int bottom, Paint paint) {
+                     int y, int bottom, @NonNull Paint paint) {
         canvas.save();
         int transY = (bottom - mDrawable.getBounds().bottom + top) / 2;
         canvas.translate(x, transY);

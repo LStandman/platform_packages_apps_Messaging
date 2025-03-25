@@ -86,7 +86,7 @@ public class LogTelephonyDatabaseAction extends Action implements Parcelable {
         LogUtil.d(TAG, "Dump of canoncial_addresses table");
         LogUtil.d(TAG, "*********************************");
 
-        Cursor cursor = SqliteWrapper.query(context, context.getContentResolver(),
+        Cursor cursor = SqliteWrapper.query(context.getContentResolver(),
                 Uri.parse("content://mms-sms/canonical-addresses"), null, null, null, null);
 
         if (cursor == null) {
@@ -107,7 +107,7 @@ public class LogTelephonyDatabaseAction extends Action implements Parcelable {
         LogUtil.d(TAG, "Dump of threads table");
         LogUtil.d(TAG, "*********************");
 
-        cursor = SqliteWrapper.query(context, context.getContentResolver(),
+        cursor = SqliteWrapper.query(context.getContentResolver(),
                 Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build(),
                 ALL_THREADS_PROJECTION, null, null, "date ASC");
         assert cursor != null;

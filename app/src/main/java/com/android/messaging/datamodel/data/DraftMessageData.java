@@ -175,14 +175,9 @@ public class DraftMessageData extends BindableData implements ReadDraftDataActio
         return mMessageTextStats.getCodePointsRemainingInCurrentMessage();
     }
 
-    public int getSelfSubId() {
-        return mSubscriptionDataProvider == null ? ParticipantData.DEFAULT_SELF_SUB_ID :
-                mSubscriptionDataProvider.getConversationSelfSubId();
-    }
-
     public void setMessageText(final String messageText) {
         mMessageText = messageText;
-        mMessageTextStats.updateMessageTextStats(getSelfSubId(), mMessageText);
+        mMessageTextStats.updateMessageTextStats(mMessageText);
     }
 
     public void setMessageSubject(final String subject) {

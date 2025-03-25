@@ -33,7 +33,7 @@ import com.android.messaging.util.Assert.DoesNotRunOnMainThread;
 import com.android.messaging.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 
-/**
+/*
  * TODO: Open Issues:
  * - Should we be storing the draft messages in the regular messages table or should we have a
  *   separate table for drafts to keep the normal messages query as simple as possible?
@@ -45,7 +45,7 @@ import com.google.common.annotations.VisibleForTesting;
 public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String DATABASE_NAME = "bugle_db";
 
-    private static final int getDatabaseVersion(final Context context) {
+    private static int getDatabaseVersion(final Context context) {
         return Integer.parseInt(context.getResources().getString(R.string.database_version));
     }
 
@@ -392,9 +392,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
          * may have several different sub_id values */
         public static final String SUB_ID = "sub_id";
 
-        /* The slot of the active SIM (inserted in the device) for this self-participant. If the
+        /** The slot of the active SIM (inserted in the device) for this self-participant. If the
          * self-participant doesn't correspond to any active SIM, this will be
-         * {@link android.telephony.SubscriptionManager#INVALID_SLOT_ID}.
+         * {android.telephony.SubscriptionManager#INVALID_SLOT_ID}.
          * The column is ignored for all non-self participants.
          */
         public static final String SIM_SLOT_ID = "sim_slot_id";
@@ -588,7 +588,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     /**
-     * Private constructor, used from {@link #getInstance()}.
+     * Private constructor, used from {#getInstance()}.
      * @param context Should be the application context (or something that will live for the
      * lifetime of the application).
      */
@@ -647,17 +647,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         createDatabase(db);
     }
 
-    /**
-     * Drop and rebuild a given view.
-     */
-    static void rebuildView(final SQLiteDatabase db, final String viewName,
-            final String createViewSql) {
-        dropView(db, viewName, true /* throwOnFailure */);
-        db.execSQL(createViewSql);
-    }
-
-    private static void dropView(final SQLiteDatabase db, final String viewName,
-            final boolean throwOnFailure) {
+    private static void dropView(final SQLiteDatabase db, final String viewName) {
         final String dropPrefix = "DROP VIEW IF EXISTS ";
         try {
             db.execSQL(dropPrefix + viewName);
@@ -667,9 +657,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         + ex);
             }
 
-            if (throwOnFailure) {
-                throw ex;
-            }
         }
     }
 
@@ -751,7 +738,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             try {
                 while (viewCursor.moveToNext()) {
                     final String viewName = viewCursor.getString(0);
-                    dropView(db, viewName, false /* throwOnFailure */);
+                    dropView(db, viewName  /* throwOnFailure */);
                 }
             } finally {
                 viewCursor.close();

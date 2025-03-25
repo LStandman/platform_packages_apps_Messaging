@@ -24,13 +24,11 @@ import android.provider.ContactsContract.Contacts;
 
 import com.android.messaging.util.FallbackStrategies;
 import com.android.messaging.util.FallbackStrategies.Strategy;
-import com.android.messaging.util.LogUtil;
 
 /**
  * Helper for querying frequent (and/or starred) contacts.
  */
 public class FrequentContactsCursorQueryData extends CursorQueryData {
-    private static final String TAG = LogUtil.BUGLE_TAG;
 
     private static class FrequentContactsCursorLoader extends BoundCursorLoader {
         private final Uri mOriginalUri;
@@ -52,7 +50,7 @@ public class FrequentContactsCursorQueryData extends CursorQueryData {
 
         private abstract class StrequentContactsQueryStrategy implements Strategy<Void, Cursor> {
             @Override
-            public Cursor execute(Void params) throws Exception {
+            public Cursor execute(Void params) {
                 final Uri uri = getUri();
                 if (uri != null) {
                     setUri(uri);

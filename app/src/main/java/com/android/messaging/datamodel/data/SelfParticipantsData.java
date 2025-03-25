@@ -62,7 +62,7 @@ public class SelfParticipantsData {
         list.sort((o1, o2) -> {
             int slotId1 = o1.getSlotId();
             int slotId2 = o2.getSlotId();
-            return slotId1 - slotId2;
+            return Integer.compare(slotId1, slotId2);
         });
         return list;
     }
