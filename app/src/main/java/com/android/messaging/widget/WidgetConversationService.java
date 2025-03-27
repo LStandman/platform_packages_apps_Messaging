@@ -276,7 +276,7 @@ public class WidgetConversationService extends RemoteViewsService {
                     // don't show the error state unless we're the default sms app
                     if (PhoneUtils.getDefault().isDefaultSmsApp()) {
                         statusResId = MmsUtils.mapRawStatusToErrorResourceId(
-                                message.getStatus(), message.getRawTelephonyStatus());
+                                message.getRawTelephonyStatus());
                         showInRed = true;
                         break;
                     }

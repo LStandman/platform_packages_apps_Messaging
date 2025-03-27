@@ -37,11 +37,11 @@ import java.util.Map;
  */
 class ApnsXmlProcessor {
     public interface ApnHandler {
-        public void process(ContentValues apnValues);
+        void process(ContentValues apnValues);
     }
 
     public interface MmsConfigHandler {
-        public void process(String mccMnc, String key, String value, String type);
+        void process(String mccMnc, String key, String value, String type);
     }
 
     private static final String TAG = LogUtil.BUGLE_TAG;
@@ -75,7 +75,7 @@ class ApnsXmlProcessor {
     private static final String TAG_MMS_CONFIG = "mms_config";
 
     // Handler to process one apn
-    private ApnHandler mApnHandler;
+    private final ApnHandler mApnHandler;
     // Handler to process one mms_config key/value pair
     private MmsConfigHandler mMmsConfigHandler;
 
@@ -94,28 +94,19 @@ class ApnsXmlProcessor {
         return new ApnsXmlProcessor(parser);
     }
 
-    public ApnsXmlProcessor setApnHandler(ApnHandler handler) {
-        mApnHandler = handler;
-        return this;
-    }
-
-    public ApnsXmlProcessor setMmsConfigHandler(MmsConfigHandler handler) {
+    public void setMmsConfigHandler(MmsConfigHandler handler) {
         mMmsConfigHandler = handler;
-        return this;
     }
 
     /**
      * Move XML parser forward to next event type or the end of doc
      *
-     * @param eventType
      * @return The final event type we meet
-     * @throws XmlPullParserException
-     * @throws IOException
      */
-    private int advanceToNextEvent(int eventType) throws XmlPullParserException, IOException {
+    private int advanceToNextEvent() throws XmlPullParserException, IOException {
         for (;;) {
             int nextEvent = mInputParser.next();
-            if (nextEvent == eventType
+            if (nextEvent == XmlPullParser.START_TAG
                     || nextEvent == XmlPullParser.END_DOCUMENT) {
                 return nextEvent;
             }
@@ -125,7 +116,7 @@ class ApnsXmlProcessor {
     public void process() {
         try {
             // Find the first element
-            if (advanceToNextEvent(XmlPullParser.START_TAG) != XmlPullParser.START_TAG) {
+            if (advanceToNextEvent() != XmlPullParser.START_TAG) {
                 throw new XmlPullParserException("ApnsXmlProcessor: expecting start tag @"
                         + xmlParserDebugContext());
             }
@@ -137,10 +128,7 @@ class ApnsXmlProcessor {
             // or "mms_config" (mms_config.xml)
             if (TAG_APNS.equals(tagName)) {
                 // For "apns", there could be "apn" or both "apn" and "mms_config"
-                for (;;) {
-                    if (advanceToNextEvent(XmlPullParser.START_TAG) != XmlPullParser.START_TAG) {
-                        break;
-                    }
+                while (advanceToNextEvent() == XmlPullParser.START_TAG) {
                     tagName = mInputParser.getName();
                     if (TAG_APN.equals(tagName)) {
                         processApn(values);
@@ -170,13 +158,13 @@ class ApnsXmlProcessor {
         return value;
     }
 
-    private Boolean parseBoolean(String text, Boolean defaultValue, String logHint) {
-        Boolean value = defaultValue;
+    private Boolean parseBoolean(String text) {
+        Boolean value = null;
         try {
             value = Boolean.parseBoolean(text);
         } catch (Exception e) {
             LogUtil.e(TAG,
-                    "Invalid value " + text + "for" + logHint + " @" + xmlParserDebugContext());
+                    "Invalid value " + text + "for apn carrierEnabled @" + xmlParserDebugContext());
         }
         return value;
     }
@@ -225,8 +213,6 @@ class ApnsXmlProcessor {
      * Process one apn
      *
      * @param apnValues Where we store the parsed apn
-     * @throws IOException
-     * @throws XmlPullParserException
      */
     private void processApn(ContentValues apnValues) throws IOException, XmlPullParserException {
         Assert.notNull(apnValues);
@@ -251,7 +237,7 @@ class ApnsXmlProcessor {
         final String carrierEnabled = apnValues.getAsString(Telephony.Carriers.CARRIER_ENABLED);
         if (carrierEnabled != null) {
             apnValues.put(Telephony.Carriers.CARRIER_ENABLED,
-                    parseBoolean(carrierEnabled, null, "apn carrierEnabled"));
+                    parseBoolean(carrierEnabled));
         }
         final String bearer = apnValues.getAsString(Telephony.Carriers.BEARER);
         if (bearer != null) {
@@ -271,8 +257,6 @@ class ApnsXmlProcessor {
     /**
      * Process one mms_config.
      *
-     * @throws IOException
-     * @throws XmlPullParserException
      */
     private void processMmsConfig()
             throws IOException, XmlPullParserException {
@@ -284,8 +268,9 @@ class ApnsXmlProcessor {
         for (;;) {
             int nextEvent;
             // Skipping spaces
-            while ((nextEvent = mInputParser.next()) == XmlPullParser.TEXT) {
-            }
+            do {
+                nextEvent = mInputParser.next();
+            } while (nextEvent == XmlPullParser.TEXT);
             if (nextEvent == XmlPullParser.START_TAG) {
                 // Parse one mms config key/value
                 processMmsConfigKeyValue(canonicalMccMnc);
@@ -302,8 +287,6 @@ class ApnsXmlProcessor {
      * Process one mms_config key/value pair
      *
      * @param mccMnc The mcc and mnc of this mms_config
-     * @throws IOException
-     * @throws XmlPullParserException
      */
     private void processMmsConfigKeyValue(String mccMnc)
             throws IOException, XmlPullParserException {

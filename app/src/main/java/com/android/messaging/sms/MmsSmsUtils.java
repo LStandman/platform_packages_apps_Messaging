@@ -119,7 +119,7 @@ public class MmsSmsUtils {
          * messages.
          */
         public static long getOrCreateThreadId(final Context context, final String recipient) {
-            final Set<String> recipients = new HashSet<String>();
+            final Set<String> recipients = new HashSet<>();
 
             recipients.add(recipient);
             return getOrCreateThreadId(context, recipients);
@@ -130,7 +130,7 @@ public class MmsSmsUtils {
          * return its thread ID.  If the message starts a new thread,
          * allocate a new thread ID.  Otherwise, use the appropriate
          * existing thread ID.
-         *
+         * <p>
          * Find the thread ID of the same set of recipients (in
          * any order, without any additions). If one
          * is found, return it.  Otherwise, return a unique thread ID.
@@ -153,15 +153,13 @@ public class MmsSmsUtils {
             final Cursor cursor = SqliteWrapper.query(context.getContentResolver(),
                     uri, ID_PROJECTION, null, null, null);
             if (cursor != null) {
-                try {
+                try (cursor) {
                     if (cursor.moveToFirst()) {
                         return cursor.getLong(0);
                     } else {
                         LogUtil.e(LogUtil.BUGLE_DATAMODEL_TAG,
                                 "getOrCreateThreadId returned no rows!");
                     }
-                } finally {
-                    cursor.close();
                 }
             }
 

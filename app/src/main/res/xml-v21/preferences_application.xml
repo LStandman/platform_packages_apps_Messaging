@@ -49,15 +49,15 @@
         android:persistent="true"
         android:disableDependentsState="false" />
 
-    <RingtonePreference
-        android:key="@string/notification_sound_pref_key"
-        android:title="@string/notification_sound_pref_title"
-        android:ringtoneType="notification"
-        android:showSilent="true"
-        android:showDefault="true"
-        android:persistent="true"
-        android:defaultValue=""
-        android:dependency="@string/notifications_enabled_pref_key" />
+<!--    <RingtonePreference-->
+<!--        android:key="@string/notification_sound_pref_key"-->
+<!--        android:title="@string/notification_sound_pref_title"-->
+<!--        android:ringtoneType="notification"-->
+<!--        android:showSilent="true"-->
+<!--        android:showDefault="true"-->
+<!--        android:persistent="true"-->
+<!--        android:defaultValue=""-->
+<!--        android:dependency="@string/notifications_enabled_pref_key" />-->
 
     <SwitchPreference
         android:key="@string/notification_vibration_pref_key"

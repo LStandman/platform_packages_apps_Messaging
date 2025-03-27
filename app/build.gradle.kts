@@ -44,6 +44,7 @@ dependencies {
     implementation(libs.libphonenumber)
     implementation(libs.guava)
     implementation(libs.exifinterface)
+    implementation(libs.preference)
     testImplementation(libs.mockito.core)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

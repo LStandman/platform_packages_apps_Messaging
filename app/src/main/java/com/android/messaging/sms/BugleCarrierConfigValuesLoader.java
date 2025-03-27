@@ -30,7 +30,7 @@ import com.android.messaging.util.PhoneUtils;
 
 /**
  * Carrier configuration loader
- *
+ * <p>
  * Loader tries to load from resources. If there is MMS API available, also
  * load from system.
  */
@@ -106,9 +106,7 @@ public class BugleCarrierConfigValuesLoader implements CarrierConfigValuesLoader
         try {
             final Bundle systemValues =
                     PhoneUtils.get(subId).getSmsManager().getCarrierConfigValues();
-            if (systemValues != null) {
-                values.putAll(systemValues);
-            }
+            values.putAll(systemValues);
         } catch (final Exception e) {
             LogUtil.w(LogUtil.BUGLE_TAG, "Calling system getCarrierConfigValues exception", e);
         }
@@ -124,24 +122,12 @@ public class BugleCarrierConfigValuesLoader implements CarrierConfigValuesLoader
         // Get a subscription-dependent context for loading the mms_config.xml
         final Context subContext = getSubDepContext(mContext, subId);
         // Load and parse the XML
-        XmlResourceParser parser = null;
-        try {
-            parser = subContext.getResources().getXml(R.xml.mms_config);
+        try (XmlResourceParser parser = subContext.getResources().getXml(R.xml.mms_config)) {
             final ApnsXmlProcessor processor = ApnsXmlProcessor.get(parser);
-            processor.setMmsConfigHandler(new ApnsXmlProcessor.MmsConfigHandler() {
-                @Override
-                public void process(final String mccMnc, final String key, final String value,
-                        final String type) {
-                    update(values, type, key, value);
-                }
-            });
+            processor.setMmsConfigHandler((mccMnc, key, value, type) -> update(values, type, key, value));
             processor.process();
         } catch (final Resources.NotFoundException e) {
             LogUtil.w(LogUtil.BUGLE_TAG, "Can not find mms_config.xml");
-        } finally {
-            if (parser != null) {
-                parser.close();
-            }
         }
     }
 

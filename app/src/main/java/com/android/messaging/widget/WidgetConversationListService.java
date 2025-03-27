@@ -183,7 +183,6 @@ public class WidgetConversationListService extends RemoteViewsService {
                        int failureMessageId = R.string.message_status_download_failed;
                         if (conv.getIsMessageTypeOutgoing()) {
                             failureMessageId = MmsUtils.mapRawStatusToErrorResourceId(
-                                    conv.getMessageStatus(),
                                     conv.getMessageRawTelephonyStatus());
                         }
                         remoteViews.setTextViewText(R.id.errorText,

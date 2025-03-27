@@ -17,13 +17,16 @@
 package com.android.messaging.ui.appsettings;
 
 import android.content.Context;
-import android.preference.EditTextPreference;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.preference.EditTextPreference;
 import androidx.core.text.BidiFormatter;
 import androidx.core.text.TextDirectionHeuristicsCompat;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.util.AttributeSet;
-import android.view.View;
+import android.widget.EditText;
 
 import com.android.messaging.R;
 import com.android.messaging.util.PhoneUtils;
@@ -38,79 +41,85 @@ import com.android.messaging.util.PhoneUtils;
  */
 public class PhoneNumberPreference extends EditTextPreference {
 
-    private String mDefaultPhoneNumber;
     private int mSubId;
 
     public PhoneNumberPreference(final Context context, final AttributeSet attrs) {
         super(context, attrs);
-        mDefaultPhoneNumber = "";
     }
 
     public void setDefaultPhoneNumber(final String phoneNumber, final int subscriptionId) {
-        mDefaultPhoneNumber = phoneNumber;
+        final BidiFormatter bidiFormatter = BidiFormatter.getInstance();
+
+        final String defaultPhoneNumber = bidiFormatter.unicodeWrap
+                (phoneNumber, TextDirectionHeuristicsCompat.LTR);
+        setDefaultValue(defaultPhoneNumber);
         mSubId = subscriptionId;
     }
 
-    @Override
-    protected void onBindView(final View view) {
-        // Show the preference value if it's set, or the default number if not.
-        // If we don't have a default, fall back to a static string (e.g. Unknown).
-        String value = getText();
-        if (TextUtils.isEmpty(value)) {
-          value = mDefaultPhoneNumber;
-        }
-        final String displayValue = (!TextUtils.isEmpty(value))
-                ? PhoneUtils.get(mSubId).formatForDisplay(value)
-                : getContext().getString(R.string.unknown_phone_number_pref_display_value);
-        final BidiFormatter bidiFormatter = BidiFormatter.getInstance();
-        final String phoneNumber = bidiFormatter.unicodeWrap
-                        (displayValue, TextDirectionHeuristicsCompat.LTR);
-        // Set the value as the summary and let the superclass populate the views
-        setSummary(phoneNumber);
-        super.onBindView(view);
+    public int getSubId() {
+        return mSubId;
     }
 
-    @Override
-    protected void onBindDialogView(final View view) {
-        super.onBindDialogView(view);
+    public static final class SimpleOnBindEditTextListener implements OnBindEditTextListener {
 
-        final String value = getText();
+        private static PhoneNumberPreference.SimpleOnBindEditTextListener sSimpleOnBindEditTextListener;
 
-        // If the preference is empty, populate the EditText with the default number instead.
-        if (TextUtils.isEmpty(value) && !TextUtils.isEmpty(mDefaultPhoneNumber)) {
-            final BidiFormatter bidiFormatter = BidiFormatter.getInstance();
-            final String phoneNumber = bidiFormatter.unicodeWrap
-                (PhoneUtils.get(mSubId).getCanonicalBySystemLocale(mDefaultPhoneNumber),
-                            TextDirectionHeuristicsCompat.LTR);
-            getEditText().setText(phoneNumber);
-        }
-        getEditText().setInputType(InputType.TYPE_CLASS_PHONE);
-    }
-
-    @Override
-    protected void onDialogClosed(final boolean positiveResult) {
-        if (positiveResult && mDefaultPhoneNumber != null) {
-            final String value = getEditText().getText().toString();
-            final PhoneUtils phoneUtils = PhoneUtils.get(mSubId);
-            final String phoneNumber = phoneUtils.getCanonicalBySystemLocale(value);
-            final String defaultPhoneNumber = phoneUtils.getCanonicalBySystemLocale(
-                    mDefaultPhoneNumber);
-
-            // If the new value is the default, clear the preference.
-            if (phoneNumber.equals(defaultPhoneNumber)) {
-                setText("");
-                return;
+        /**
+         * Retrieve a singleton instance of this simple
+         * {@link androidx.preference.EditTextPreference.OnBindEditTextListener} implementation.
+         *
+         * @return a singleton instance of this simple
+         * {@link androidx.preference.EditTextPreference.OnBindEditTextListener} implementation
+         */
+        @NonNull
+        public static PhoneNumberPreference.SimpleOnBindEditTextListener getInstance() {
+            if (sSimpleOnBindEditTextListener == null) {
+                sSimpleOnBindEditTextListener = new PhoneNumberPreference.SimpleOnBindEditTextListener();
             }
+            return sSimpleOnBindEditTextListener;
         }
-        super.onDialogClosed(positiveResult);
+
+        @Override
+        public void onBindEditText(@NonNull EditText editText) {
+            editText.setInputType(InputType.TYPE_CLASS_PHONE);
+        }
     }
 
-    @Override
-    public void setText(final String text) {
-        super.setText(text);
+    /**
+     * A simple {@link androidx.preference.Preference.SummaryProvider} implementation for an
+     * {@link PhoneNumberPreference}. If no value has been set, the summary displayed will be
+     * 'Unknown', otherwise the summary displayed will be the value set for this preference.
+     */
+    public static final class SimpleSummaryProvider implements SummaryProvider<PhoneNumberPreference> {
 
-        // EditTextPreference doesn't show the value on the preference view, but we do.
-        // We thus need to force a rebind of the view when a new value is set.
-        notifyChanged();
+        private static PhoneNumberPreference.SimpleSummaryProvider sSimpleSummaryProvider;
+
+        /**
+         * Retrieve a singleton instance of this simple
+         * {@link androidx.preference.Preference.SummaryProvider} implementation.
+         *
+         * @return a singleton instance of this simple
+         * {@link androidx.preference.Preference.SummaryProvider} implementation
+         */
+        @NonNull
+        public static PhoneNumberPreference.SimpleSummaryProvider getInstance() {
+            if (sSimpleSummaryProvider == null) {
+                sSimpleSummaryProvider = new PhoneNumberPreference.SimpleSummaryProvider();
+            }
+            return sSimpleSummaryProvider;
+        }
+
+        @Nullable
+        @Override
+        public CharSequence provideSummary(@NonNull PhoneNumberPreference preference) {
+            String value = preference.getText();
+            final String displayValue = (!TextUtils.isEmpty(value))
+                    ? PhoneUtils.get(preference.getSubId()).formatForDisplay(value)
+                    : preference.getContext().getString(R.string.unknown_phone_number_pref_display_value);
+            final BidiFormatter bidiFormatter = BidiFormatter.getInstance();
+
+            return bidiFormatter.unicodeWrap
+                    (displayValue, TextDirectionHeuristicsCompat.LTR);
+        }
     }
 }

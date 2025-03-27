@@ -27,6 +27,8 @@ import android.view.animation.Animation;
 import android.view.animation.Transformation;
 import android.widget.PopupWindow;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.ThreadUtil;
 import com.android.messaging.util.UiUtils;
@@ -108,12 +110,7 @@ public class PopupTransitionAnimation extends Animation {
     }
 
     private final StringBuilder mEvents = new StringBuilder();
-    private final Runnable mCleanupRunnable = new Runnable() {
-        @Override
-        public void run() {
-            LogUtil.w(LogUtil.BUGLE_TAG, "PopupTransitionAnimation: " + mEvents);
-        }
-    };
+    private final Runnable mCleanupRunnable = () -> LogUtil.w(LogUtil.BUGLE_TAG, "PopupTransitionAnimation: " + mEvents);
 
     /**
      * Ensures the animation is ready before starting the animation.
@@ -167,14 +164,12 @@ public class PopupTransitionAnimation extends Animation {
         startAnimation.run();
     }
 
-    public PopupTransitionAnimation setOnStartCallback(final Runnable onStart) {
+    public void setOnStartCallback(final Runnable onStart) {
         mOnStartCallback = onStart;
-        return this;
     }
 
-    public PopupTransitionAnimation setOnStopCallback(final Runnable onStop) {
+    public void setOnStopCallback(final Runnable onStop) {
         mOnStopCallback = onStop;
-        return this;
     }
 
     @Override
@@ -206,17 +201,14 @@ public class PopupTransitionAnimation extends Animation {
         mViewToAnimate.setVisibility(View.VISIBLE);
         // Delay dismissing the popup window to let mViewToAnimate draw under it and reduce the
         // flash
-        ThreadUtil.getMainThreadHandler().post(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    mPopupWindow.dismiss();
-                } catch (IllegalArgumentException e) {
-                    // PopupWindow.dismiss() will fire an IllegalArgumentException if the activity
-                    // has already ended while we were animating
-                }
-                ThreadUtil.getMainThreadHandler().removeCallbacks(mCleanupRunnable);
+        ThreadUtil.getMainThreadHandler().post(() -> {
+            try {
+                mPopupWindow.dismiss();
+            } catch (IllegalArgumentException e) {
+                // PopupWindow.dismiss() will fire an IllegalArgumentException if the activity
+                // has already ended while we were animating
             }
+            ThreadUtil.getMainThreadHandler().removeCallbacks(mCleanupRunnable);
         });
     }
 
@@ -252,7 +244,7 @@ public class PopupTransitionAnimation extends Animation {
     private void initPopupWindow() {
         mPopupRoot = new View(mViewToAnimate.getContext()) {
             @Override
-            protected void onDraw(final Canvas canvas) {
+            protected void onDraw(@NonNull final Canvas canvas) {
                 canvas.save();
                 canvas.clipRect(getLeft(), mActionBarRect.bottom - mPopupRect.top, getRight(),
                         getBottom());

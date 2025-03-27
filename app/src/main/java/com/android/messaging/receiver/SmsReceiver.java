@@ -136,7 +136,7 @@ public final class SmsReceiver extends BroadcastReceiver {
     public static void deliverSmsMessages(final Context context, final int subId,
             final int errorCode, final android.telephony.SmsMessage[] messages) {
         final ContentValues messageValues =
-                MmsUtils.parseReceivedSmsMessage(context, messages, errorCode);
+                MmsUtils.parseReceivedSmsMessage(messages, errorCode);
 
         LogUtil.v(TAG, "SmsReceiver.deliverSmsMessages");
 

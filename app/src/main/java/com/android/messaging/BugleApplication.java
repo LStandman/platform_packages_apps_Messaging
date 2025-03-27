@@ -24,7 +24,6 @@ import android.os.Looper;
 
 import com.android.messaging.datamodel.DataModel;
 import com.android.messaging.receiver.SmsReceiver;
-import com.android.messaging.sms.ApnDatabase;
 import com.android.messaging.ui.ConversationDrawables;
 import com.android.messaging.util.BuglePrefsKeys;
 import com.android.messaging.util.DebugUtils;
@@ -94,8 +93,6 @@ public class BugleApplication extends Application implements UncaughtExceptionHa
 
         BugleApplication.updateAppConfig(context);
 
-        // Initialize APN database
-        ApnDatabase.initializeAppContext(context);
         // Fixup messages in flight if we crashed and send any pending
         dataModel.onApplicationCreated();
 

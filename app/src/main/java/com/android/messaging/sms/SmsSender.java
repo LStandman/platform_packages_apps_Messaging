@@ -26,6 +26,8 @@ import android.telephony.PhoneNumberUtils;
 import android.telephony.SmsManager;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import com.android.messaging.Factory;
 import com.android.messaging.R;
 import com.android.messaging.receiver.SendStatusReceiver;
@@ -37,12 +39,11 @@ import com.android.messaging.util.PhoneUtils;
 import com.android.messaging.util.UiUtils;
 
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Class that sends chat message via SMS.
- *
+ * <p>
  * The interface emulates a blocking sending similar to making an HTTP request.
  * It calls the SmsManager to send a (potentially multipart) message and waits
  * on the sent status on each part. The waiting has a timeout so it won't wait
@@ -54,15 +55,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SmsSender {
     private static final String TAG = LogUtil.BUGLE_TAG;
 
-    public static final String EXTRA_PART_ID = "part_id";
-
     /*
      * A map for pending sms messages. The key is the random request UUID.
      */
-    private static ConcurrentHashMap<Uri, SendResult> sPendingMessageMap =
-            new ConcurrentHashMap<Uri, SendResult>();
-
-    private static final Random RANDOM = new Random();
+    private static final ConcurrentHashMap<Uri, SendResult> sPendingMessageMap =
+            new ConcurrentHashMap<>();
 
     /**
      * Class that holds the sent status for all parts of a multipart message sending
@@ -107,7 +104,6 @@ public class SmsSender {
                 case SmsManager.RESULT_ERROR_NO_SERVICE:
                     return FAILURE_LEVEL_TEMPORARY;
                 case SmsManager.RESULT_ERROR_RADIO_OFF:
-                    return FAILURE_LEVEL_PERMANENT;
                 case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
                     return FAILURE_LEVEL_PERMANENT;
                 default: {
@@ -124,13 +120,12 @@ public class SmsSender {
             }
         }
 
+        @NonNull
         @Override
         public String toString() {
-            final StringBuilder sb = new StringBuilder();
-            sb.append("SendResult:");
-            sb.append("Pending=").append(mPendingParts).append(",");
-            sb.append("HighestFailureLevel=").append(mHighestFailureLevel);
-            return sb.toString();
+            return "SendResult:" +
+                    "Pending=" + mPendingParts + "," +
+                    "HighestFailureLevel=" + mHighestFailureLevel;
         }
     }
 
@@ -200,7 +195,7 @@ public class SmsSender {
         // Divide the input message by SMS length limit
         final SmsManager smsManager = PhoneUtils.get(subId).getSmsManager();
         final ArrayList<String> messages = smsManager.divideMessage(message);
-        if (messages == null || messages.size() < 1) {
+        if (messages == null || messages.isEmpty()) {
             throw new SmsException("SmsSender: fails to divide message");
         }
         // Prepare the send result, which collects the send status for each part
@@ -210,23 +205,21 @@ public class SmsSender {
         sendInternal(
                 context, subId, dest, messages, serviceCenter, requireDeliveryReport, messageUri);
         // Wait for pending intent to come back
-        synchronized (pendingResult) {
-            final long smsSendTimeoutInMillis = BugleGservices.get().getLong(
-                    BugleGservicesKeys.SMS_SEND_TIMEOUT_IN_MILLIS,
-                    BugleGservicesKeys.SMS_SEND_TIMEOUT_IN_MILLIS_DEFAULT);
-            final long beginTime = SystemClock.elapsedRealtime();
-            long waitTime = smsSendTimeoutInMillis;
-            // We could possibly be woken up while still pending
-            // so make sure we wait the full timeout period unless
-            // we have the send results of all parts.
-            while (pendingResult.hasPending() && waitTime > 0) {
-                try {
-                    pendingResult.wait(waitTime);
-                } catch (final InterruptedException e) {
-                    LogUtil.e(TAG, "SmsSender: sending wait interrupted");
-                }
-                waitTime = smsSendTimeoutInMillis - (SystemClock.elapsedRealtime() - beginTime);
+        final long smsSendTimeoutInMillis = BugleGservices.get().getLong(
+                BugleGservicesKeys.SMS_SEND_TIMEOUT_IN_MILLIS,
+                BugleGservicesKeys.SMS_SEND_TIMEOUT_IN_MILLIS_DEFAULT);
+        final long beginTime = SystemClock.elapsedRealtime();
+        long waitTime = smsSendTimeoutInMillis;
+        // We could possibly be woken up while still pending
+        // so make sure we wait the full timeout period unless
+        // we have the send results of all parts.
+        while (pendingResult.hasPending() && waitTime > 0) {
+            try {
+                pendingResult.wait(waitTime);
+            } catch (final InterruptedException e) {
+                LogUtil.e(TAG, "SmsSender: sending wait interrupted");
             }
+            waitTime = smsSendTimeoutInMillis - (SystemClock.elapsedRealtime() - beginTime);
         }
         // Either we timed out or have all the results (success or failure)
         sPendingMessageMap.remove(messageUri);
@@ -244,11 +237,11 @@ public class SmsSender {
         Assert.notNull(context);
         final SmsManager smsManager = PhoneUtils.get(subId).getSmsManager();
         final int messageCount = messages.size();
-        final ArrayList<PendingIntent> deliveryIntents = new ArrayList<PendingIntent>(messageCount);
-        final ArrayList<PendingIntent> sentIntents = new ArrayList<PendingIntent>(messageCount);
+        final ArrayList<PendingIntent> deliveryIntents = new ArrayList<>(messageCount);
+        final ArrayList<PendingIntent> sentIntents = new ArrayList<>(messageCount);
         for (int i = 0; i < messageCount; i++) {
             // Make pending intents different for each message part
-            final int partId = (messageCount <= 1 ? 0 : i + 1);
+            final int partId = (messageCount == 1 ? 0 : i + 1);
             if (requireDeliveryReport && (i == (messageCount - 1))) {
                 // TODO we only care about the delivery status of the last part
                 // Shall we have better tracking of delivery status of all parts?

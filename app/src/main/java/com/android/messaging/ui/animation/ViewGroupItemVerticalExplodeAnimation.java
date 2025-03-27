@@ -15,7 +15,6 @@
  */
 package com.android.messaging.ui.animation;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.Resources;
@@ -50,7 +49,7 @@ import com.android.messaging.util.UiUtils;
  * the animation.
  * </p>
  * <p>
- * To start this animation, call {@link #startAnimationForView(ViewGroup, View, View, boolean, int)}
+ * To start this animation, call {@link #startAnimationForView(ViewGroup, View, boolean, int)}
  * </p>
  */
 public class ViewGroupItemVerticalExplodeAnimation {
@@ -61,13 +60,10 @@ public class ViewGroupItemVerticalExplodeAnimation {
      *        size
      * @param viewToAnimate the view to be animated. The view will be highlighted by the explode
      *        highlight, which expands from the size of the view to the size of the container.
-     * @param animationStagingView the view that stages the animation. Since viewToAnimate may be
-     *        removed from the view tree during the animation, we need a view that'll be alive
-     *        for the duration of the animation so that the animation won't get cancelled.
      * @param snapshotView whether a snapshot of the view to animate is needed.
      */
     public static void startAnimationForView(final ViewGroup container, final View viewToAnimate,
-            final View animationStagingView, final boolean snapshotView, final int duration) {
+            final boolean snapshotView, final int duration) {
         if (viewToAnimate.getContext() instanceof Activity) {
             new ViewExplodeAnimationJellyBeanMR2(viewToAnimate, container, snapshotView, duration)
                 .startAnimation();
@@ -77,7 +73,6 @@ public class ViewGroupItemVerticalExplodeAnimation {
     /**
      * Implementation class for API level >= 18.
      */
-    @TargetApi(18)
     private static class ViewExplodeAnimationJellyBeanMR2 {
         private final View mViewToAnimate;
         private final ViewGroup mContainer;
@@ -120,7 +115,7 @@ public class ViewGroupItemVerticalExplodeAnimation {
                 shadowContainerLayer.setBottom(containerRect.bottom);
                 shadowContainerLayer.setRight(containerRect.right);
                 shadowContainerLayer.setBackgroundColor(resources.getColor(
-                        R.color.open_conversation_animation_background_shadow));
+                        R.color.open_conversation_animation_background_shadow, null));
                 // Per design request, temporarily clear out the background of the item content
                 // to not show any ripple effects during animation.
                 if (!(oldBackground instanceof ColorDrawable)) {
@@ -152,7 +147,7 @@ public class ViewGroupItemVerticalExplodeAnimation {
                 expandLayer.setBottom(viewRect.bottom);
                 expandLayer.setRight(viewRect.right);
                 expandLayer.setBackgroundColor(resources.getColor(
-                        R.color.conversation_background));
+                        R.color.conversation_background, null));
                 ViewCompat.setElevation(expandLayer, elevation);
 
                 // Conditionally stage the snapshot in the overlay.
@@ -170,17 +165,14 @@ public class ViewGroupItemVerticalExplodeAnimation {
                 expandLayer.animate().scaleY(scale)
                     .setDuration(mDuration)
                     .setInterpolator(UiUtils.EASE_IN_INTERPOLATOR)
-                    .withEndAction(new Runnable() {
-                        @Override
-                        public void run() {
-                            // Clean up the views added to overlay on animation finish.
-                            overlay.remove(shadowContainerLayer);
-                            mViewToAnimate.setBackground(oldBackground);
-                            if (mViewBitmap != null) {
-                                mViewBitmap.recycle();
-                            }
+                    .withEndAction(() -> {
+                        // Clean up the views added to overlay on animation finish.
+                        overlay.remove(shadowContainerLayer);
+                        mViewToAnimate.setBackground(oldBackground);
+                        if (mViewBitmap != null) {
+                            mViewBitmap.recycle();
                         }
-                });
+                    });
             }
         }
     }

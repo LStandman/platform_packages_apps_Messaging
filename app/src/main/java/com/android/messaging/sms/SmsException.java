@@ -19,15 +19,8 @@ package com.android.messaging.sms;
 /**
  * A generic Exception for errors in sending SMS
  */
-class SmsException extends Exception {
+public class SmsException extends Exception {
     private static final long serialVersionUID = 1L;
-
-    /**
-     * Creates a new SmsException.
-     */
-    public SmsException() {
-        super();
-    }
 
     /**
      * Creates a new SmsException with the specified detail message.
@@ -38,22 +31,4 @@ class SmsException extends Exception {
         super(message);
     }
 
-    /**
-     * Creates a new SmsException with the specified cause.
-     *
-     * @param cause the cause.
-     */
-    public SmsException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * Creates a new SmsException with the specified detail message and cause.
-     *
-     * @param message the detail message.
-     * @param cause the cause.
-     */
-    public SmsException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }

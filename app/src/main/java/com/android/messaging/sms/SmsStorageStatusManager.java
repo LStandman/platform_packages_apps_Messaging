@@ -15,76 +15,15 @@
  */
 package com.android.messaging.sms;
 
-import android.app.Notification;
-import android.app.PendingIntent;
-import android.content.Context;
-import android.content.res.Resources;
-import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
 import com.android.messaging.Factory;
-import com.android.messaging.R;
-import com.android.messaging.ui.UIIntents;
 import com.android.messaging.util.PendingIntentConstants;
-import com.android.messaging.util.PhoneUtils;
 
 /**
  * Class that handles SMS auto delete and notification when storage is low
  */
 public class SmsStorageStatusManager {
-    /**
-     * Handles storage low signal for SMS
-     */
-    public static void handleStorageLow() {
-        if (!PhoneUtils.getDefault().isSmsEnabled()) {
-            return;
-        }
-
-        // TODO: Auto-delete messages, when that setting exists and is enabled
-
-        // Notify low storage for SMS
-        postStorageLowNotification();
-    }
-
-    /**
-     * Handles storage OK signal for SMS
-     */
-    public static void handleStorageOk() {
-        if (!PhoneUtils.getDefault().isSmsEnabled()) {
-            return;
-        }
-        cancelStorageLowNotification();
-    }
-
-    /**
-     * Post sms storage low notification
-     */
-    private static void postStorageLowNotification() {
-        final Context context = Factory.get().getApplicationContext();
-        final Resources resources = context.getResources();
-        final PendingIntent pendingIntent = UIIntents.get()
-                .getPendingIntentForLowStorageNotifications(context);
-
-        final NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
-        builder.setContentTitle(resources.getString(R.string.sms_storage_low_title))
-                .setTicker(resources.getString(R.string.sms_storage_low_notification_ticker))
-                .setSmallIcon(R.drawable.ic_failed_light)
-                .setPriority(Notification.PRIORITY_DEFAULT)
-                .setOngoing(true)      // Can't be swiped off
-                .setAutoCancel(false)  // Don't auto cancel
-                .setContentIntent(pendingIntent);
-
-        final NotificationCompat.BigTextStyle bigTextStyle =
-                new NotificationCompat.BigTextStyle(builder);
-        bigTextStyle.bigText(resources.getString(R.string.sms_storage_low_text));
-        final Notification notification = bigTextStyle.build();
-
-        final NotificationManagerCompat notificationManager =
-                NotificationManagerCompat.from(Factory.get().getApplicationContext());
-
-        notificationManager.notify(getNotificationTag(),
-                PendingIntentConstants.SMS_STORAGE_LOW_NOTIFICATION_ID, notification);
-    }
 
     /**
      * Cancel the notification

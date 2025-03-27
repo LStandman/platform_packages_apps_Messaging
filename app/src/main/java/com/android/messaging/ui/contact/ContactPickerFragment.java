@@ -365,7 +365,7 @@ public class ContactPickerFragment extends Fragment implements ContactPickerData
                         startExplodeTransitionForContactLists(false /* show */);
 
                         ViewGroupItemVerticalExplodeAnimation.startAnimationForView(
-                                mCustomHeaderViewPager, mPendingExplodeView, mRootView,
+                                mCustomHeaderViewPager, mPendingExplodeView,
                                 true /* snapshotView */, UiUtils.COMPOSE_TRANSITION_DURATION);
                         showHideContactPagerWithAnimation(false /* show */);
                     } else {

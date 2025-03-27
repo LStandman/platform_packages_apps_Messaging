@@ -25,6 +25,7 @@ import com.android.messaging.util.BugleGservices;
 import com.android.messaging.util.BugleGservicesKeys;
 import com.android.messaging.util.LogUtil;
 
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,7 +57,7 @@ public class SmsReleaseStorage {
 
     private static final Duration DEFAULT_DURATION = new Duration(1, Duration.UNIT_MONTH);
 
-    private static final Pattern DURATION_PATTERN = Pattern.compile("([1-9]+\\d*)(w|m|y)");
+    private static final Pattern DURATION_PATTERN = Pattern.compile("([1-9]+\\d*)([wmy])");
     /**
      * Parse message retaining time duration specified by Gservices
      *
@@ -71,8 +72,8 @@ public class SmsReleaseStorage {
         try {
             if (matcher.matches()) {
                 return new Duration(
-                        Integer.parseInt(matcher.group(1)),
-                        matcher.group(2).charAt(0));
+                        Integer.parseInt(Objects.requireNonNull(matcher.group(1))),
+                        Objects.requireNonNull(matcher.group(2)).charAt(0));
             }
         } catch (final NumberFormatException e) {
             // Nothing to do
@@ -85,8 +86,6 @@ public class SmsReleaseStorage {
     /**
      * Get string representation of the time duration
      *
-     * @param duration
-     * @return
      */
     public static String getMessageRetainingDurationString(final Duration duration) {
         final Resources resources = Factory.get().getApplicationContext().getResources();
@@ -113,8 +112,6 @@ public class SmsReleaseStorage {
     /**
      * Convert time duration to time in milliseconds
      *
-     * @param duration
-     * @return
      */
     public static long durationToTimeInMillis(final Duration duration) {
         switch (duration.mUnit) {
@@ -138,19 +135,13 @@ public class SmsReleaseStorage {
      */
     public static void deleteMessages(final int actionIndex, final long durationInMillis) {
         int deleted = 0;
-        switch (actionIndex) {
-            case 1: {
-                // Delete old messages
-                final long now = System.currentTimeMillis();
-                final long cutOffTimestampInMillis = now - durationInMillis;
-                // Delete messages from telephony provider
-                deleted = MmsUtils.deleteMessagesOlderThan(cutOffTimestampInMillis);
-                break;
-            }
-            default: {
-                LogUtil.e(TAG, "SmsStorageStatusManager: invalid action " + actionIndex);
-                break;
-            }
+        if (actionIndex == 1) {// Delete old messages
+            final long now = System.currentTimeMillis();
+            final long cutOffTimestampInMillis = now - durationInMillis;
+            // Delete messages from telephony provider
+            deleted = MmsUtils.deleteMessagesOlderThan(cutOffTimestampInMillis);
+        } else {
+            LogUtil.e(TAG, "SmsStorageStatusManager: invalid action " + actionIndex);
         }
 
         if (deleted > 0) {

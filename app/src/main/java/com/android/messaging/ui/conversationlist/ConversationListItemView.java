@@ -366,7 +366,7 @@ public class ConversationListItemView extends FrameLayout implements OnClickList
             mTimestampTextView.setTypeface(mListItemReadTypeface, typefaceStyle);
             int failureMessageId = R.string.message_status_download_failed;
             if (mData.getIsMessageTypeOutgoing()) {
-                failureMessageId = MmsUtils.mapRawStatusToErrorResourceId(mData.getMessageStatus(),
+                failureMessageId = MmsUtils.mapRawStatusToErrorResourceId(
                         mData.getMessageRawTelephonyStatus());
             }
             mTimestampTextView.setText(resources.getString(failureMessageId));

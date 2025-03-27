@@ -24,14 +24,12 @@ import android.provider.Telephony.Sms;
 import android.text.TextUtils;
 
 import com.android.messaging.datamodel.data.MessageData;
-import com.android.messaging.util.LogUtil;
 import com.android.messaging.util.PhoneUtils;
 
 /**
  * Class contains various SMS/MMS database entities from telephony provider
  */
 public class DatabaseMessages {
-    private static final String TAG = LogUtil.BUGLE_TAG;
 
     public abstract static class DatabaseMessage {
         public abstract int getProtocol();
@@ -40,7 +38,7 @@ public class DatabaseMessages {
 
         @Override
         public boolean equals(final Object other) {
-            if (other == null || !(other instanceof DatabaseMessage)) {
+            if (!(other instanceof DatabaseMessage)) {
                 return false;
             }
             final DatabaseMessage otherDbMsg = (DatabaseMessage) other;
@@ -120,7 +118,6 @@ public class DatabaseMessages {
         /**
          * Load from a cursor of a query that returns the SMS to import
          *
-         * @param cursor
          */
         private void load(final Cursor cursor) {
             mRowId = cursor.getLong(INDEX_ID);
@@ -132,8 +129,8 @@ public class DatabaseMessages {
             mType = cursor.getInt(INDEX_TYPE);
             mThreadId = cursor.getLong(INDEX_THREAD_ID);
             mStatus = cursor.getInt(INDEX_STATUS);
-            mRead = cursor.getInt(INDEX_READ) == 0 ? false : true;
-            mSeen = cursor.getInt(INDEX_SEEN) == 0 ? false : true;
+            mRead = cursor.getInt(INDEX_READ) != 0;
+            mSeen = cursor.getInt(INDEX_SEEN) != 0;
             mUri = ContentUris.withAppendedId(Sms.CONTENT_URI, mRowId).toString();
             mSubId = PhoneUtils.getDefault().getSubIdFromTelephony(cursor, INDEX_SUB_ID);
         }
@@ -142,8 +139,6 @@ public class DatabaseMessages {
          * Get a new SmsMessage by loading from the cursor of a query
          * that returns the SMS to import
          *
-         * @param cursor
-         * @return
          */
         public static SmsMessage get(final Cursor cursor) {
             final SmsMessage msg = new SmsMessage();
@@ -193,7 +188,7 @@ public class DatabaseMessages {
         }
 
         public static final Parcelable.Creator<SmsMessage> CREATOR
-                = new Parcelable.Creator<SmsMessage>() {
+                = new Parcelable.Creator<>() {
             @Override
             public SmsMessage createFromParcel(final Parcel in) {
                 return new SmsMessage(in);
@@ -280,7 +275,7 @@ public class DatabaseMessages {
         }
 
         public static final Parcelable.Creator<LocalDatabaseMessage> CREATOR
-                = new Parcelable.Creator<LocalDatabaseMessage>() {
+                = new Parcelable.Creator<>() {
             @Override
             public LocalDatabaseMessage createFromParcel(final Parcel in) {
                 return new LocalDatabaseMessage(in);

@@ -72,7 +72,7 @@ public class MmsUtils {
      */
     public static final int MMS_REQUEST_NO_RETRY = 3;
 
-    public static final String getRequestStatusDescription(final int status) {
+    public static String getRequestStatusDescription(final int status) {
         switch (status) {
             case MMS_REQUEST_SUCCEEDED:
                 return "SUCCEEDED";
@@ -83,7 +83,7 @@ public class MmsUtils {
             case MMS_REQUEST_NO_RETRY:
                 return "NO_RETRY";
             default:
-                return String.valueOf(status) + " (check MmsUtils)";
+                return status + " (check MmsUtils)";
         }
     }
 
@@ -149,14 +149,12 @@ public class MmsUtils {
                 ALL_THREADS_URI,
                 RECIPIENTS_PROJECTION, "_id=?", new String[] { String.valueOf(threadId) }, null);
         if (thread != null) {
-            try {
+            try (thread) {
                 if (thread.moveToFirst()) {
                     // recipientIds will be a space-separated list of ids into the
                     // canonical addresses table.
                     return thread.getString(RECIPIENT_IDS);
                 }
-            } finally {
-                thread.close();
             }
         }
         return null;
@@ -166,7 +164,7 @@ public class MmsUtils {
             Uri.parse("content://mms-sms/canonical-address");
 
     private static List<String> getAddresses(final Context context, final String spaceSepIds) {
-        final List<String> numbers = new ArrayList<String>();
+        final List<String> numbers = new ArrayList<>();
         final String[] ids = spaceSepIds.split(" ");
         for (final String id : ids) {
             long longId;
@@ -216,7 +214,7 @@ public class MmsUtils {
     // Get telephony SMS thread ID
     public static long getOrCreateSmsThreadId(final Context context, final String dest) {
         // use destinations to determine threadId
-        final Set<String> recipients = new HashSet<String>();
+        final Set<String> recipients = new HashSet<>();
         recipients.add(dest);
         try {
             return MmsSmsUtils.Threads.getOrCreateThreadId(context, recipients);
@@ -228,11 +226,11 @@ public class MmsUtils {
 
     // Get telephony SMS thread ID
     public static long getOrCreateThreadId(final Context context, final List<String> dests) {
-        if (dests == null || dests.size() == 0) {
+        if (dests == null || dests.isEmpty()) {
             return -1;
         }
         // use destinations to determine threadId
-        final Set<String> recipients = new HashSet<String>(dests);
+        final Set<String> recipients = new HashSet<>(dests);
         try {
             return MmsSmsUtils.Threads.getOrCreateThreadId(context, recipients);
         } catch (final IllegalArgumentException e) {
@@ -245,29 +243,27 @@ public class MmsUtils {
      * Add an SMS to the given URI with thread_id specified.
      *
      * @param resolver the content resolver to use
-     * @param uri the URI to add the message to
-     * @param subId subId for the receiving sim
-     * @param address the address of the sender
-     * @param body the body of the message
-     * @param subject the psuedo-subject of the message
-     * @param date the timestamp for the message
-     * @param read true if the message has been read, false if not
+     * @param uri      the URI to add the message to
+     * @param subId    subId for the receiving sim
+     * @param address  the address of the sender
+     * @param body     the body of the message
+     * @param date     the timestamp for the message
      * @param threadId the thread_id of the message
      * @return the URI for the new message
      */
     private static Uri addMessageToUri(final ContentResolver resolver,
-            final Uri uri, final int subId, final String address, final String body,
-            final String subject, final Long date, final boolean read, final boolean seen,
-            final int status, final int type, final long threadId) {
+                                       final Uri uri, final int subId, final String address, final String body,
+                                       final Long date,
+                                       final int status, final int type, final long threadId) {
         final ContentValues values = new ContentValues(7);
 
         values.put(Telephony.Sms.ADDRESS, address);
         if (date != null) {
             values.put(Telephony.Sms.DATE, date);
         }
-        values.put(Telephony.Sms.READ, read ? 1 : 0);
-        values.put(Telephony.Sms.SEEN, seen ? 1 : 0);
-        values.put(Telephony.Sms.SUBJECT, subject);
+        values.put(Telephony.Sms.READ, 1);
+        values.put(Telephony.Sms.SEEN, 1);
+        values.put(Telephony.Sms.SUBJECT, (String) null);
         values.put(Telephony.Sms.BODY, body);
         values.put(Telephony.Sms.SUBSCRIPTION_ID, subId);
         if (status != Telephony.Sms.STATUS_NONE) {
@@ -289,15 +285,13 @@ public class MmsUtils {
         Uri response = null;
         try {
             response = addMessageToUri(context.getContentResolver(), uri, subId, dest,
-                    text, null /* subject */, timestamp, true /* read */,
-                    true /* seen */, status, type, threadId);
+                    text,  /* subject */ timestamp,  /* read */
+                    /* seen */ status, type, threadId);
             if (LogUtil.isLoggable(TAG, LogUtil.DEBUG)) {
                 LogUtil.d(TAG, "Mmsutils: Inserted SMS message into telephony (type = " + type + ")"
                         + ", uri: " + response);
             }
-        } catch (final SQLiteException e) {
-            LogUtil.e(TAG, "MmsUtils: persist sms message failure " + e, e);
-        } catch (final IllegalArgumentException e) {
+        } catch (final SQLiteException | IllegalArgumentException e) {
             LogUtil.e(TAG, "MmsUtils: persist sms message failure " + e, e);
         }
         return response;
@@ -320,9 +314,7 @@ public class MmsUtils {
                 }
                 return true;
             }
-        } catch (final SQLiteException e) {
-            LogUtil.e(TAG, "MmsUtils: update sms message failure " + e, e);
-        } catch (final IllegalArgumentException e) {
+        } catch (final SQLiteException | IllegalArgumentException e) {
             LogUtil.e(TAG, "MmsUtils: update sms message failure " + e, e);
         }
         return false;
@@ -331,13 +323,12 @@ public class MmsUtils {
     /**
      * Parse values from a received sms message
      *
-     * @param context
      * @param msgs The received sms message content
      * @param error The received sms error
      * @return Parsed values from the message
      */
     public static ContentValues parseReceivedSmsMessage(
-            final Context context, final SmsMessage[] msgs, final int error) {
+            final SmsMessage[] msgs, final int error) {
         final SmsMessage sms = msgs[0];
         final ContentValues values = new ContentValues();
 
@@ -345,10 +336,10 @@ public class MmsUtils {
         values.put(Sms.BODY, buildMessageBodyFromPdus(msgs));
         if (MmsUtils.hasSmsDateSentColumn()) {
             // TODO:: The boxing here seems unnecessary.
-            values.put(Sms.DATE_SENT, Long.valueOf(sms.getTimestampMillis()));
+            values.put(Sms.DATE_SENT, sms.getTimestampMillis());
         }
         values.put(Sms.PROTOCOL, sms.getProtocolIdentifier());
-        if (sms.getPseudoSubject().length() > 0) {
+        if (!sms.getPseudoSubject().isEmpty()) {
             values.put(Sms.SUBJECT, sms.getPseudoSubject());
         }
         values.put(Sms.REPLY_PATH_PRESENT, sms.isReplyPathPresent() ? 1 : 0);
@@ -406,7 +397,6 @@ public class MmsUtils {
      * a null string. Otherwise it will return the original subject string.
      * @param resources So the function can grab string resources
      * @param subject the raw subject
-     * @return
      */
     public static String cleanseMmsSubject(final Resources resources, final String subject) {
         if (TextUtils.isEmpty(subject)) {
@@ -433,9 +423,6 @@ public class MmsUtils {
     /**
      * Update the status and date_sent column of sms message in telephony provider
      *
-     * @param smsMessageUri
-     * @param status
-     * @param timeSentInMillis
      */
     public static void updateSmsStatusAndDateSent(final Uri smsMessageUri, final int status,
             final long timeSentInMillis) {
@@ -457,8 +444,6 @@ public class MmsUtils {
     /**
      * Get the (?,?,...) thing for the SQL IN operator by a count
      *
-     * @param count
-     * @return
      */
     public static String getSqlInOperand(final int count) {
         if (count <= 0) {
@@ -537,7 +522,7 @@ public class MmsUtils {
     /**
      * Check if date_sent column exists on ICS and above devices. We need to do a test
      * query to figure that out since on some ICS+ devices, somehow the date_sent column does
-     * not exist. http://b/17629135 tracks the associated compliance test.
+     * not exist. <a href="http://b/17629135">...</a> tracks the associated compliance test.
      *
      * @return Whether "date_sent" column exists in sms table
      */
@@ -577,18 +562,18 @@ public class MmsUtils {
         if (!DebugUtils.isDebugEnabled()) {
             return false;
         }
-        return getDumpSmsOrMmsPref(R.string.dump_sms_pref_key, R.bool.dump_sms_pref_default);
+        return getDumpSmsOrMmsPref();
     }
 
     /**
      * Load the value of dump sms or mms setting preference
      */
-    private static boolean getDumpSmsOrMmsPref(final int prefKeyRes, final int defaultKeyRes) {
+    private static boolean getDumpSmsOrMmsPref() {
         final Context context = Factory.get().getApplicationContext();
         final Resources resources = context.getResources();
         final BuglePrefs prefs = BuglePrefs.getApplicationPrefs();
-        final String key = resources.getString(prefKeyRes);
-        final boolean defaultValue = resources.getBoolean(defaultKeyRes);
+        final String key = resources.getString(R.string.dump_sms_pref_key);
+        final boolean defaultValue = resources.getBoolean(R.bool.dump_sms_pref_default);
         return prefs.getBoolean(key, defaultValue);
     }
 
@@ -679,7 +664,7 @@ public class MmsUtils {
         return resolver.delete(messageUri, null /* selection */, null /* selectionArgs */);
     }
 
-    public static int mapRawStatusToErrorResourceId(final int bugleStatus, final int rawStatus) {
+    public static int mapRawStatusToErrorResourceId(final int rawStatus) {
         int stringResId = R.string.message_status_send_failed;
         if (rawStatus == MessageData.RAW_TELEPHONY_STATUS_MESSAGE_TOO_BIG) {
             stringResId = R.string.mms_failure_outgoing_too_large;

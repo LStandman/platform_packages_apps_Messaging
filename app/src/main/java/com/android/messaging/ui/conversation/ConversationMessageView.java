@@ -323,7 +323,7 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
                         statusResId = R.string.message_status_resend;
                     } else {
                         statusResId = MmsUtils.mapRawStatusToErrorResourceId(
-                                mData.getStatus(), mData.getRawTelephonyStatus());
+                                mData.getRawTelephonyStatus());
                     }
                     break;
                 }
